@@ -1,0 +1,23 @@
+.messagebox .mcore {
+    width: 100%;
+    clear: both;
+}
+
+.messagebox .mcore > img {
+    padding: 5px;
+    border: none;
+    float: left;
+}
+
+.messagebox .mcore .msummary  {
+    padding: 0;
+    border: none;
+    text-align: center;
+    font-weight: bold;
+}
+
+.messagebox .mcore .mtext  {
+    padding: 0;
+    margin-top: 0.5em;
+    border: none;
+}

@@ -1,0 +1,43 @@
+LOGIN_TITLE     = Log in
+LOGIN_LOGINFORM = Log in
+LOGIN_INTRO     = Enter your username and password to log in.
+LOGIN_USERNAME  = Username
+LOGIN_PASSWORD  = Password
+LOGIN_EMAIL     = Email address
+LOGIN_PERSIST   = Remember me
+LOGIN_LOGIN     = Log in
+LOGIN_FAILED    = Login failed
+
+PERSIST_WARNING = <strong>WARNING</strong>: do not enable the "Remember me" option on shared, cluster, or public computers. This option should only be enabled on machines you have exclusive access to.
+
+LOGIN_DONE      = You have successfully logged into the system, and you will be redirected shortly.
+LOGIN_DONE_NOR  = You have successfully logged into the system, but warnings were generated during the login process. Please read the warning message shown above before continuing.
+LOGIN_REDIRECT  = <p>If you do not want to wait, <a href="***url***">click here</a>.</p><p><a href="index.cgi">Click here</a> to return to the front page.</p>
+LOGIN_CONTLINK  = <p><a href="***url***">Click here</a> to return to the page you needed to log in to access. <a href="index.cgi">Click here</a> to return to the front page.</p>
+
+LOGOUT_TITLE    = Logged out
+LOGOUT_SUMMARY  = You have successfully logged out.
+LOGOUT_LONGDESC = You have successfully logged out, and you will be redirected shortly. If you do not want to wait, <a href="***url***">click here</a> to continue. Alternatively, <a href="{V_[scriptpath]}">Click here</a> to return to the front page.
+
+LOGIN_ERR_BADUSERCHAR = Illegal character in username. Usernames may only contain alphanumeric characters, underscores, or hyphens.
+LOGIN_ERR_INVALID     = Login failed: unknown username or password provided.
+
+# Registration-related stuff
+LOGIN_REGISTER   = Sign up
+LOGIN_REG_INTRO  = Create an account by choosing a username and giving a valid email address. A password will be emailed to you.
+LOGIN_SECURITY   = Security question
+LOGIN_SEC_INTRO  = In order to prevent abuse by automated spamming systems, please answer the following question to prove that you are a human.<br/>Note: the answer is not case sensitive.
+LOGIN_SEC_SUBMIT = Sign up
+
+LOGIN_ERR_NOSELFREG  = Self-registration is not currently permitted.
+LOGIN_ERR_REGFAILED  = Registration failed
+LOGIN_ERR_BADSECURE  = You did not answer the security question correctly, please check your answer and try again.
+LOGIN_ERR_BADEMAIL   = The specified email address does not appear to be valid.
+LOGIN_ERR_USERINUSE  = The specified username is already in use. If you can't remember your password, <strong>please use the <a href="***target***?recover">account recovery</a> facility</strong> rather than attempt to make a new account.
+LOGIN_ERR_EMAILINUSE = The specified email address is already in use. If you can't remember your username or password, <strong>please use the <a href="***target***?recover">account recovery</a> facility</strong> rather than attempt to make a new account.
+LOGIN_ERR_INACTIVE   = Your account is currently inactive. Please check your email for an 'Activation Required' email and follow the link it contains to activate your account. If you have not received an actication email, or need a new one, <a href="***target***?sendactcode">request a new activation email</a>.
+
+# Registration done
+LOGIN_REG_DONETITLE  = Registration successful
+LOGIN_REG_SUMMARY    = Registration successful - Activation required!
+LOGIN_REG_LONGDESC   = A new user account has been created for you, and an email has been sent to the email address you specified containing your new account password, and an activation link. Please check your email for the 'Activation Required' message and follow the instructions it contains to activate your account.
