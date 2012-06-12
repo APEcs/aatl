@@ -234,15 +234,20 @@ sub generate_loggedin {
     $warning = $self -> {"template"} -> load_template("feature/login/warning_box.tem", {"***message***" => $self -> {"session"} -> auth_error()})
         if($self -> {"session"} -> auth_error());
 
-    my $content;
+    my ($content, $extrahead);
+
     # If any warnings were encountered, send back a different logged-in page to avoid
     # confusing users.
     if(!$warning) {
         # Should users get a login confirmation page, or just be punted straight to where they came from?
         if($self -> {"settings"} -> {"config"} -> {"login_confirm"}) {
-            $content = $self -> {"template"} -> load_template("feature/login/loggedin.tem", {"***url***"     => $url,
-                                                                                             "***warning***" => "",
-                                                                                             "***return***"  => $self -> {"template"} -> replace_langvar("LOGIN_REDIRECT", {"***url***" => $url})});
+            $content = $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_DONETITLE"),
+                                                            "security",
+                                                            $self -> {"template"} -> replace_langvar("LOGIN_SUMMARY"),
+                                                            $self -> {"template"} -> replace_langvar("LOGIN_LONGDESC", {"***url***" => $url}),
+                                                            undef,
+                                                            "logincore");
+            $extrahead = $self -> {"template"} -> load_template("refreshmeta.tem", {"***url***" => $url});
         } else {
             # No confirmation page is expected, do the redirect.
             print $self -> {"cgi"} -> redirect($url);
@@ -252,15 +257,21 @@ sub generate_loggedin {
     # Users who have encountered warnings during login always get a login confirmation page, as it has
     # to show them the warning message box.
     } else {
-        $content = $self -> {"template"} -> load_template("feature/login/loggedin_noredirect.tem", {"***url***"     => $url,
-                                                                                                    "***warning***" => $warning,
-                                                                                                    "***return***"  => $self -> {"template"} -> replace_langvar("LOGIN_CONTLINK", {"***url***" => $url})});
+        my $message = $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_DONETITLE"),
+                                                           "security",
+                                                           $self -> {"template"} -> replace_langvar("LOGIN_SUMMARY"),
+                                                           $self -> {"template"} -> replace_langvar("LOGIN_NOREDIRECT", {"***url***" => $url,
+                                                                                                                         "***supportaddr***" => ""}),
+                                                           undef,
+                                                           "logincore");
+        $content = $self -> {"template"} -> load_template("feature/login/login_warn.tem", {"***message***" => $message,
+                                                                                           "***warning***" => $warning});
     }
 
     # return the title, content, and extraheader. If the warning is set, do not include an autoredirect.
-    return ($self -> {"template"} -> replace_langvar("LOGIN_TITLE"),
+    return ($self -> {"template"} -> replace_langvar("LOGIN_DONETITLE"),
             $content,
-            $warning ? "" : $self -> {"template"} -> load_template("refreshmeta.tem", {"***url***" => $url}));
+            $extrahead);
 }
 
 
