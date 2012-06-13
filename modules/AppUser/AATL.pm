@@ -21,6 +21,7 @@ package AppUser::AATL;
 
 use strict;
 use base qw(AppUser);
+use AuthMethod::Database; # pull in the database auth module to avoid code duplication
 
 ## @method $ activate_user($userid)
 # Activate the user account with the specified id. This clears the user's
@@ -43,8 +44,46 @@ sub activate_user {
 }
 
 
-## @method $ create_user(username, email)
+## @method @ create_user($username, $email)
+# Create a new user, with a randomly generated password and activation code.
+# This will set the user's name, email, password, activation code, and creation
+# date, all other fields will be defaults.
 #
+# @param username The username of the user to create a record for.
+# @param email    The email address of the new user.
+# @return An array of two values: the first is either a reference to the user's
+#         new record data on success, or undef on failure; the second is the
+#         10 character alphanumeric unencrypted password to send to the user.
+sub create_user {
+    my $self     = shift;
+    my $username = shift;
+    my $email    = shift;
+
+    # Generate some randomness for the authcode and password. These don't need
+    # to be Insanely Secure, so this should be sufficient...
+    my $actcode  = join("", map { ("a".."z", "A".."Z", 0..9)[rand 62] } 1..64);
+    my $password = join("", map { ("a".."z", "A".."Z", 0..9)[rand 62] } 1..10);
+
+    # Hash the password using the method AuthMethod::Database uses internally
+    my $cryptpass = AuthMethod::Database::hash_password({"bcrypt_cost" => 14}, $password);
+
+    # Do the insert
+    my $userh = $self -> {"dbh"} -> prepare("INSERT INTO ".$self -> {"settings"} -> {"database"} -> {"users"}."
+                                             (username, password, email, created, act_code)
+                                             VALUES(?, ?, ?, UNIX_TIMESTAMP(), ?)");
+    my $rows = $userh -> execute($username, $cryptpass, $email, $actcode);
+    return $self -> self_error("Unable to perform user insert: ". $self -> {"dbh"} -> errstr) if(!$rows);
+    return $self -> self_error("User insert failed, no rows added.") if($rows eq "0E0");
+
+    # FIXME: This ties to MySQL, but is more reliable that last_insert_id in general.
+    #        Try to find a decent solution for this mess...
+    my $userid = $self -> {"dbh"} -> {"mysql_insertid"};
+    return $self -> self_error("Unable to obtain id for user '$username'") if(!$userid);
+
+    my $user = $self -> get_user_byid($userid);
+
+    return ($user, $password);
+}
 
 
 ## @method $ get_user_byemail($email, $onlyreal)
