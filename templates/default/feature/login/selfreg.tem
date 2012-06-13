@@ -10,7 +10,7 @@ window.addEvent('domready', function() {
                             ],
                             content: '<p class="left">{L_LOGIN_SEC_INTRO}</p><div class="entry"><label for="secquest">***question***:<br /><input type="text" id="secquest" name="secquest" class="highlight" size="24" maxlength="255" /></label></div>'
     });
-    $('register').addEvent('click', function() { regbox.open(); });
+    $('showq').addEvent('click', function() { regbox.open(); });
 });
             </script>
             <p>{L_LOGIN_REG_INTRO}</p>
@@ -24,8 +24,9 @@ window.addEvent('domready', function() {
                     <input type="text" id="email" name="email" class="highlight" size="24" maxlength="255" value="***email***"/></label>
                 </div>
                 <div class="submit">
-                    <input type="button" class="button blue" id="register" name="register" value="{L_LOGIN_REGISTER}" />
+                    <input type="button" class="button blue" id="showq" name="showq" value="{L_LOGIN_REGISTER}" />
                     <input type="hidden" id="answer" name="answer" />
+                    <input type="hidden" id="register" name="register" value="register" />
                 </div>
             </form>
         </div>

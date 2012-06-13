@@ -22,7 +22,8 @@ package Feature;
 
 use strict;
 use base qw(Block); # Features are just a specific form of Block
-use Utils qw(is_defined_numeric);
+use CGI::Util qw(escape);
+use Utils qw(is_defined_numeric path_join);
 
 ## @method $ determine_courseid()
 # Attempt to work out which course the user is actually looking at. This is not
@@ -183,9 +184,8 @@ sub build_login_url {
     #       parameters added by the BlockSelector will be included!)
     $self -> {"session"} -> set_variable("savestate", $self -> {"cgi"} -> query_string());
 
-    return path_join($self -> {"settings"} -> {"config"} -> {"script_path"},
-                     ($self -> {"cgi"} -> param("course") || $self -> {"settings"} -> {"config"} -> {"metacourse_name"}),
-                     "login");
+    return $self -> build_url("course" => ($self -> {"cgi"} -> param("course") || $self -> {"settings"} -> {"config"} -> {"aatlcourse_name"}),
+                              "block"  => "login");
 }
 
 
@@ -201,28 +201,97 @@ sub get_saved_state {
 }
 
 
-## @method $ build_return_url()
+## @method $ build_return_url($fullurl)
 # Pulls the data out of the session saved state, checks it for safety,
 # and returns the URL the user should be redirected/linked to to return to the
 # location they were attempting to access before login.
 #
+# @param fullurl If set to true, the generated url will contain the protocol and
+#                host. Otherwise the URL will be absolute from the server root.
 # @return A relative return URL.
 sub build_return_url {
-    my $self = shift;
+    my $self    = shift;
+    my $fullurl = shift;
 
     # Get the saved state
     my $state = $self -> get_saved_state();
 
     # fall over on a default if it's not available, or it contains illegal characters
-    return path_join($self -> {"settings"} -> {"script_path"}, $self -> {"cgi"} -> param("course"), $self -> {"cgi"} -> param("block"))
-        if(!$state || $state !~ /^([&;+=a-zA-Z0-9_.~-]|%[a-fA-F0-9]{2,})+$/);
+    return $self -> build_url("course" => $self -> {"cgi"} -> param("course"),
+                              "block"  => $self -> {"cgi"} -> param("block"))
+        unless($state && $state =~ /^([&;+=a-zA-Z0-9_.~-]|%[a-fA-F0-9]{2,})+$/);
 
     # Pull out the course and block
     my ($course) = $state =~ /course=(\w+)/;
     my ($block)  = $state =~ /block=(\w+)/;
 
     # Build the URL from them
-    return path_join($self -> {"settings"} -> {"config"} -> {"script_path"}, $course, $block, "?$state")
+    return $self -> build_url("course"   => $course,
+                              "block"    => $block,
+                              "paramstr" => $state);
+}
+
+
+## @method $ build_url(%args)
+# Build a url suitable for use at any point in the system. This takes the args
+# and attempts to build a url from them. Supported arguments are:
+#
+# * fullurl  - if set, the resulting URL will include the protocol and host. Defaults to
+#              false (URL is absolute from the host root).
+# * course   - the course code to include in the url. If not specified, the current
+#              course is used instead. If there is no course, and any other args are
+#              specified, this is set to the value set for 'aatlcourse_name' in the
+#              configuration.
+# * block    - the name of the block to include in the url.
+# * cid      - the course id to use. If this is not specified, the current cid is used
+#              instead. If no cid is set, no cid is included in the url.
+# * params   - a reference to a hash of additional query string arguments. Values may
+#              be references to arrays, in which case multiple copies of the parameter
+#              are added to the query string.
+# * paramstr - An optional, previously-escaped, well formed query string fragment to
+#              append to the query string.
+#
+# @param args A hash of arguments to use when building the URL.
+# @return A string containing the URL.
+sub build_url {
+    my $self = shift;
+    my %args = @_;
+    my $url = "";
+
+    # start off with the protocol and host:port if needed.
+    $url = $self -> {"cgi"} -> url(-base => 1) if($args{"fullurl"});
+
+    # Fix up the course and cid
+    $args{"course"} = $self -> {"cgi"} -> param("course") || $self -> {"settings"} -> {"config"} -> {"aatlcourse_name"}
+        unless($args{"course"});
+
+    $args{"cid"}    = $self -> {"cgi"} -> param("cid")
+        unless($args{"cid"});
+
+    my @pairs;
+    # make sure the cid is first in the query strint, if set.
+    push(@pairs, "cid=$args{cid}") if($args{"cid"});
+
+    # build the parameter list
+    if($args{"params"}) {
+        foreach my $param (keys(%{$args{"params"}})) {
+            for my $value ($args{"params"} -> {$param}) {
+                next unless(defined($value)); # Ignore parameters with no defined values
+
+                push(@pairs, escape($param)."=".escape($value));
+            }
+        }
+    }
+    push(@pairs, $args{"paramstr"}) if($args{"paramstr"});
+
+    # And squish into a query string
+    my $querystring = join("&", @pairs);
+
+    # building time...
+    $url = path_join($url, $self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"});
+    $url .= "?$querystring" if($querystring);
+
+    return $url;
 }
 
 1;

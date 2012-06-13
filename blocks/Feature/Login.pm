@@ -29,6 +29,37 @@ use strict;
 use base qw(Feature); # This class extends Feature
 use Utils qw(path_join);
 
+# ============================================================================
+#  Emailer functions
+
+## @method $ send_reg_email($user, $password)
+# Send a registration welcome message to the specified user. This send an email
+# to the user including their username, password, and a link to the activation
+# page for their account.
+#
+# @param user     A reference to a user record hash.
+# @param password The unencrypted version of the password set for the user.
+# @return undef on success, otherwise an error message.
+sub send_reg_email {
+    my $self     = shift;
+    my $user     = shift;
+    my $password = shift;
+
+    my $url = $self -> build_url("fullurl"  => 1,
+                                 "block"    => "login",
+                                 "paramstr" => "uid=".$user -> {"user_id"}."&actcode=".$user -> {"act_code"});
+
+    return $self -> {"template"} -> email_template("feature/login/email_registered.tem",
+                                                   {"***from***"     => $self -> {"settings"} -> {"config"} -> {"Core:admin_email"},
+                                                    "***to***"       => $user -> {"email"},
+                                                    "***subject***"  => $self -> {"template"} -> replace_langvar("LOGIN_REG_SUBJECT"),
+                                                    "***username***" => $user -> {"username"},
+                                                    "***password***" => $password,
+                                                    "***act_code***" => $user -> {"act_code"},
+                                                    "***act_url***"  => $url,
+                                                   });
+}
+
 
 # ============================================================================
 #  Validation functions
@@ -167,9 +198,13 @@ sub validate_register {
         if($errors);
 
     # Get here an the user's details are okay, register the new user.
-    my $user = $self -> {"session"} -> {"auth"} -> {"app"} -> create_user($args -> {"regname"}, $args -> {"email"});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***reason***" => $user})
+    my ($user, $password) = $self -> {"session"} -> {"auth"} -> {"app"} -> create_user($args -> {"regname"}, $args -> {"email"});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***reason***" => $self -> {"session"} -> {"auth"} -> {"app"} -> {"errstr"}})
         if(!ref($user));
+
+    # Send registration email
+    my $err = $self -> send_reg_email($user, $password);
+    return ($err, $args) if($err);
 
     # User is registered...
     return ($user, $args);

@@ -39,5 +39,12 @@ LOGIN_ERR_INACTIVE   = Your account is currently inactive. Please check your ema
 
 # Registration done
 LOGIN_REG_DONETITLE  = Registration successful
-LOGIN_REG_SUMMARY    = Registration successful - Activation required!
+LOGIN_REG_SUMMARY    = Activation required!
 LOGIN_REG_LONGDESC   = A new user account has been created for you, and an email has been sent to the email address you specified containing your new account password, and an activation link. Please check your email for the 'Activation Required' message and follow the instructions it contains to activate your account.
+
+# Registration email
+LOGIN_REG_SUBJECT    = AATL account created - Activation required!
+LOGIN_REG_GREETING   = Hi ***username***
+LOGIN_REG_CREATED    = A new account in the AATL system has just been created for you. Your username and password for the system are given below.
+LOGIN_REG_ACTNEEDED  = Before you can log in, you must activate your account. To activate your account, please click on the following link, or copy and paste it into your web browser:
+LOGIN_REG_ENJOY      = Thank you for registering, we hope you enjoy your courses!
