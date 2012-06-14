@@ -23,13 +23,13 @@ use strict;
 use base qw(AppUser);
 use AuthMethod::Database; # pull in the database auth module to avoid code duplication
 
-## @method $ activate_user($userid)
+## @method $ activate_user_byid($userid)
 # Activate the user account with the specified id. This clears the user's
 # activation code, and sets the activation timestamp.
 #
 # @param userid The ID of the user account to activate.
 # @return true on success, undef on error.
-sub activate_user {
+sub activate_user_byid {
     my $self   = shift;
     my $userid = shift;
 
@@ -37,6 +37,27 @@ sub activate_user {
                                                 SET activated = UNIX_TIMESTAMP(), act_code = NULL
                                                 WHERE user_id = ?");
     my $rows = $activate -> execute($userid);
+    return $self -> self_error("Unable to perform user update: ". $self -> {"dbh"} -> errstr) if(!$rows);
+    return $self -> self_error("User update failed, no rows modified - bad userid?") if($rows eq "0E0");
+
+    return 1;
+}
+
+
+## @method $ activate_user($actcode)
+# Activate the user account with the specified code. This clears the user's
+# activation code, and sets the activation timestamp.
+#
+# @param actcode The activation code to look for and clear.
+# @return true on success, undef on error.
+sub activate_user {
+    my $self    = shift;
+    my $actcode = shift;
+
+    my $activate = $self -> {"dbh"} -> prepare("UPDATE ".$self -> {"settings"} -> {"database"} -> {"users"}."
+                                                SET activated = UNIX_TIMESTAMP(), act_code = NULL
+                                                WHERE act_code = ?");
+    my $rows = $activate -> execute($actcode);
     return $self -> self_error("Unable to perform user update: ". $self -> {"dbh"} -> errstr) if(!$rows);
     return $self -> self_error("User update failed, no rows modified - bad userid?") if($rows eq "0E0");
 
@@ -133,7 +154,7 @@ sub post_authenticate {
     # User is inactive, does the account need activating?
     if(!$user -> {"act_code"}) {
         # No code provided, so just activate the account
-        if($self -> activate_user($user -> {"user_id"})) {
+        if($self -> activate_user_byid($user -> {"user_id"})) {
             return $user;
         } else {
             $auth -> {"lasterr"} .= $self -> {"errstr"};
