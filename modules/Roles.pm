@@ -173,6 +173,8 @@ sub user_has_role {
     my $self = shift;
     my ($metadataid, $userid, $roleid, $sourceid, $check_tree) = @_;
 
+    $self -> clear_error();
+
     # Note lack of caching - while it would be possible to cache the result of this, doing
     # so is likely to introduce subtle bugs. Caching can be added in future if needed.
     my $has_role;
@@ -186,7 +188,6 @@ sub user_has_role {
 
         # Otherwise, try going up to the parent
         $metadataid = $self -> {"metadata"} -> parentid($metadataid);
-        return undef if(!defined($metadataid));
     } while($check_tree && $metadataid);
 
     return defined($has_role);
