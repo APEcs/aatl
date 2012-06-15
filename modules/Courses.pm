@@ -154,7 +154,7 @@ sub create {
                     return $courseid if($self -> set_features($courseid, $features));
 
                 } else { # if($courseid) {
-                    $self -> self_error("Unable to obtain id for tag '$name'");
+                    $self -> self_error("Unable to obtain id for course '$code'");
                 }
             } else { # if($rows ne "0E0") {
                 $self -> self_error("Course insert failed, no rows inserted");

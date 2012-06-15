@@ -32,8 +32,6 @@ use Data::Dumper;
 sub page_display {
     my $self = shift;
 
-    print STDERR "In News block, checking login...\nSession:".Dumper($self -> {"session"});
-
     # Confirm that the user is logged in and has access to the course
     my $error = $self -> check_login_courseview(0);
     return $error if($error);

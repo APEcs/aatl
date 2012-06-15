@@ -25,6 +25,7 @@ package System::AATL;
 use strict;
 use base qw(System);
 
+use Courses;
 use Metadata;
 use Roles;
 use Tags;

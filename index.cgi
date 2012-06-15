@@ -31,6 +31,7 @@ BEGIN {
 }
 
 my $app = Application -> new(appuser        => AppUser::AATL -> new(),
+                             system         => System::AATL -> new(),
                              block_selector => BlockSelector::AATL -> new())
     or die "Unable to create application";
 $app -> run();

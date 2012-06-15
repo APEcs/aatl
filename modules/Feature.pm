@@ -126,8 +126,6 @@ sub check_login_courseview {
 
     # Anonymous users need to get punted over to the login form
     if($self -> {"session"} -> anonymous_session()) {
-        print STDERR "Detected anonymous session, redirecting to login\n";
-
         print $self -> {"cgi"} -> redirect($self -> build_login_url());
         exit;
 

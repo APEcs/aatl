@@ -115,9 +115,9 @@ sub validate_login {
     # User is valid!
     return ($user, $args) if($user);
 
-    # User is not valid, does the lasterr contain anything?
-    return ($self -> {"template"} -> process_template($errtem, {"***reason***" => $self -> {"session"} -> {"auth"} -> {"lasterr"}}), $args)
-        if($self -> {"session"} -> {"auth"} -> {"lasterr"});
+    # User is not valid, does the auth's errstr contain anything?
+    return ($self -> {"template"} -> process_template($errtem, {"***reason***" => $self -> {"session"} -> auth_error()}), $args)
+        if($self -> {"session"} -> auth_error());
 
     # Nothing useful, just return a fallback
     return ($self -> {"template"} -> process_template($errtem, {"***reason***" => $self -> {"template"} -> replace_langvar("LOGIN_ERR_INVALID")}), $args);
@@ -480,8 +480,6 @@ sub page_display {
 
         # No errors, user is valid...
         } else {
-            print STDERR "Logged in user: ".Dumper($user);
-
             # create the new logged-in session, copying over the savestate session variable
             $self -> {"session"} -> create_session($user -> {"user_id"},
                                                    $self -> {"cgi"} -> param("persist"),
@@ -489,8 +487,6 @@ sub page_display {
 
             $self -> log("login", $user -> {"username"});
             ($title, $body, $extrahead) = $self -> generate_loggedin();
-
-            print STDERR "Login cookies: ".Dumper($self -> {"session"} -> session_cookies());
         }
 
     # Has a registration attempt been made?

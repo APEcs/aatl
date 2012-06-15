@@ -140,7 +140,7 @@ sub get_user_byemail {
 # @param auth     A reference to the auth object calling this.
 # @return A reference to a hash containing the user's data on success,
 #         undef otherwise. If this returns undef, an error message will be
-#         appended to the specified auth's lasterr field.
+#         set in to the specified auth's errstr field.
 sub post_authenticate {
     my $self     = shift;
     my $username = shift;
@@ -152,21 +152,59 @@ sub post_authenticate {
     return undef unless($user);
 
     # User now exists, determine whether the user is active
-    return $user if($user -> {"activated"});
+    return $self -> post_login_checks($user, $auth)
+        if($user -> {"activated"});
 
     # User is inactive, does the account need activating?
     if(!$user -> {"act_code"}) {
         # No code provided, so just activate the account
         if($self -> activate_user_byid($user -> {"user_id"})) {
-            return $user;
+            return $self -> post_login_checks($user, $auth)
         } else {
-            $auth -> {"lasterr"} .= $self -> {"errstr"};
-            return undef;
+            return $auth -> self_error($self -> {"errstr"});
         }
     } else {
-        $auth -> {"lasterr"} = "User account is not active.";
-        return undef;
+        return $auth -> self_error("User account is not active.");
     }
 }
+
+
+## @method $ post_login_checks($user, $auth)
+# Perform checks on the specified user after they have logged in (post_authenticate is
+# going to return the user record). This ensures that the user has the appropriate
+# roles and settings.
+#
+# @todo This needs to invoke the enrolment engine to make sure the user has the
+#       appropriate per-course roles assigned.
+#
+# @param user A reference to a hash containing the user's data.
+# @param auth A reference to the auth object calling this.
+# @return A reference to a hash containing the user's data on success,
+#         undef otherwise. If this returns undef, an error message will be
+#         set in to the specified auth's errstr field.
+sub post_login_checks {
+    my $self = shift;
+    my $user = shift;
+    my $auth = shift;
+
+    # All users must have the user role in the metadata root
+    my $roleid  = $self -> {"system"} -> {"roles"} -> role_get_roleid("user");
+    my $root    = $self -> {"system"} -> {"roles"} -> {"root_context"};
+    my $hasrole = $self -> {"system"} -> {"roles"} -> user_has_role($root, $user -> {"user_id"}, $roleid);
+
+    # Give up if the role check failed.
+    return $auth -> self_error($self -> {"system"} -> {"roles"} -> {"errstr"})
+        if(!defined($hasrole));
+
+    # Try to assign the role if the user does not have it.
+    $self -> {"system"} -> {"roles"} -> user_assign_role($root, $user -> {"user_id"}, $roleid)
+        or return $auth -> self_error($self -> {"system"} -> {"roles"} -> {"errstr"})
+        if(!$hasrole);
+
+    # TODO: Assign other roles as needed.
+
+    return $user;
+}
+
 
 1;
