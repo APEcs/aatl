@@ -213,18 +213,20 @@ sub get_saved_state {
 sub build_return_url {
     my $self    = shift;
     my $fullurl = shift;
+    my ($course, $block);
 
     # Get the saved state
     my $state = $self -> get_saved_state();
 
-    # fall over on a default if it's not available, or it contains illegal characters
-    return $self -> build_url("course" => $self -> {"cgi"} -> param("course"),
-                              "block"  => $self -> {"cgi"} -> param("block"))
-        unless($state && $state =~ /^([&;+=a-zA-Z0-9_.~-]|%[a-fA-F0-9]{2,})+$/);
-
-    # Pull out the course and block
-    my ($course) = $state =~ /course=(\w+)/;
-    my ($block)  = $state =~ /block=(\w+)/;
+    if($state && $state =~ /^([&;+=a-zA-Z0-9_.~-]|%[a-fA-F0-9]{2,})+$/) {
+        # Pull out the course and block
+        ($course) = $state =~ /course=(\w+)/;
+        ($block)  = $state =~ /block=(\w+)/;
+    } else {
+        # fall back on the current
+        $course = $self -> {"cgi"} -> param("course");
+        $block  = $self -> {"cgi"} -> param("block");
+    }
 
     # return url block should never be "login"
     $block = "" if($block eq "login");

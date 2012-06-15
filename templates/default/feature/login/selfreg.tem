@@ -30,4 +30,4 @@ window.addEvent('domready', function() {
                 </div>
             </form>
         </div>
-        <style type="text/css">div.logincore { width: 700px; }</style>
+        <style type="text/css">div.logincore { width: 900px; }</style>

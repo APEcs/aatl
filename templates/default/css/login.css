@@ -20,6 +20,21 @@ body, h1, h2, h3, h4, h5 {
     padding: 0;
 }
 
+a {
+    text-decoration: none;
+    color: #0645ad;
+    background: none;
+}
+a:visited {
+    color: #0b0080;
+}
+a:active {
+    color: #faa700;
+}
+a:hover, a:focus {
+    text-decoration: underline;
+}
+
 #logincore {
     margin: 0px auto;
     padding: 100px 0px 0px;
@@ -56,7 +71,7 @@ div.logincore {
     margin-left: auto;
     margin-right: auto;
     margin-top: 10px;
-    width: 340px;
+    width: 440px;
 }
 
 div.persist {
@@ -64,11 +79,11 @@ div.persist {
 }
 
 .loginform {
-    width: 300px;
+    width: 400px;
     padding: 0px 20px;
 }
 .regform {
-    width: 300px;
+    width: 400px;
     padding: 0px 20px;
     border-left: 1px solid #aaa;
     margin-bottom: 8px;

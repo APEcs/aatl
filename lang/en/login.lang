@@ -12,8 +12,8 @@ PERSIST_WARNING = <strong>WARNING</strong>: do not enable the "Remember me" opti
 
 LOGIN_DONETITLE  = Logged in
 LOGIN_SUMMARY    = You have successfully logged into the system.
-LOGIN_LONGDESC   = You have successfully logged in, and you will be redirected shortly. If you do not want to wait, <a href="***url***">click here</a> to continue. Alternatively, <a href="{V_[scriptpath]}">Click here</a> to return to the front page.
-LOGIN_NOREDIRECT = You have successfully logged in, but warnings were encountered during login. Please check the warning messages, and <a href="mailto:***supportaddr***">contact support</a> if a serious problem has been encountered. Otherwise, <a href="***url***">click here</a> to continue. Alternatively, <a href="{V_[scriptpath]}">Click here</a> to return to the front page.
+LOGIN_LONGDESC   = You have successfully logged in, and you will be redirected shortly. If you do not want to wait, click continue. Alternatively, <a href="{V_[scriptpath]}">Click here</a> to return to the front page.
+LOGIN_NOREDIRECT = You have successfully logged in, but warnings were encountered during login. Please check the warning messages, and <a href="mailto:***supportaddr***">contact support</a> if a serious problem has been encountered, otherwise, click continue. Alternatively, <a href="{V_[scriptpath]}">Click here</a> to return to the front page.
 
 LOGOUT_TITLE    = Logged out
 LOGOUT_SUMMARY  = You have successfully logged out.

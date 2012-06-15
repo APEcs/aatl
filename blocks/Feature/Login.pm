@@ -328,12 +328,16 @@ sub generate_loggedin {
     # If any warnings were encountered, send back a different logged-in page to avoid
     # confusing users.
     if(!$warning) {
+        # Note that, while it would be nice to immediately redirect users at this point,
         $content = $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_DONETITLE"),
                                                         "security",
                                                         $self -> {"template"} -> replace_langvar("LOGIN_SUMMARY"),
                                                         $self -> {"template"} -> replace_langvar("LOGIN_LONGDESC", {"***url***" => $url}),
                                                         undef,
-                                                        "logincore");
+                                                        "logincore",
+                                                        [ {"message" => $self -> {"template"} -> replace_langvar("SITE_CONTINUE"),
+                                                           "colour"  => "blue",
+                                                           "action"  => "location.href='$url'"} ]);
         $extrahead = $self -> {"template"} -> load_template("refreshmeta.tem", {"***url***" => $url});
 
     # Users who have encountered warnings during login always get a login confirmation page, as it has
@@ -431,7 +435,7 @@ sub page_display {
     my ($title, $body, $extrahead) = ("", "", "");
 
     # If the user is not anonymous, they have logged in already.
-    if(!$self -> {"session"} -> anonymous_session() && $self -> {"session"} -> get_session_userid()) {
+    if(!$self -> {"session"} -> anonymous_session()) {
 
         # Is the user requesting a logout? If so, doo eet.
         if(defined($self -> {"cgi"} -> param("logout"))) {
