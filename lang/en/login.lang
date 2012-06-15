@@ -17,7 +17,7 @@ LOGIN_NOREDIRECT = You have successfully logged in, but warnings were encountere
 
 LOGOUT_TITLE    = Logged out
 LOGOUT_SUMMARY  = You have successfully logged out.
-LOGOUT_LONGDESC = You have successfully logged out, and you will be redirected shortly. If you do not want to wait, <a href="***url***">click here</a> to continue. Alternatively, <a href="{V_[scriptpath]}">Click here</a> to return to the front page.
+LOGOUT_LONGDESC = You have successfully logged out, and you will be redirected shortly. If you do not want to wait, click continue. Alternatively, <a href="{V_[scriptpath]}">Click here</a> to return to the front page.
 
 LOGIN_ERR_BADUSERCHAR = Illegal character in username. Usernames may only contain alphanumeric characters, underscores, or hyphens.
 LOGIN_ERR_INVALID     = Login failed: unknown username or password provided.
@@ -47,6 +47,7 @@ LOGIN_REG_SUBJECT    = AATL account created - Activation required!
 LOGIN_REG_GREETING   = Hi ***username***
 LOGIN_REG_CREATED    = A new account in the AATL system has just been created for you. Your username and password for the system are given below.
 LOGIN_REG_ACTNEEDED  = Before you can log in, you must activate your account. To activate your account, please click on the following link, or copy and paste it into your web browser:
+LOGIN_REG_ALTACT     = Alternatively, enter the following code in the account activation form:
 LOGIN_REG_ENJOY      = Thank you for registering, we hope you enjoy your courses!
 
 # Activation related

@@ -9,6 +9,10 @@
 
 ***act_url***
 
+{L_LOGIN_REG_ALTACT}
+
+***act_code***
+
 {L_LOGIN_REG_ENJOY}
 --
 {L_EMAIL_SIG}

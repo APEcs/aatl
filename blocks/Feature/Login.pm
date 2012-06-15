@@ -349,7 +349,10 @@ sub generate_loggedin {
                                                            $self -> {"template"} -> replace_langvar("LOGIN_NOREDIRECT", {"***url***" => $url,
                                                                                                                          "***supportaddr***" => ""}),
                                                            undef,
-                                                           "logincore");
+                                                           "logincore",
+                                                           [ {"message" => $self -> {"template"} -> replace_langvar("SITE_CONTINUE"),
+                                                              "colour"  => "blue",
+                                                              "action"  => "location.href='$url'"} ]);
         $content = $self -> {"template"} -> load_template("feature/login/login_warn.tem", {"***message***" => $message,
                                                                                            "***warning***" => $warning});
     }
@@ -370,13 +373,18 @@ sub generate_loggedin {
 sub generate_registered {
     my $self = shift;
 
+    my $url = $self -> build_url("block" => "login", "paramstr" => "activate=act");
+
     return ($self -> {"template"} -> replace_langvar("LOGIN_REG_DONETITLE"),
             $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_REG_DONETITLE"),
                                                  "security",
                                                  $self -> {"template"} -> replace_langvar("LOGIN_REG_SUMMARY"),
                                                  $self -> {"template"} -> replace_langvar("LOGIN_REG_LONGDESC"),
                                                  undef,
-                                                 "logincore"));
+                                                 "logincore",
+                                                 [ {"message" => $self -> {"template"} -> replace_langvar("LOGIN_ACTIVATE"),
+                                                    "colour"  => "blue",
+                                                    "action"  => "location.href='$url'"} ]));
 }
 
 
@@ -388,14 +396,19 @@ sub generate_registered {
 sub generate_activated {
     my $self = shift;
 
+    my $target = $self -> build_url("block" => "login");
+
     return ($self -> {"template"} -> replace_langvar("LOGIN_ACT_DONETITLE"),
             $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_ACT_DONETITLE"),
                                                  "security",
                                                  $self -> {"template"} -> replace_langvar("LOGIN_ACT_SUMMARY"),
                                                  $self -> {"template"} -> replace_langvar("LOGIN_ACT_LONGDESC",
-                                                                                          {"***target***" => $self -> build_url("block" => "login")}),
+                                                                                          {"***target***" => $target}),
                                                  undef,
-                                                 "logincore"));
+                                                 "logincore",
+                                                        [ {"message" => $self -> {"template"} -> replace_langvar("LOGIN_LOGIN"),
+                                                           "colour"  => "blue",
+                                                           "action"  => "location.href='$target'"} ]));
 }
 
 
@@ -418,7 +431,10 @@ sub generate_loggedout {
                                                  $self -> {"template"} -> replace_langvar("LOGOUT_SUMMARY"),
                                                  $self -> {"template"} -> replace_langvar("LOGOUT_LONGDESC", {"***url***" => $url}),
                                                  undef,
-                                                 "logincore"),
+                                                 "logincore",
+                                                 [ {"message" => $self -> {"template"} -> replace_langvar("SITE_CONTINUE"),
+                                                    "colour"  => "blue",
+                                                    "action"  => "location.href='$url'"} ]),
             $self -> {"template"} -> load_template("refreshmeta.tem", {"***url***" => $url}));
 }
 
