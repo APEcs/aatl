@@ -49,19 +49,22 @@ sub activate_user_byid {
 # activation code, and sets the activation timestamp.
 #
 # @param actcode The activation code to look for and clear.
-# @return true on success, undef on error.
+# @return A reference to the user's data on success, undef on error.
 sub activate_user {
     my $self    = shift;
     my $actcode = shift;
 
-    my $activate = $self -> {"dbh"} -> prepare("UPDATE ".$self -> {"settings"} -> {"database"} -> {"users"}."
-                                                SET activated = UNIX_TIMESTAMP(), act_code = NULL
-                                                WHERE act_code = ?");
-    my $rows = $activate -> execute($actcode);
-    return $self -> self_error("Unable to perform user update: ". $self -> {"dbh"} -> errstr) if(!$rows);
-    return $self -> self_error("User update failed, no rows modified - bad userid?") if($rows eq "0E0");
+    # Look up a user with the specified code
+    my $userh = $self -> {"dbh"} -> prepare("SELECT * FROM ".$self -> {"settings"} -> {"database"} -> {"users"}."
+                                             WHERE act_code = ?");
+    $userh -> execute($actcode)
+        or return $self -> self_error("Unable to perform user lookup: ". $self -> {"dbh"} -> errstr);
 
-    return 1;
+    my $user = $userh -> fetchrow_hashref()
+        or return $self -> self_error("The specified activation code is not set for any users.");
+
+    # Activate the user, and return their data if successful.
+    return $self -> activate_user_byid($user -> {"user_id"}) ? $user : undef;
 }
 
 

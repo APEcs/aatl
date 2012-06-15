@@ -28,6 +28,7 @@ package Feature::Login;
 use strict;
 use base qw(Feature); # This class extends Feature
 use Utils qw(path_join);
+use Data::Dumper;
 
 # ============================================================================
 #  Emailer functions
@@ -47,7 +48,7 @@ sub send_reg_email {
 
     my $url = $self -> build_url("fullurl"  => 1,
                                  "block"    => "login",
-                                 "paramstr" => "uid=".$user -> {"user_id"}."&actcode=".$user -> {"act_code"});
+                                 "paramstr" => "actcode=".$user -> {"act_code"});
 
     return $self -> {"template"} -> email_template("feature/login/email_registered.tem",
                                                    {"***from***"     => $self -> {"settings"} -> {"config"} -> {"Core:admin_email"},
@@ -83,7 +84,7 @@ sub validate_login {
                                                                             "nicename"   => $self -> {"template"} -> replace_langvar("LOGIN_USERNAME"),
                                                                             "minlen"     => 2,
                                                                             "maxlen"     => 32,
-                                                                            "formattest" => '^[-\w]+',
+                                                                            "formattest" => '^[-\w]+$',
                                                                             "formatdesc" => $self -> {"template"} -> replace_langvar("LOGIN_ERR_BADUSERCHAR")});
     # Bomb out at this point if the username is not valid.
     return ($self -> {"template"} -> process_template($errtem, {"***reason***" => $error}), $args)
@@ -145,7 +146,7 @@ sub validate_register {
                                                                           "nicename"   => $self -> {"template"} -> replace_langvar("LOGIN_USERNAME"),
                                                                           "minlen"     => 2,
                                                                           "maxlen"     => 32,
-                                                                          "formattest" => '^[-\w]+',
+                                                                          "formattest" => '^[-\w]+$',
                                                                           "formatdesc" => $self -> {"template"} -> replace_langvar("LOGIN_ERR_BADUSERCHAR")
                                                               });
     # Is the username valid?
@@ -211,6 +212,41 @@ sub validate_register {
 }
 
 
+## @method private @ validate_actcode()
+# Determine whether the activation code provided by the user is valid
+#
+# @return An array of two values: the first is a reference to the activated
+#         user's data hash on success, an error message otherwise; the
+#         second is the args parsed from the activation data.
+sub validate_actcode {
+    my $self = shift;
+    my $args = {};
+    my $error;
+
+    my $errtem = $self -> {"template"} -> load_template("feature/login/act_error.tem");
+
+    # Check that the code has been provided and contains allowed characters
+    ($args -> {"actcode"}, $error) = $self -> validate_string("actcode", {"required"   => 1,
+                                                                          "nicename"   => $self -> {"template"} -> replace_langvar("LOGIN_ACTCODE"),
+                                                                          "minlen"     => 64,
+                                                                          "maxlen"     => 64,
+                                                                          "formattest" => '^[a-zA-Z0-9]+$',
+                                                                          "formatdesc" => $self -> {"template"} -> replace_langvar("LOGIN_ERR_BADACTCHAR")});
+    # Bomb out at this point if the code is not valid.
+    return $self -> {"template"} -> process_template($errtem, {"***reason***" => $error})
+        if($error);
+
+    my $user = $self -> {"session"} -> {"auth"} -> {"app"} -> activate_user($args -> {"actcode"});
+
+    # Act code is valid, can a user be activated?
+    return ($self -> {"template"} -> process_template($errtem, {"***reason***" => $self -> {"template"} -> replace_langvar("LOGIN_ERR_BADCODE")}), $args)
+        unless($user);
+
+    # User is active
+    return ($user, $args);
+}
+
+
 # ============================================================================
 #  Content generation functions
 
@@ -219,7 +255,8 @@ sub validate_register {
 #
 # @param error A string containing errors related to logging in, or undef.
 # @param args  A reference to a hash of intiial values.
-# @return A string containing the login form.
+# @return An array of two values: the page title, and a string containing
+#         the login form.
 sub generate_login_form {
     my $self  = shift;
     my $error = shift;
@@ -241,15 +278,32 @@ sub generate_login_form {
             $self -> {"template"} -> load_template("feature/login/form.tem", {"***error***"      => $error,
                                                                               "***persistlen***" => $persist_length,
                                                                               "***selfreg***"    => $self_register,
-                                                                              "***target***"     => path_join($self -> {"settings"} -> {"config"} -> {"scriptpath"},
-                                                                                                              $self -> {"cgi"} -> param("course"),
-                                                                                                              "login"),
+                                                                              "***target***"     => $self -> build_url("block" => "login"),
                                                                               "***course***"     => $self -> {"cgi"} -> param("course") || "",
                                                                               "***question***"   => $self -> {"settings"} -> {"config"} -> {"Feature::Login:self_register_question"},
                                                                               "***username***"   => $args -> {"username"},
                                                                               "***regname***"    => $args -> {"regname"},
-                                                                              "***email***"      => $args -> {"email"}}),
-            "");
+                                                                              "***email***"      => $args -> {"email"}}));
+}
+
+
+
+## @method private @ generate_actcode_form($error)
+# Generate a form through which the user may specify an activation code.
+#
+# @param error A string containing errors related to activating, or undef.
+# @return An array of two values: the page title string, the code form
+sub generate_actcode_form {
+    my $self  = shift;
+    my $error = shift;
+
+    # Wrap the error message in a message box if we have one.
+    $error = $self -> {"template"} -> load_template("feature/login/error_box.tem", {"***message***" => $error})
+        if($error);
+
+    return ($self -> {"template"} -> replace_langvar("LOGIN_TITLE"),
+            $self -> {"template"} -> load_template("feature/login/act_form.tem", {"***error***"  => $error,
+                                                                                  "***target***" => $self -> build_url("block" => "login")}));
 }
 
 
@@ -274,20 +328,13 @@ sub generate_loggedin {
     # If any warnings were encountered, send back a different logged-in page to avoid
     # confusing users.
     if(!$warning) {
-        # Should users get a login confirmation page, or just be punted straight to where they came from?
-        if($self -> {"settings"} -> {"config"} -> {"login_confirm"}) {
-            $content = $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_DONETITLE"),
-                                                            "security",
-                                                            $self -> {"template"} -> replace_langvar("LOGIN_SUMMARY"),
-                                                            $self -> {"template"} -> replace_langvar("LOGIN_LONGDESC", {"***url***" => $url}),
-                                                            undef,
-                                                            "logincore");
-            $extrahead = $self -> {"template"} -> load_template("refreshmeta.tem", {"***url***" => $url});
-        } else {
-            # No confirmation page is expected, do the redirect.
-            print $self -> {"cgi"} -> redirect($url);
-            exit;
-        }
+        $content = $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_DONETITLE"),
+                                                        "security",
+                                                        $self -> {"template"} -> replace_langvar("LOGIN_SUMMARY"),
+                                                        $self -> {"template"} -> replace_langvar("LOGIN_LONGDESC", {"***url***" => $url}),
+                                                        undef,
+                                                        "logincore");
+        $extrahead = $self -> {"template"} -> load_template("refreshmeta.tem", {"***url***" => $url});
 
     # Users who have encountered warnings during login always get a login confirmation page, as it has
     # to show them the warning message box.
@@ -305,7 +352,8 @@ sub generate_loggedin {
 
     # return the title, content, and extraheader. If the warning is set, do not include an autoredirect.
     return ($self -> {"template"} -> replace_langvar("LOGIN_DONETITLE"),
-            $content,
+            $content, "",
+
             $extrahead);
 }
 
@@ -314,8 +362,7 @@ sub generate_loggedin {
 # Generate the contents of a page telling the user that they have successfully created an
 # inactive account.
 #
-# @return An array of three values: the page title string, the 'registered' message, and
-#         a meta element to insert into the head element to redirect the user.
+# @return An array of two values: the page title string, the 'registered' message.
 sub generate_registered {
     my $self = shift;
 
@@ -325,8 +372,26 @@ sub generate_registered {
                                                  $self -> {"template"} -> replace_langvar("LOGIN_REG_SUMMARY"),
                                                  $self -> {"template"} -> replace_langvar("LOGIN_REG_LONGDESC"),
                                                  undef,
-                                                 "logincore"),
-            "");
+                                                 "logincore"));
+}
+
+
+## @method private @ generate_activated($user)
+# Generate the contents of a page telling the user that they have successfully activated
+# their account.
+#
+# @return An array of two values: the page title string, the 'activated' message.
+sub generate_activated {
+    my $self = shift;
+
+    return ($self -> {"template"} -> replace_langvar("LOGIN_ACT_DONETITLE"),
+            $self -> {"template"} -> message_box($self -> {"template"} -> replace_langvar("LOGIN_ACT_DONETITLE"),
+                                                 "security",
+                                                 $self -> {"template"} -> replace_langvar("LOGIN_ACT_SUMMARY"),
+                                                 $self -> {"template"} -> replace_langvar("LOGIN_ACT_LONGDESC",
+                                                                                          {"***target***" => $self -> build_url("block" => "login")}),
+                                                 undef,
+                                                 "logincore"));
 }
 
 
@@ -391,10 +456,12 @@ sub page_display {
         # Do we have any errors? If so, send back the login form with them
         if(!ref($user)) {
             $self -> log("login error", $user);
-            ($title, $body, $extrahead) = $self -> generate_login_form($user, $args);
+            ($title, $body) = $self -> generate_login_form($user, $args);
 
         # No errors, user is valid...
         } else {
+            print STDERR "Logged in user: ".Dumper($user);
+
             # create the new logged-in session, copying over the savestate session variable
             $self -> {"session"} -> create_session($user -> {"user_id"},
                                                    $self -> {"cgi"} -> param("persist"),
@@ -402,6 +469,8 @@ sub page_display {
 
             $self -> log("login", $user -> {"username"});
             ($title, $body, $extrahead) = $self -> generate_loggedin();
+
+            print STDERR "Login cookies: ".Dumper($self -> {"session"} -> session_cookies());
         }
 
     # Has a registration attempt been made?
@@ -413,18 +482,32 @@ sub page_display {
         # Do we have any errors? If so, send back the login form with them
         if(!ref($user)) {
             $self -> log("registration error", $user);
-            ($title, $body, $extrahead) = $self -> generate_login_form($user, $args);
+            ($title, $body) = $self -> generate_login_form($user, $args);
 
         # No errors, user is registered
         } else {
             # Do not create a new session - the user needs to confirm the account.
             $self -> log("registered inactive", $user -> {"username"});
-            ($title, $body, $extrahead) = $self -> generate_registered();
+            ($title, $body) = $self -> generate_registered();
         }
+    # Is the user attempting activation?
+    } elsif(defined($self -> {"cgi"} -> param("actcode"))) {
+
+        my ($user, $args) = $self -> validate_actcode();
+        if(!ref($user)) {
+            $self -> log("activation error", $user);
+            ($title, $body) = $self -> generate_actcode_form($user);
+        } else {
+            $self -> log("activation success", $user -> {"username"});
+            ($title, $body) = $self -> generate_activated($user);
+        }
+
+    } elsif(defined($self -> {"cgi"} -> param("activate"))) {
+        ($title, $body) = $self -> generate_actcode_form();
 
     # No session, no submission? Send back the login form...
     } else {
-        ($title, $body, $extrahead) = $self -> generate_login_form(undef);
+        ($title, $body) = $self -> generate_login_form();
     }
 
     # Done generating the page content, return the filled in page template

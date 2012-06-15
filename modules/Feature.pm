@@ -126,6 +126,7 @@ sub check_login_courseview {
 
     # Anonymous users need to get punted over to the login form
     if($self -> {"session"} -> anonymous_session()) {
+        print STDERR "Detected anonymous session, redirecting to login\n";
 
         print $self -> {"cgi"} -> redirect($self -> build_login_url());
         exit;
@@ -225,6 +226,9 @@ sub build_return_url {
     my ($course) = $state =~ /course=(\w+)/;
     my ($block)  = $state =~ /block=(\w+)/;
 
+    # return url block should never be "login"
+    $block = "" if($block eq "login");
+
     # Build the URL from them
     return $self -> build_url("course"   => $course,
                               "block"    => $block,
@@ -256,10 +260,9 @@ sub build_return_url {
 sub build_url {
     my $self = shift;
     my %args = @_;
-    my $url = "";
+    my $base = "";
 
     # start off with the protocol and host:port if needed.
-    $url = $self -> {"cgi"} -> url(-base => 1) if($args{"fullurl"});
 
     # Fix up the course and cid
     $args{"course"} = $self -> {"cgi"} -> param("course") || $self -> {"settings"} -> {"config"} -> {"aatlcourse_name"}
@@ -288,7 +291,13 @@ sub build_url {
     my $querystring = join("&", @pairs);
 
     # building time...
-    $url = path_join($url, $self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"});
+    my $url = "";
+    if($args{"fullurl"}) {
+        $url = path_join($self -> {"cgi"} -> url(-base => 1), $self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"});
+    } else {
+        $url = path_join($self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"});
+    }
+
     $url .= "?$querystring" if($querystring);
 
     return $url;

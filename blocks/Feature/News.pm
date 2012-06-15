@@ -22,8 +22,7 @@ package Feature::News;
 
 use strict;
 use base qw(Feature);
-
-
+use Data::Dumper;
 
 ## @method $ page_display()
 # Produce the string containing this block's full page content. This generates
@@ -33,11 +32,14 @@ use base qw(Feature);
 sub page_display {
     my $self = shift;
 
+    print STDERR "In News block, checking login...\nSession:".Dumper($self -> {"session"});
+
     # Confirm that the user is logged in and has access to the course
     my $error = $self -> check_login_courseview(0);
     return $error if($error);
 
     # User has access, generate the news page for the course.
+    print STDERR "User has access!";
 }
 
 1;
