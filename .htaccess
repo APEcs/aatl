@@ -7,6 +7,7 @@
 
 # Pass pathinfo and query string to the index script
 RewriteEngine On
+#RewriteBase /path/
 RewriteCond %{REQUEST_URI} !^\/(templates|media|docs|index.cgi)
 RewriteRule (.*) /index.cgi/%{REQUEST_URI} [L]
 
