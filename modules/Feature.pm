@@ -143,8 +143,14 @@ sub check_login_courseview {
                 $title   = $self -> {"template"} -> replace_langvar("FEATURE_ERR_COURSE_NOACCESS_TITLE");
                 $message = $self -> {"template"} -> message_box("{L_FEATURE_ERR_COURSE_NOACCESS_TITLE}",
                                                                 "permission_error",
-                                                                "{L_FEATURE_ERR_COURSE_NOACCESS_SUMAMRY}",
-                                                                "{L_FEATURE_ERR_COURSE_NOACCESS_DESC}");
+                                                                "{L_FEATURE_ERR_COURSE_NOACCESS_SUMMARY}",
+                                                                "{L_FEATURE_ERR_COURSE_NOACCESS_DESC}",
+                                                                undef,
+                                                                "errorcore",
+                                                                [ {"message" => $self -> {"template"} -> replace_langvar("SITE_CONTINUE"),
+                                                                   "colour"  => "blue",
+                                                                   "action"  => "location.href='{V_[scriptpath]}'"} ]);
+
             }
         # If no course is specified, but that's allowed, return an okay result
         } elsif($allow_nocourse) {
@@ -155,15 +161,21 @@ sub check_login_courseview {
             $title   = $self -> {"template"} -> replace_langvar("FEATURE_ERR_NOCOURSE_TITLE");
             $message = $self -> {"template"} -> message_box("{L_FEATURE_ERR_NOCOURSE_TITLE}",
                                                             "error",
-                                                            "{L_FEATURE_ERR_NOCOURSE_SUMAMRY}",
-                                                            "{L_FEATURE_ERR_NOCOURSE_DESC}");
+                                                            "{L_FEATURE_ERR_NOCOURSE_SUMMARY}",
+                                                            "{L_FEATURE_ERR_NOCOURSE_DESC}",
+                                                            undef,
+                                                            "errorcore",
+                                                            [ {"message" => $self -> {"template"} -> replace_langvar("SITE_CONTINUE"),
+                                                               "colour"  => "blue",
+                                                               "action"  => "location.href='{V_[scriptpath]}'"} ]);
         }
 
         # Build the error page...
-        return $self -> {"template"} -> load_template("error_page.tem",
-                                                      {"***title***"   => $title,
-                                                       "***message***" => $message,
-                                                       "***toolbar***" => $self -> {"system"} -> {"toolbar"} -> build(),
+        return $self -> {"template"} -> load_template("error/general.tem",
+                                                      {"***title***"     => $title,
+                                                       "***message***"   => $message,
+                                                       "***extrahead***" => "",
+#                                                       "***toolbar***" => $self -> {"system"} -> {"toolbar"} -> build(),
                                                       });
     }
 }
