@@ -183,12 +183,9 @@ sub user_has_role {
         # _fetch_user_role returns undef when the role hasn't been granted, or error. Check errors...
         return undef if($self -> {"errstr"});
 
-        # Has the role been granted, if so stop checking
-        last if($has_role);
-
         # Otherwise, try going up to the parent
         $metadataid = $self -> {"metadata"} -> parentid($metadataid);
-    } while($check_tree && $metadataid);
+    } while(!$has_role && $check_tree && $metadataid);
 
     return defined($has_role);
 }
