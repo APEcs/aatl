@@ -16,7 +16,7 @@ window.addEvent('domready', function() {
             <p>{L_LOGIN_REG_INTRO}</p>
             <form id="regform" method="post" action="***target***">
                 <div class="entry">
-                    <label for="username">{L_LOGIN_USERNAME}:<br />
+                    <label for="regname">{L_LOGIN_USERNAME}:<br />
                     <input type="text" id="regname" name="regname" class="highlight" size="24" maxlength="32" value="***regname***"/></label>
                 </div>
                 <div class="entry">
