@@ -100,11 +100,14 @@ sub user_has_capability {
     # User roles will accumulate in here...
     my $user_roles = {};
 
+    # Need to preserve the original ID for caching, so copy it...
+    my $currentmdid = $metadataid;
+
     # Now get all the roles the user has from this metadata context to the root
-    while($metadataid) {
+    while($currentmdid) {
         # Fetch the roles for the user set at this metadata level, give up if there was
         # an error doing it.
-        my $roles = $self -> metadata_assigned_roles($metadataid, $userid);
+        my $roles = $self -> metadata_assigned_roles($currentmdid, $userid);
         return undef if(!defined($roles));
 
         # copy over any roles set...
@@ -121,8 +124,7 @@ sub user_has_capability {
         # edge-cases for admin users.
 
         # go up a level if possible
-        $metadataid = $self -> {"metadata"} -> parentid($metadataid);
-        return undef if(!defined($metadataid));
+        $currentmdid = $self -> {"metadata"} -> parentid($currentmdid);
     }
 
     # $user_roles now contains an unsorted hash of roleids and priorities,
