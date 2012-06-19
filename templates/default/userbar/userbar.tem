@@ -1,0 +1,22 @@
+    <div id="userbar"> <!-- This is the floating user bar at the top of the page -->
+        <div class="bar-container">
+            <ul class="site-options top-menu"> <!-- options related to overall site navigation -->
+                <li id="site-menu" class="menu">
+                    <a href="{V_[scriptpath]}" class="item"><span class="site-front-icon"></span></a>
+                    <div class="menu-wrapper">
+                        <ul class="menu-submenu">
+                            <li><a class="item" href="{V_[scriptpath]}">{L_USERBAR_FRONT}</a></li>
+                            <li><a class="item" href="{V_[scriptpath]}aatl/about">{L_USERBAR_ABOUT}</a></li>
+                        </ul>
+                    </div>
+                </li>
+***coursemenu***
+***coursestate***
+***coursetools***
+            </ul>
+            <ul class="user-options top-menu"> <!-- options related to user profiles and messages -->
+***userprofile***
+***feedbackstate***
+            </ul>
+        </div><!-- class="bar-container" -->
+    </div><!-- #userbar -->

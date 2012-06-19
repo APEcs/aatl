@@ -1,0 +1,15 @@
+USERBAR_FRONT   = Front page
+USERBAR_ABOUT   = About AATL
+
+USERBAR_COURSE_SETTINGS = Course Settings
+USERBAR_COURSE_ENROL    = Enrolment Settings
+USERBAR_COURSE_CLONE    = Copy As New Run
+USERBAR_COURSE_OLDWARN  = This a finished course!
+USERBAR_COURSE_UNAVAIL  = No courses available.
+
+USERBAR_FEEDBACK_NEW    = You have new feedback!
+
+USERBAR_PROFILE_EDIT    = Edit Profile
+USERBAR_PROFILE_PREFS   = Change Settings
+USERBAR_PROFILE_LOGOUT  = Log out
+USERBAR_PROFILE_LOGIN   = Log in

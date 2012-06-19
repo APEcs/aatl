@@ -1,0 +1,3 @@
+                <li id="course-old">
+                    <span class="empty-item menu-warning">{L_USERBAR_COURSE_OLDWARN}</span>
+                </li>

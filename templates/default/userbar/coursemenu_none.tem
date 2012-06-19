@@ -1,0 +1,3 @@
+                <li id="course-sel">
+                    <span class="empty-item menu-warning">{L_USERBAR_COURSE_UNAVAIL}</span>
+                </li>

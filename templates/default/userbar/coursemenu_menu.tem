@@ -1,0 +1,8 @@
+                <li id="course-sel" class="menu">
+                    <a href="***currenturl***" class="item">***currentname***</a>
+                    <div class="menu-wrapper">
+                        <ul class="menu-submenu">
+***courselist***
+                        </ul>
+                    </div>
+                </li>

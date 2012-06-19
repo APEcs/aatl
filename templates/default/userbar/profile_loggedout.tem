@@ -1,0 +1,3 @@
+                <li id="user-profile" class="menu">
+                    <a href="***url***" class="item">{L_USERBAR_PROFILE_LOGIN}</a>
+                </li>

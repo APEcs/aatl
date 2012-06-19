@@ -1,0 +1,10 @@
+                <li id="course-config" class="menu">
+                    <a href="***url-settings***" class="item"><span class="course-config-icon"></span></a>
+                    <div class="menu-wrapper">
+                        <ul class="menu-submenu">
+                            <li><a class="item" href="***url-settings***">{L_USERBAR_COURSE_SETTINGS}</a></li>
+                            <li><a class="item" href="***url-enrolment***">{L_USERBAR_COURSE_ENROL}</a></li>
+                            <li><a class="item" href="***url-clone***"{L_USERBAR_COURSE_CLONE}></a></li>
+                        </ul>
+                    </div>
+                </li>
