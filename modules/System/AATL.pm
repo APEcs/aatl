@@ -36,13 +36,13 @@ use Tags;
 # object's hash. The argument hash provided must minimally contain the
 # following references:
 #
-# - cgi, a reference to a CGI object.
-# - dbh, a reference to the DBI object to issue database queries through.
-# - settings, a reference to the global settings object.
-# - logger, a reference to a Logger object.
-# - template, a reference to the system template engine.
-# - session, a reference to the system session handler.
-# - modules, a reference to the module loader.
+# * cgi, a reference to a CGI object.
+# * dbh, a reference to the DBI object to issue database queries through.
+# * settings, a reference to the global settings object.
+# * logger, a reference to a Logger object.
+# * template, a reference to the system template engine.
+# * session, a reference to the system session handler.
+# * modules, a reference to the module loader.
 #
 # @param args A hash of arguments to initialise the System object with.
 # @return true on success, false if something failed. If this returns false,
