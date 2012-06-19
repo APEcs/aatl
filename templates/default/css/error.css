@@ -3,6 +3,7 @@
 @import url('shadowbox.css');  /* and support for shadowed divs        */
 @import url('messagebox.css'); /* support for message boxes            */
 @import url('button.css');     /* button rules (okay?)                 */
+@import url('userbar.css');    /* Userbar styling.                     */
 
 body  {
     font: 100% Verdana, Arial, Helvetica, sans-serif;
