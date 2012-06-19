@@ -6,6 +6,7 @@
 # RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}
 
 # Pass pathinfo and query string to the index script
+AcceptPathInfo on
 RewriteEngine On
 RewriteCond %{REQUEST_URI} !^\/(templates|media|docs|index.cgi)
 RewriteRule (.*) /index.cgi/%{REQUEST_URI} [L]
