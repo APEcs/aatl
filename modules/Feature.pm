@@ -170,12 +170,14 @@ sub check_login_courseview {
                                                                "action"  => "location.href='{V_[scriptpath]}'"} ]);
         }
 
+        my $userbar = $self -> {"module"} -> load_module("Feature::Userbar");
+
         # Build the error page...
         return $self -> {"template"} -> load_template("error/general.tem",
                                                       {"***title***"     => $title,
                                                        "***message***"   => $message,
                                                        "***extrahead***" => "",
-#                                                       "***toolbar***" => $self -> {"system"} -> {"toolbar"} -> build(),
+                                                       "***userbar***"   => $userbar -> block_display(),
                                                       });
     }
 }
