@@ -37,7 +37,7 @@ sub page_display {
     return $error if($error);
 
     # User has access, generate the news page for the course.
-    print STDERR "User has access!";
+    return $self -> generate_course_page("News", "Nothing here yet", "");
 }
 
 1;
