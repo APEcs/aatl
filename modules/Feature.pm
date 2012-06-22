@@ -25,6 +25,10 @@ use base qw(Block); # Features are just a specific form of Block
 use CGI::Util qw(escape);
 use Utils qw(is_defined_numeric path_join);
 
+
+# ============================================================================
+#  Course convenience functions
+
 ## @method $ determine_courseid()
 # Attempt to work out which course the user is actually looking at. This is not
 # entirely straightforward, as the user may be looking at /comp101 but wants
@@ -183,6 +187,70 @@ sub check_login_courseview {
 }
 
 
+# ============================================================================
+#  View related - course page wrapping, etc.
+
+## @method $ generate_course_page($title, $content, $extrahead)
+# A convenience function to wrap page content in a course page. This function allows
+# features to embed their content in a course page without having to build the whole
+# page themselves. It should be called to wrap the content when the feature's
+# page_display is returning.
+#
+# @param title     The page title.
+# @param content   The content to show in the page.
+# @param extrahead Any extra directives to place in the header.
+# @return A string containing the course page.
+sub generate_course_page {
+    my $self      = shift;
+    my $title     = shift;
+    my $content   = shift;
+    my $extrahead = shift;
+
+    my $courseid = $self -> determine_courseid()
+        or return $self -> self_error("Unable to determine course id.");
+
+    # Fetch the current course
+    my $course = $self -> {"system"} -> {"courses"} -> _fetch_course($courseid)
+        or return $self -> self_error("Unable to obtain course for cid $courseid");
+
+    my $userbar = $self -> {"module"} -> load_module("Feature::Userbar");
+
+    my $rightboxes = "";
+    # If the current feature can build rightboxes, do so.
+    $rightboxes = $self -> build_rightboxes() if($self -> can("build_rightboxes"));
+
+    # Build the feature links and custom background list
+    my $features = $self -> {"system"} -> {"courses"} -> _fetch_set_features($courseid, "sidebar");
+    my $featurelist = "";
+    my $menubgs     = "";
+    my $entrytem    = $self -> {"template"} -> load_template("course/menu_entry.tem");
+    my $bgtem       = $self -> {"template"} -> load_template("course/menu_bg.tem");
+    foreach my $feature (@{$features}) {
+        $featurelist .= $self -> {"template"} -> process_template($entrytem, {"***url***"    => $self -> build_url(block => $feature -> {"block_name"}),
+                                                                              "***name***"   => $feature -> {"block_name"},
+                                                                              "***title***"  => $feature -> {"title"},
+                                                                              "***active***" => $self -> {"block"} eq $feature -> {"block_name"} ? "menu-active" : ""});
+        $menubgs .= $self -> {"template"} -> process_template($bgtem, {"***background***" => $feature -> {"background-image"}})
+            if($feature -> {"background-image"});
+    }
+
+    return $self -> {"template"} -> load_template("course/page.tem", {"***extrahead***"    => $extrahead,
+                                                                      "***title***"        => $title,
+                                                                      "***coursecode***"   => $course -> {"code"},
+                                                                      "***coursetitle***"  => $course -> {"title"},
+                                                                      "***featurelinks***" => $featurelist,
+                                                                      "***menubgs***"      => $menubgs,
+                                                                      "***rightboxes***"   => $rightboxes,
+                                                                      "***rightspace***"   => $rightboxes ? "rightspace" : "",
+                                                                      "***content***"      => $content,
+                                                                      "***userbar***"      => $userbar -> block_display()
+                                                  });
+}
+
+
+# ============================================================================
+#  URL building
+
 ## @method $ build_login_url()
 # Attempt to generate a URL that can be used to redirect the user to a login form.
 # The user's current query state (course, block, etc) is stored in a session variable
@@ -199,18 +267,6 @@ sub build_login_url {
 
     return $self -> build_url("course" => ($self -> {"cgi"} -> param("course") || $self -> {"settings"} -> {"config"} -> {"aatlcourse_name"}),
                               "block"  => "login");
-}
-
-
-## @method $ get_saved_state()
-# A convenience wrapper around Session::get_variable() for fetching the state saved in
-# build_login_url().
-#
-# @return A string containing saved query string state, or an empty string.
-sub get_saved_state {
-    my $self = shift;
-
-    return $self -> {"session"} -> get_variable("savestate") || "";
 }
 
 
@@ -316,5 +372,21 @@ sub build_url {
 
     return $url;
 }
+
+
+# ============================================================================
+#  General utility
+
+## @method $ get_saved_state()
+# A convenience wrapper around Session::get_variable() for fetching the state saved in
+# build_login_url().
+#
+# @return A string containing saved query string state, or an empty string.
+sub get_saved_state {
+    my $self = shift;
+
+    return $self -> {"session"} -> get_variable("savestate") || "";
+}
+
 
 1;
