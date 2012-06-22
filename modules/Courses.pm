@@ -63,6 +63,7 @@ sub new {
     return $self;
 }
 
+
 # ============================================================================
 #  Permissions layer
 
@@ -405,7 +406,7 @@ sub _fetch_set_features {
     return $self -> self_error("Unable to execute active feature lookup: ".$self -> {"dbh"} -> errstr) if(!$result);
 
     # This should be enough to get the data in the format needed...
-    return $seth -> fetchrow_arrayref({});
+    return $seth -> fetchall_arrayref({});
 }
 
 
