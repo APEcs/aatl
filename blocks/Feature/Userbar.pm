@@ -62,7 +62,7 @@ sub block_display {
                                                                                                "***gravhash***"    => md5_hex(lc(trimspace($user -> {"email"}))),
                                                                                                "***url-profile***" => $self -> build_url(block => "profile"),
                                                                                                "***url-prefs***"   => $self -> build_url(block => "settings"),
-                                                                                               "***url-profile***" => $self -> build_url(block => "login", paramstr => "logout=t")});
+                                                                                               "***url-logout***"  => $self -> build_url(block => "login", paramstr => "logout=t")});
 
         # Determine whether the user has new feedback
 #        FIXME: Make this actually work
