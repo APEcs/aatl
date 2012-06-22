@@ -1,0 +1,191 @@
+@charset "utf-8";
+@import url('notebox.css');    /* pull in warning/important box styles */
+@import url('shadowbox.css');  /* and support for shadowed divs        */
+@import url('messagebox.css'); /* support for message boxes            */
+@import url('button.css');     /* button rules (okay?)                 */
+@import url('userbar.css');    /* Userbar styling.                     */
+@import url('listbox.css');    /* List of shadowed boxes               */
+
+body  {
+    font: 100% Verdana, Arial, Helvetica, sans-serif;
+    text-align: center;
+    color: #000;
+    font-size: 13px;
+    width: 100%;
+    min-width: 900px;
+    background: #eee url('../images/page_layout/header.jpg') 0px 28px no-repeat;
+}
+
+body, h1, h2, h3, h4, h5 {
+    margin: 0;
+    padding: 0;
+}
+
+.aatl #title {
+    position: absolute;
+    float: right;
+    right: 30px;
+    top: 45px;
+    text-align: right;
+}
+
+.aatl #title h1 {
+    text-size: 32px;
+    color: #fff;
+}
+
+.aatl #title div {
+    text-size: 20px;
+    color: #bbb;
+    padding-top: 1px;
+    border-top: 1px solid #777;
+}
+
+.aatl #container {
+    margin: 28px auto 0px;
+    text-align: left; /* this overrides the text-align: center on the body element. */
+    padding: 0;
+    width: 98%;
+    margin-top: 128px;
+}
+
+.aatl #container .core {
+}
+
+.aatl #container .leftspace {
+    margin-left: 250px;
+}
+
+.aatl #container .rightspace {
+    margin-right: 210px;
+}
+
+
+/* autogrow text areas */
+.textwrapper {
+    margin: 0px;
+    padding: 3px;
+}
+
+textarea.flext {
+    width: 100%;
+	padding: 0px; /* important, or growing breaks in opera */
+}
+
+
+/* glows */
+input[type=text]:focus {
+    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+}
+
+textarea:focus {
+    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+}
+
+
+/* menu classes */
+.aatl #container .course-menu {
+    float: left;
+    width: 250px;
+}
+
+.course-menu .logo {
+    width: 250px;
+    height: 72px;
+    display: block;
+    padding: none;
+    margin: none;
+}
+
+.course-menu .logo a {
+    width: 250px;
+    height: 72px;
+    display: block;
+    background: url('../images/navigation/navbar_top.png') 0px 0px no-repeat;
+}
+
+.course-menu .endcap {
+    width: 250px;
+    height: 24px;
+    display: block;
+    background: url('../images/navigation/navbar_bot.png') 0px 0px no-repeat;
+}
+
+.course-menu .mcrlogo {
+    margin: 0px auto;
+    height: 77px;
+    background: url('../images/logomanchester.png') center top no-repeat;
+}
+
+/* make rollovers on menus work */
+.course-menu .menu a {
+    display: block;
+    width: 250px;
+    height: 36px;
+    background-position: 0px 0px;
+    background-repeat: no-repeat;
+}
+
+.course-menu .menu a span {
+    display: none;
+}
+
+.course-menu .menu a.menu-active {
+    background-position: 0px -36px;
+}
+
+.course-menu .menu a:hover, .course-menu .menu a.hover {
+    background-position: 0px -72px;
+}
+
+.course-menu .menu a:active, .course-menu .menu a.active {
+    background-position: 0px -108px;
+}
+
+
+/* Specific standard blocks */
+.course-menu .menu a.block-news {
+    background-image: url('../images/navigation/blocks/home.png');
+}
+
+.course-menu .menu a.block-mats {
+    background-image: url('../images/navigation/blocks/materials.png');
+}
+
+.course-menu .menu a.block-forum {
+    background-image: url('../images/navigation/blocks/forums.png');
+}
+
+.course-menu .menu a.block-wiki {
+    background-image: url('../images/navigation/blocks/wiki.png');
+}
+
+.course-menu .menu a.block-assess {
+    background-image: url('../images/navigation/blocks/assessment.png');
+}
+
+.course-menu .menu a.block-about {
+    background-image: url('../images/navigation/blocks/information.png');
+}
+
+.course-menu .menu a.block-feedback {
+    background-image: url('../images/navigation/blocks/feedback.png');
+}
+
+/* right-side boxes */
+.aatl #container .right-boxes {
+    float: right;
+    width: 190px;
+}
+
+.formsubmit {
+    text-align: right;
+}
+
+.overTxtLabel {
+    color: #999;
+}

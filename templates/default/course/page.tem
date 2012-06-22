@@ -1,0 +1,45 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head profile="http://www.w3.org/2005/10/profile">
+
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>{L_PAGE_TITLE}: ***coursecode*** - ***title***</title>
+
+    <!-- mootools for effects and javascript sanity -->
+    <script type='text/javascript' src="{V_[templatepath]}js/mootools-core.js"></script>
+    <script type='text/javascript' src="{V_[templatepath]}js/mootools-more.js"></script>
+
+    <!-- any site-specific javascriptery and styles -->
+    <script type='text/javascript' src="{V_[templatepath]}js/site.js"></script>
+    <link href="{V_[templatepath]}css/course.css"    rel="stylesheet" type="text/css" />
+
+    <!-- favicon -->
+    <link rel="icon" type="image/png" href="{V_[templatepath]}images/favicon.png">
+
+    ***extrahead***
+</head>
+<body class="aatl">
+    <div id="title"><h1 class="code">***coursecode***</h1>
+        <div class="name">***coursetitle***</div>
+    </div>
+    <div id="container"> <!-- This is the body of the page -->
+        <style type="text/css">
+***menubgs***
+        </style>
+        <div class="course-menu">
+            <div class="logo"><a href="{V_[scriptpath]}"></a></div>
+            <div class="menu">
+***featurelinks***
+            </div>
+            <div class="endcap"></div>
+            <div class="mcrlogo"></div>
+        </div>
+***rightboxes***
+        <div id="content" class="core leftspace ***rightspace***">
+***content***
+        </div><!-- #content -->
+    </div><!-- #container -->
+***userbar***
+***debug***
+</body>
+</html>
