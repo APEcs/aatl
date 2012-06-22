@@ -22,7 +22,11 @@ package Feature::News;
 
 use strict;
 use base qw(Feature);
-use Data::Dumper;
+
+
+## @method @ build_news_list()
+# Build a list of news posts the user can see.
+
 
 ## @method $ page_display()
 # Produce the string containing this block's full page content. This generates
@@ -36,8 +40,11 @@ sub page_display {
     my $error = $self -> check_login_courseview(0);
     return $error if($error);
 
+    # Generate the next list
+    my ($content, $extrahead) = $self -> build_news_list()
+
     # User has access, generate the news page for the course.
-    return $self -> generate_course_page("News", "Nothing here yet", "");
+        return $self -> generate_course_page("{L_FEATURE_NEWS_TITLE}", $content, $extrahead);
 }
 
 1;
