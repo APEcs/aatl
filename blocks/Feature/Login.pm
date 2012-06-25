@@ -480,9 +480,12 @@ sub page_display {
 
         # No errors, user is valid...
         } else {
+            # should the login be made persistent?
+            my $persist = defined($self -> {"cgi"} -> param("persist")) && $self -> {"cgi"} -> param("persist");
+
             # create the new logged-in session, copying over the savestate session variable
             $self -> {"session"} -> create_session($user -> {"user_id"},
-                                                   $self -> {"cgi"} -> param("persist"),
+                                                   $persist,
                                                    {"savestate" => $self -> get_saved_state()});
 
             $self -> log("login", $user -> {"username"});
