@@ -368,6 +368,10 @@ sub build_url {
         $url = path_join($self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"});
     }
 
+    # strip course and block from the query string if they've somehow made it in there
+    # note this can't simply be made 'eg' as the progressive match can leave a trailing &
+    while($querystring =~ s{(&?)(?:course|block)=[^&]+(&?)}{$1 && $2 ? "&" : ""}e) {}
+
     $url .= "?$querystring" if($querystring);
 
     return $url;
