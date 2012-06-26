@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-## @class
+## @class System::Tags
 # This class encapsulates operations involving tags in the system.
-package Tags;
+package System::Tags;
 
 use strict;
 use base qw(SystemModule);

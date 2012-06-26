@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-## @class Courses
+## @class System::Courses
 # This class encapsulates operations involving courses in the system.
-package Courses;
+package System::Courses;
 
 use strict;
 use base qw(SystemModule);
@@ -192,6 +192,22 @@ sub get_courses {
     }
 
     return \@results;
+}
+
+
+## @method $ get_course_metadataid($courseid)
+# Given a course ID, obtain the ID of the metadata context associated with it.
+#
+# @param courseid The ID of the course to obtain the metadata context ID for.
+# @return The metadata context ID on success, undef on error.
+sub get_course_metadataid {
+    my $self     = shift;
+    my $courseid = shift;
+
+    my $course = $self -> _fetch_course($courseid)
+        or return undef;
+
+    return $course -> {"metadata_id"};
 }
 
 

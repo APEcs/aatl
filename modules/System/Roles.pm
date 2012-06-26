@@ -16,13 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-## @class
+## @class System::Roles
 # This class encapsulates operations involving roles in the system. The methods
 # in this class provide the rest of the system with the ability to query user's
 # roles and capabilities, as well as assign roles to users, remove those assignments,
 # and define the capabilities of roles.
 #
-package Roles;
+package System::Roles;
 
 use strict;
 use base qw(SystemModule);

@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-## @class
+## @class System::Metadata
 # A class to encapsulate metadata context handling. This class provides the
 # methods required to manage metadata contexts in the AATL system, including
 # creating and removing them, and modifying the reference count in the context
@@ -34,7 +34,7 @@
 # Individual things - roles, tags, courses, etc - need to keep track of which
 # metadata context they are attached to, by storing a metadata ID with their
 # data. The metadata context itself does not retain a list of attached things.
-package Metadata;
+package System::Metadata;
 
 use strict;
 use base qw(SystemModule);
