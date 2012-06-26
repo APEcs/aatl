@@ -1,8 +1,9 @@
-                <li><form action="/comp101/" method="post">
+                <li><form action="***url***" method="post">
                         <div class="input"><input type="text" id="new-subject" size="70" maxlength="100" title="News post subject"/></div>
                         <div class="contents">
-                            <div class="textwrapper"><textarea id="new-message" class="flext growme maxheight-200" rows="3" cols="80" title="Enter your news message here"></textarea></div>
+                            <div class="textwrapper"><textarea id="new-message" class="ckeditot" rows="4" cols="80" title="Enter your news message here"></textarea></div>
                             <div class="newpost formsubmit"><input type="submit" id="newpost" class="button blue" value="Post news entry" /></div>
                         </div>
                     </form>
+                    <script type="text/javascript">CKEDITOR.replace('new-message', { customConfig: '{V_[commonpath]}ckeditor/basic.js' })</script>
                 </li>
