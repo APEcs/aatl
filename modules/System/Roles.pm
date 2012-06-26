@@ -45,8 +45,8 @@ sub new {
     my $invocant = shift;
     my $class    = ref($invocant) || $invocant;
     my $self     = $class -> SUPER::new(root_context => 1,
-                                        @_);
-    return undef if(!$self);
+                                        @_)
+        or return undef;
 
     # Check that the required objects are present
     return SystemModule::set_error("No metadata object available.") if(!$self -> {"metadata"});

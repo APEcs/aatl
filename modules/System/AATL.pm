@@ -25,10 +25,10 @@ package System::AATL;
 use strict;
 use base qw(System);
 
-use Courses;
-use Metadata;
-use Roles;
-use Tags;
+use System::Courses;
+use System::Metadata;
+use System::Roles;
+use System::Tags;
 
 ## @method $ init(%args)
 # Initialise the AATL System's references to other system objects. This
@@ -55,29 +55,29 @@ sub init {
         or return undef;
 
     # now create the AATL-specific objects
-    $self -> {"metadata"} = Metadata -> new(dbh      => $self -> {"dbh"},
-                                            settings => $self -> {"settings"},
-                                            logger   => $self -> {"logger"})
+    $self -> {"metadata"} = System::Metadata -> new(dbh      => $self -> {"dbh"},
+                                                    settings => $self -> {"settings"},
+                                                    logger   => $self -> {"logger"})
         or return $self -> self_error("Metadata system init failed: ".$Metadata::errstr);
 
-    $self -> {"tags"} = Tags -> new(dbh      => $self -> {"dbh"},
-                                    settings => $self -> {"settings"},
-                                    logger   => $self -> {"logger"},
-                                    metadata => $self -> {"metadata"})
+    $self -> {"tags"} = System::Tags -> new(dbh      => $self -> {"dbh"},
+                                            settings => $self -> {"settings"},
+                                            logger   => $self -> {"logger"},
+                                            metadata => $self -> {"metadata"})
         or return $self -> self_error("Tag system init failed: ".$Tags::errstr);
 
-    $self -> {"roles"} = Roles -> new(dbh      => $self -> {"dbh"},
-                                      settings => $self -> {"settings"},
-                                      logger   => $self -> {"logger"},
-                                      metadata => $self -> {"metadata"})
+    $self -> {"roles"} = System::Roles -> new(dbh      => $self -> {"dbh"},
+                                              settings => $self -> {"settings"},
+                                              logger   => $self -> {"logger"},
+                                              metadata => $self -> {"metadata"})
         or return $self -> self_error("Roles system init failed: ".$Roles::errstr);
 
-    $self -> {"courses"} = Courses -> new(dbh      => $self -> {"dbh"},
-                                          settings => $self -> {"settings"},
-                                          logger   => $self -> {"logger"},
-                                          metadata => $self -> {"metadata"},
-                                          roles    => $self -> {"roles"},
-                                          modules  => $self -> {"modules"})
+    $self -> {"courses"} = System::Courses -> new(dbh      => $self -> {"dbh"},
+                                                  settings => $self -> {"settings"},
+                                                  logger   => $self -> {"logger"},
+                                                  metadata => $self -> {"metadata"},
+                                                  roles    => $self -> {"roles"},
+                                                  modules  => $self -> {"modules"})
         or return $self -> self_error("Courses system init failed: ".$Courses::errstr);
 
     return 1;

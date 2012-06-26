@@ -52,8 +52,8 @@ sub new {
     my $class    = ref($invocant) || $invocant;
     my $self     = $class -> SUPER::new(site_context => 1,
                                         news_feature => 1,
-                                        @_);
-    return undef if(!$self);
+                                        @_)
+        or return undef;
 
     # Check that the required objects are present
     return SystemModule::set_error("No metadata object available.") if(!$self -> {"metadata"});
