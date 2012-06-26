@@ -25,6 +25,21 @@ use base qw(Block); # Features are just a specific form of Block
 use CGI::Util qw(escape);
 use Utils qw(is_defined_numeric path_join);
 
+# ============================================================================
+#  Permissions/Roles related.
+
+## @method $ used_capabilities()
+# Generate a hash containing the capabilities this Feature tests user's roles
+# against, and the description of the capabilities.
+#
+# @return A reference to a hash containing the capabilities this Feature uses
+#         on success, undef on error.
+sub used_capabilities {
+    my $self = shift;
+
+    return { # No capabilities used by this feature
+           };
+}
 
 # ============================================================================
 #  Course convenience functions
