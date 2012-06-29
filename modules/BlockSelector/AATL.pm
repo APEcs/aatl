@@ -89,7 +89,7 @@ sub get_block {
         $cgi -> param(-name => 'block' , -value => $block);
 
         # Push any remaining components into the pathinfo variable
-        $cgi -> param(-name => 'pathinfo', -value => join("/", \@args)) if(scalar(@args));
+        $cgi -> param(-name => 'pathinfo', -values => \@args) if(scalar(@args));
     }
 
     # The behaviour of BlockSelector::get_block() is fine, so let it work out the block
