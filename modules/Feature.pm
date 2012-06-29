@@ -41,6 +41,7 @@ sub used_capabilities {
            };
 }
 
+
 # ============================================================================
 #  Course convenience functions
 
@@ -395,6 +396,30 @@ sub build_url {
 
 # ============================================================================
 #  General utility
+
+## @method $ api_operation()
+# Determine whether the feature is being called in API mode, and if so what operation
+# is being requested.
+#
+# @return A string containing the API operation name if the script is being invoked
+#         in API mode, undef otherwise. Note that, if the script is invoked in API mode,
+#         but no operation has been specified, this returns an empty string.
+sub api_operation {
+    my $self = shift;
+
+    # API stuff is encoded in the pathinfo
+    my @pathinfo = $self -> {"cgi"} -> param('pathinfo');
+
+    # No pathinfo means no API mode.
+    return undef unless(scalar(@pathinfo));
+
+    # API mode is set by placing 'api' in the first pathinfo entry. The second pathinfo
+    # entry is the operation.
+    return $pathinfo[1] || "" if($pathinfo[0] eq 'api');
+
+    return undef;
+}
+
 
 ## @method $ get_saved_state()
 # A convenience wrapper around Session::get_variable() for fetching the state saved in
