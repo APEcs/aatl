@@ -1,9 +1,14 @@
                 <li><form action="***url***" method="post">
-                        <div class="input"><input type="text" id="new-subject" size="70" maxlength="100" title="News post subject"/></div>
+                        <div class="input"><input type="text" id="new-subject" size="70" maxlength="100" title="{L_FEATURE_NEWS_SUBJECT}"/></div>
                         <div class="contents">
-                            <div class="textwrapper"><textarea id="new-message" class="ckeditot" rows="4" cols="80" title="Enter your news message here"></textarea></div>
-                            <div class="newpost formsubmit"><input type="submit" id="newpost" class="button blue" value="Post news entry" /></div>
+                            <div class="textwrapper"><textarea id="new-message" rows="3" cols="80"></textarea></div>
+                            <div class="newpost formsubmit"><input type="submit" id="newpost" class="button blue" value="{L_FEATURE_NEWS_POST}" /></div>
                         </div>
                     </form>
-                    <script type="text/javascript">CKEDITOR.replace('new-message', { customConfig: '{V_[commonpath]}ckeditor/basic.js' })</script>
+                    <script type="text/javascript">
+                        window.addEvent('domready', function() {
+                            CKEDITOR.replace('new-message', { customConfig: '{V_[commonpath]}cke_configs/basic.js' });
+                            new OverText($('new-subject'));
+                        });
+                    </script>
                 </li>
