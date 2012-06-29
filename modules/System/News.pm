@@ -102,20 +102,25 @@ sub get_news_posts {
     my $startid  = shift;
     my $count    = shift;
 
+    # Get the posted timestamp of the initial post
+    my $timeh = $self -> {"dbh"} -> prepare("SELECT created FROM ".$self -> {"settings"} -> {"database"} -> {"feature::news"}."
+                                             WHERE id = ?");
+    $timeh -> execute($startid)
+        or return $self -> self_error("Unable to fetch post create time ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
+
+    my $time = $timeh -> fetchrow_arrayref()
+        or return $self -> self_error("Attempt to fetch creation time for non-existent news post $startid");
+
     # Build a query to fetch news posts, and the post text.
-    # Note that this does have one small issue, nothing to worry about, but things will break if the id field is reset to 0 for
-    # any reason. So don't reset it to zero. Ever. Besides, even posting one news post a second, there's enough id space for 136 years,
-    # and if this thing is still in use in 136 years, I will have to come back from the dead purely to ask our Mantis Men
-    # overlords why on Earth Prime they haven't switched to something else.
     my $posth = $self -> {"dbh"} -> prepare("SELECT *
                                              FROM ".$self -> {"settings"} -> {"database"} -> {"feature::news"}." AS n,
                                                   ".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}." AS p
                                              WHERE n.course_id = ?
-                                             AND n.id <= ?
+                                             AND n.created <= ?
                                              AND p.id = n.post_id
                                              ORDER BY n.created DESC
                                              LIMIT $count");
-    $posth -> execute($courseid, $startid)
+    $posth -> execute($courseid, $time -> [0])
         or return $self -> self_error("Unable to fetch post list ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
 
     # Happily, fetchall should do the job here...
