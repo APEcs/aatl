@@ -97,30 +97,35 @@ sub check_permission {
 # @param count    The number of posts to fetch.
 # @return A reference to an array of post data hashes on success, undef on error.
 sub get_news_posts {
-    my $self     = shift;
-    my $courseid = shift;
-    my $startid  = shift;
-    my $count    = shift;
+    my $self      = shift;
+    my $courseid  = shift;
+    my $startid   = shift;
+    my $count     = shift;
+    my $starttime = time();
 
     # Get the posted timestamp of the initial post
-    my $timeh = $self -> {"dbh"} -> prepare("SELECT created FROM ".$self -> {"settings"} -> {"database"} -> {"feature::news"}."
-                                             WHERE id = ?");
-    $timeh -> execute($startid)
-        or return $self -> self_error("Unable to fetch post create time ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
+    if($startid) {
+        my $timeh = $self -> {"dbh"} -> prepare("SELECT created FROM `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."`
+                                                 WHERE id = ?");
+        $timeh -> execute($startid)
+            or return $self -> self_error("Unable to fetch post create time ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
 
-    my $time = $timeh -> fetchrow_arrayref()
-        or return $self -> self_error("Attempt to fetch creation time for non-existent news post $startid");
+        my $time = $timeh -> fetchrow_arrayref()
+            or return $self -> self_error("Attempt to fetch creation time for non-existent news post $startid");
+
+        $starttime = $time -> [0];
+    }
 
     # Build a query to fetch news posts, and the post text.
     my $posth = $self -> {"dbh"} -> prepare("SELECT *
-                                             FROM ".$self -> {"settings"} -> {"database"} -> {"feature::news"}." AS n,
-                                                  ".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}." AS p
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."` AS n,
+                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}."` AS p
                                              WHERE n.course_id = ?
                                              AND n.created <= ?
                                              AND p.id = n.post_id
                                              ORDER BY n.created DESC
                                              LIMIT $count");
-    $posth -> execute($courseid, $time -> [0])
+    $posth -> execute($courseid, $starttime)
         or return $self -> self_error("Unable to fetch post list ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
 
     # Happily, fetchall should do the job here...
