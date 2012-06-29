@@ -32,10 +32,8 @@ use base qw(SystemModule);
 #
 # * dbh          - The database handle to use for queries.
 # * settings     - The system settings object
-# * metadata     - The system Metadata object.
-# * roles        - The system Roles object.
 # * logger       - The system logger object.
-# * modules      - The system module/block loader object.
+# * roles        - The system roles object.
 #
 # @param args A hash of key value pairs to initialise the object with.
 # @return A new News object, or undef if a problem occured.
@@ -46,9 +44,7 @@ sub new {
     return undef if(!$self);
 
     # Check that the required objects are present
-    return SystemModule::set_error("No metadata object available.") if(!$self -> {"metadata"});
     return SystemModule::set_error("No roles object available.") if(!$self -> {"roles"});
-    return SystemModule::set_error("No module loader object available.") if(!$self -> {"modules"});
 
     return $self;
 }
@@ -85,5 +81,45 @@ sub check_permission {
     return $self -> {"roles"} -> user_has_capability($metadataid, $userid, $request, $rolelimit);
 }
 
+
+# ============================================================================
+#
+
+## @method $ get_news_posts($courseid, $postid, $count)
+# Obtain a list of at most $count news posts from the specified course, starting
+# with the post id specified. This will pull a number of news posts, newest first,
+# made in the specified course, and return them in an array of hashrefs. If count
+# is 1, only the news post with the specified postid is fetched, otherwise up to
+# count posts are returned sorted in reverse chronological order of initial posting.
+#
+# @param courseid The ID of the course to fetch news posts from.
+# @param postid   The ID of the post to begin fetching from.
+# @param count    The number of posts to fetch.
+# @return A reference to an array of post data hashes on success, undef on error.
+sub get_news_posts {
+    my $self     = shift;
+    my $courseid = shift;
+    my $startid  = shift;
+    my $count    = shift;
+
+    # Build a query to fetch news posts, and the post text.
+    # Note that this does have one small issue, nothing to worry about, but things will break if the id field is reset to 0 for
+    # any reason. So don't reset it to zero. Ever. Besides, even posting one news post a second, there's enough id space for 136 years,
+    # and if this thing is still in use in 136 years, I will have to come back from the dead purely to ask our Mantis Men
+    # overlords why on Earth Prime they haven't switched to something else.
+    my $posth = $self -> {"dbh"} -> prepare("SELECT *
+                                             FROM ".$self -> {"settings"} -> {"database"} -> {"feature::news"}." AS n,
+                                                  ".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}." AS p
+                                             WHERE n.course_id = ?
+                                             AND n.id <= ?
+                                             AND p.id = n.post_id
+                                             ORDER BY n.created DESC
+                                             LIMIT $count");
+    $posth -> execute($courseid, $startid)
+        or return $self -> self_error("Unable to fetch post list ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
+
+    # Happily, fetchall should do the job here...
+    return $posth -> fetchall_arrayref({});
+}
 
 1;
