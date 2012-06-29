@@ -8,7 +8,7 @@
 # Pass pathinfo and query string to the index script
 AcceptPathInfo on
 RewriteEngine On
-RewriteCond %{REQUEST_URI} !^\/(templates|media|docs|index.cgi)
+RewriteCond %{REQUEST_URI} !^\/(templates|media|docs|ckeditor|index.cgi)
 RewriteRule (.*) /index.cgi/%{REQUEST_URI} [L]
 
 
