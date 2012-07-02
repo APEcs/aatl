@@ -335,6 +335,8 @@ sub build_return_url {
 # * block    - the name of the block to include in the url.
 # * cid      - the course id to use. If this is not specified, the current cid is used
 #              instead. If no cid is set, no cid is included in the url.
+# * pathinfo - either a string containing pathinfo to append to the course/block, or
+#              a reference to an array of pathinfo fragments to join and append.
 # * params   - a reference to a hash of additional query string arguments. Values may
 #              be references to arrays, in which case multiple copies of the parameter
 #              are added to the query string.
@@ -348,14 +350,19 @@ sub build_url {
     my %args = @_;
     my $base = "";
 
-    # start off with the protocol and host:port if needed.
-
     # Fix up the course and cid
     $args{"course"} = $self -> {"cgi"} -> param("course") || $self -> {"settings"} -> {"config"} -> {"aatlcourse_name"}
         unless($args{"course"});
 
     $args{"cid"}    = $self -> {"cgi"} -> param("cid")
         unless($args{"cid"});
+
+    # Work out any additional pathinfo
+    my @parampath = $self -> {"cgi"} -> param("pathinfo");
+    # If the user-supplied pathinfo is a reference to an array, join it into a string.
+    $args{"pathinfo"} = join("/", @{$args{"pathinfo"}}) if(ref($args{"pathinfo"}) eq "ARRAY");
+    # If there is no user-supplied pathinfo, try building it from the stored pathinfo
+    $args{"pathinfo"} = join("/", @parampath) unless($args{"pathinfo"});
 
     my @pairs;
     # make sure the cid is first in the query strint, if set.
@@ -364,9 +371,11 @@ sub build_url {
     # build the parameter list
     if($args{"params"}) {
         foreach my $param (keys(%{$args{"params"}})) {
+            # Do not include the course, block, or pathinfo in the query string components
+            next if($param eq "course" || $param eq "block" || $param eq "pathinfo");
+
             for my $value ($args{"params"} -> {$param}) {
                 next unless(defined($value)); # Ignore parameters with no defined values
-
                 push(@pairs, escape($param)."=".escape($value));
             }
         }
@@ -379,9 +388,9 @@ sub build_url {
     # building time...
     my $url = "";
     if($args{"fullurl"}) {
-        $url = path_join($self -> {"cgi"} -> url(-base => 1), $self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"});
+        $url = path_join($self -> {"cgi"} -> url(-base => 1), $self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"}, $args{"pathinfo"});
     } else {
-        $url = path_join($self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"});
+        $url = path_join($self -> {"settings"} -> {"config"} -> {"scriptpath"}, $args{"course"}, $args{"block"}, $args{"pathinfo"});
     }
 
     # strip course and block from the query string if they've somehow made it in there
