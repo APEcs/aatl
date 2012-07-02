@@ -22,6 +22,8 @@ package AppUser::AATL;
 use strict;
 use base qw(AppUser);
 use AuthMethod::Database; # pull in the database auth module to avoid code duplication
+use Digest::MD5 qw(md5_hex);
+use Utils qw(trimspace);
 
 ## @method $ activate_user_byid($userid)
 # Activate the user account with the specified id. This clears the user's
@@ -110,6 +112,53 @@ sub create_user {
 }
 
 
+## @method $ get_user($username, $onlyreal)
+# Obtain the user record for the specified user, if they exist. This returns a
+# reference to a hash of user data corresponding to the specified userid,
+# or undef if the userid does not correspond to a valid user. If the onlyreal
+# argument is set, the userid must correspond to 'real' user - bots or inactive
+# users are not be returned.
+#
+# @param username The username of the user to obtain the data for.
+# @param onlyreal If true, only users of type 0 or 3 are returned.
+# @return A reference to a hash containing the user's data, or undef if the user
+#         can not be located (or is not real)
+sub get_user {
+    my $self     = shift;
+    my $username = shift;
+    my $onlyreal = shift;
+
+    my $user = $self -> _get_user("username", $username, $onlyreal, 1)
+        or return undef;
+
+    return $self -> _make_user_extradata($user);
+}
+
+
+## @method $ get_user_byid($userid, $onlyreal)
+# Obtain the user record for the specified user, if they exist. This returns a
+# reference to a hash of user data corresponding to the specified userid,
+# or undef if the userid does not correspond to a valid user. If the onlyreal
+# argument is set, the userid must correspond to 'real' user - bots or inactive
+# users are not be returned.
+#
+# @param userid   The id of the user to obtain the data for.
+# @param onlyreal If true, only users of type 0 or 3 are returned.
+# @return A reference to a hash containing the user's data, or undef if the user
+#         can not be located (or is not real)
+sub get_user_byid {
+    my $self     = shift;
+    my $userid   = shift;
+    my $onlyreal = shift;
+
+    # obtain the user record
+    my $user = $self -> _get_user("user_id", $userid, $onlyreal)
+        or return undef;
+
+    return $self -> _make_user_extradata($user);
+}
+
+
 ## @method $ get_user_byemail($email, $onlyreal)
 # Obtain the user record for the user with the specified email, if available.
 # This returns a reference to a hash containing the user data corresponding
@@ -126,7 +175,10 @@ sub get_user_byemail {
     my $email    = shift;
     my $onlyreal = shift;
 
-    return $self -> _get_user("email", $email, $onlyreal, 1);
+    my $user = $self -> _get_user("email", $email, $onlyreal, 1)
+        or return undef;
+
+    return $self -> _make_user_extradata($user);
 }
 
 
@@ -206,5 +258,27 @@ sub post_login_checks {
     return $user;
 }
 
+
+# ============================================================================
+#  Internal functions
+
+## @method private $ _make_user_extradata($user)
+# Generate the 'calculated' user fields - full name, gravatar hash, etc.
+#
+# @param user A reference to the user hash to work on.
+# @return The user hash reference.
+sub _make_user_extradata {
+    my $self = shift;
+    my $user = shift;
+
+    # Generate the user's full name
+    $user -> {"fullname"} = (($user -> {"forenames"} || "")." ".($user -> {"surname"} || ""));
+    $user -> {"fullname"} = $user -> {"username"} if($user -> {"fullname"} eq " ");
+
+    # And their gravatar hash
+    $user -> {"gravatar_hash"} = md5_hex(lc(trimspace($user -> {"email"}))),
+
+    return $user;
+}
 
 1;
