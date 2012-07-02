@@ -26,8 +26,6 @@ package Feature::Userbar;
 
 use strict;
 use base qw(Feature);
-use Digest::MD5 qw(md5_hex);
-use Utils qw(trimspace);
 
 # ==============================================================================
 #  Bar generation
@@ -54,12 +52,9 @@ sub block_display {
             or return undef;
 
         # User is logged in, so actually reflect their current options and state
-        my $realname = (($user -> {"forenames"} || "")." ".($user -> {"surname"} || ""));
-        $realname = $user -> {"username"} if($realname eq " ");
-
-        $userprofile = $self -> {"template"} -> load_template("userbar/profile_loggedin.tem", {"***realname***"    => $realname,
+        $userprofile = $self -> {"template"} -> load_template("userbar/profile_loggedin.tem", {"***realname***"    => $user -> {"fullname"},
                                                                                                "***username***"    => $user -> {"username"},
-                                                                                               "***gravhash***"    => md5_hex(lc(trimspace($user -> {"email"}))),
+                                                                                               "***gravhash***"    => $user -> {"gravatar_hash"},
                                                                                                "***url-profile***" => $self -> build_url(block => "profile"),
                                                                                                "***url-prefs***"   => $self -> build_url(block => "settings"),
                                                                                                "***url-logout***"  => $self -> build_url(block => "login", paramstr => "logout=t")});
