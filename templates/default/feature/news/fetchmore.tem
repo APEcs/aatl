@@ -1,0 +1,3 @@
+<li id="showmore"><div class="showmore"><div class="button blue" onclick="fetchmore(***url***)">{L_FEATURE_NEWS_SHOWMORE}</div></div></li>
+
+

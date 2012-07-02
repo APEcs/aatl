@@ -1,8 +1,8 @@
                 <li><form action="***url***" method="post">
-                        <div class="input"><input type="text" id="new-subject" size="70" maxlength="100" title="{L_FEATURE_NEWS_SUBJECT}"/></div>
+                        <div class="input"><input type="text" id="new-subject" size="70" maxlength="100" title="{L_FEATURE_NEWS_SUBJECT}" value="***subject***"/></div>
                         <div class="contents">
-                            <div class="textwrapper"><textarea id="new-message" rows="3" cols="80"></textarea></div>
-                            <div class="newpost formsubmit"><input type="submit" id="newpost" class="button blue" value="{L_FEATURE_NEWS_POST}" /></div>
+                            <div class="textwrapper"><textarea id="new-message" rows="3" cols="80">***message***</textarea></div>
+                            <div class="newpost formsubmit"><input type="submit" id="newpost" name="newpost" class="button blue" value="{L_FEATURE_NEWS_POST}" /></div>
                         </div>
                     </form>
                     <script type="text/javascript">

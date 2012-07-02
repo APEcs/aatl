@@ -81,13 +81,16 @@ sub used_capabilities {
 # ============================================================================
 #  News posts
 
-## @method $ build_newpost_form()
+## @method $ build_newpost_form($args)
 # Determine whether the user has access to post new news entries, and if the
 # user does generate the appropriate chunk of HTML.
 #
+# @param args A reference to a hash containing initial values for the subject
+#             and message fields in the form.
 # @return The HTML to place in the new post form area
 sub build_newpost_form {
     my $self = shift;
+    my $args = shift || {};
 
     # Does the user have permission to post news posts in this course?
     my $canpost = $self -> {"news"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
@@ -101,7 +104,10 @@ sub build_newpost_form {
     $canpost = $canpost && !defined($self -> {"cgi"} -> param("postid"))
         unless($self -> {"settings"} -> {"config"} -> {"Feature::News::always_post"});
 
-    return ($self -> {"template"} -> load_template("feature/news/postform_".($canpost ? "enabled" : "disabled").".tem"));
+    return $self -> {"template"} -> load_template("feature/news/postform_".($canpost ? "enabled" : "disabled").".tem",
+                                                  {"***url***" => $self -> build_url(),
+                                                   "***subject***" => $args -> {"subject"},
+                                                   "***message***" => $args -> {"message"}});
 }
 
 
@@ -120,11 +126,38 @@ sub build_post_list {
     my $posts = $self -> {"news"} -> get_news_posts($self -> {"courseid"}, $startid, $count + ($count > 1 ? $show_fetchmore : 0))
         or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Unable to fetch news posts: ".$self -> {"news"} -> {"errstr"});
 
-    return "";
+    my $entrytem   = $self -> {"template"} -> load_template("feature/news/post.tem");
+    my $contenttem = $self -> {"template"} -> load_template("feature/news/post_content.tem");
+    my $entry = 0;
+    my $entrylist = "";
+
+    foreach my $post (@{$posts}) {
+        # Obtain the details of the poster and possible editor
+        my $poster = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"creator_id"});
+        my $editor = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"author_id"});
+
+        # Generate the body of the post
+        my $content = $self -> {"template"} -> process_template($contenttem, {"***message***" => $post -> {"message"}});
+
+        # And append the whole post to the list of posts.
+        $entrylist .= $self -> {"template"} -> process_template($entrytem, {"***posted***" => $self -> {"template"} -> format_time($post -> {"created"}),
+                                                                            "***profile***" => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
+                                                                            "***name***"    => $poster -> {"fullname"},
+                                                                            "***title***"   => $post -> {"subject"},
+                                                                            "***content***" => $content });
+        last if(++$entry == $count);
+    }
+
+    $entrylist .= $self -> {"template"} -> load_template("feature/news/fetchmore.tem",
+                                                         {"***url****" => $self -> build_url(pathinfo => [ "api" ],
+                                                                                             paramstr => "postid=".$posts -> [$entry] -> {"id"})})
+        if($show_fetchmore && scalar(@{$posts}) > $count);
+
+    return $entrylist;
 }
 
 
-## @method @ build_news_list()
+## @method @ build_news_list($error, $args)
 # Build a list of news posts the user can see. If the user has create or edit
 # access, this will also insert the appropriate html to allow them to create
 # posts or edit old ones.
@@ -133,7 +166,13 @@ sub build_post_list {
 #         and a string to place in the page header to load any required
 #         javascript.
 sub build_news_list {
-    my $self = shift;
+    my $self  = shift;
+    my $error = shift;
+    my $args  = shift;
+
+    # Wrap the error message in a message box if we have one.
+    $error = $self -> {"template"} -> load_template("feature/news/error_box.tem", {"***message***" => $error})
+        if($error);
 
     # Has the user requested a specific post id to show?
     my $postid = is_defined_numeric($self -> {"cgi"}, "postid");
@@ -146,8 +185,9 @@ sub build_news_list {
 
     return ($self -> {"template"} -> load_template("feature/news/postlist.tem",
                                                    {"***returnlink***" => $returnlink,
+                                                    "***error***"      => $error,
                                                     "***entries***"    => $self -> build_post_list($postid, $count, 1),
-                                                    "***postform***"   => $self -> build_newpost_form(),
+                                                    "***postform***"   => $self -> build_newpost_form($args),
                                                    }),
             $self -> {"template"} -> load_template("feature/news/extrahead.tem"));
 }
