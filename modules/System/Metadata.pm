@@ -99,11 +99,11 @@ sub create {
     my $metadataid = $self -> {"dbh"} -> {"mysql_insertid"};
 
     # Increment the parent's refcount if addition worked
-    my $refcount = $self -> attach($parentid)
+    $self -> attach($parentid) or return undef
         if($parentid && $metadataid);
 
-    # Return undef if metadataid is undef or zero, or refcount should have worked, but failed.
-    return ($metadataid && ($refcount || !$parentid) ? $metadataid : undef);
+    # Return undef if metadataid is undef or zero
+    return $metadataid ? $metadataid : undef;
 }
 
 
