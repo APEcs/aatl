@@ -9,6 +9,7 @@ table.notebox {
     -moz-box-shadow: 3px 3px 4px rgba(0,0,0,0.1);
     -webkit-box-shadow: 3px 3px 4px rgba(0,0,0,0.1);
     box-shadow: 3px 3px 4px rgba(0,0,0,0.1);
+    margin-bottom: 4px;
 }
 table.ienotebox {
     margin: 0px 10%;   /* 10% = Will not overlap with other elements */
@@ -18,7 +19,7 @@ table.ienotebox {
 }
 
 table.notebox + table.notebox {   /* Single border between stacked boxes. */
-    margin-top: -1px;
+    margin-top: -5px;
 }
 .notebox th.nbox-text,
 .notebox td.nbox-text {            /* The message body cell(s) */

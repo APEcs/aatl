@@ -46,7 +46,9 @@ sub new {
     $self -> {"news"} = System::News -> new(dbh      => $self -> {"dbh"},
                                             settings => $self -> {"settings"},
                                             logger   => $self -> {"logger"},
-                                            roles    => $self -> {"system"} -> {"roles"})
+                                            roles    => $self -> {"system"} -> {"roles"},
+                                            metadata => $self -> {"system"} -> {"metadata"},
+                                            courses  => $self -> {"system"} -> {"courses"})
         or return SystemModule::set_error("News initialisation failed: ".$System::News::errstr);
 
     # FIXME: This will probably need to instantiate the tags feature to get at Feature::Tags::block_display().
@@ -79,6 +81,65 @@ sub used_capabilities {
 
 
 # ============================================================================
+#  Validation
+
+## @method @ validate_news_post()
+# Determine whether the user has permission to post news posts, and if they do
+# validate the data they have submitted.
+#
+# @return An array of two values: a reference to the new post data on success,
+#         an error message on failure; and a reference to a hash containing any
+#         submitted values that passed validation.
+sub validate_news_post {
+    my $self = shift;
+    my ($args, $errors, $error) = ({}, "", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    # Exit with a permission error unless the user has permission to post
+    my $canpost = $self -> {"news"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                        $self -> {"session"} -> get_session_userid(),
+                                                        "news.post",
+                                                        undef);
+    return ($self -> {"template"} -> load_template("error_list.tem",
+                                                   {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
+                                                    "***errors***"  => $self -> {"template"} -> process_template($errtem,
+                                                                                                                 {"***error***" => "{L_FEATURE_NEWS_ERR_POSTPERM}"})}),
+            $args) unless($canpost);
+
+    # User has post permission, have they filled in the form correctly?
+    ($args -> {"subject"}, $error) = $self -> validate_string("subject", {"required" => 1,
+                                                                          "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_SUBJECT"),
+                                                                          "minlen"   => 1,
+                                                                          "maxlen"   => 255});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    # Give up here if there are any errors
+    return ($self -> {"template"} -> load_template("error_list.tem",
+                                                   {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
+                                                    "***errors***"  => $errors}), $args)
+        if($errors);
+
+    # No errors so far, try creating the new post
+    my $post = $self -> {"news"} -> create_post($self -> {"courseid"},
+                                                $self -> {"session"} -> get_session_userid(),
+                                                $args -> {"subject"},
+                                                $args -> {"message"})
+        or return ($self -> {"template"} -> load_template("error_list.tem",
+                                                   {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
+                                                    "***errors***"  => $self -> {"template"} -> process_template($errtem,
+                                                                                                                 {"***error***" => $self -> {"news"} -> {"errstr"}})}),
+                   $args);
+
+    return ($post, $args);
+}
+
+
+# ============================================================================
 #  News posts
 
 ## @method $ build_newpost_form($args)
@@ -105,7 +166,7 @@ sub build_newpost_form {
         unless($self -> {"settings"} -> {"config"} -> {"Feature::News::always_post"});
 
     return $self -> {"template"} -> load_template("feature/news/postform_".($canpost ? "enabled" : "disabled").".tem",
-                                                  {"***url***" => $self -> build_url(),
+                                                  {"***url***"     => $self -> build_url(block => "news"),
                                                    "***subject***" => $args -> {"subject"},
                                                    "***message***" => $args -> {"message"}});
 }
@@ -113,10 +174,19 @@ sub build_newpost_form {
 
 ## @method $ build_post_list($starid, $count, $show_fetchmore)
 # Generate a list of posts to show in the news list.
+#
+# @param startid The ID of the post to start showing entries from. If
+#                omitted, the first post is the latest one.
+# @param count   The number of posts to retrieve. If omitted, the default set in
+#                the Feature::News::post_count setting variable is used instead.
+# @param show_fetchmore If set, and there are more than `count` posts left to
+#                show, this will add the 'fetch more' button to the end of the
+#                list.
+# @return A string containing the list of news posts.
 sub build_post_list {
     my $self    = shift;
     my $startid = shift;
-    my $count   = shift;
+    my $count   = shift || $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"};
     my $show_fetchmore = shift;
 
     # Fetch the list of posts. If the count is 1, only a single post is being shown, so there's no need to
@@ -140,16 +210,18 @@ sub build_post_list {
         my $content = $self -> {"template"} -> process_template($contenttem, {"***message***" => $post -> {"message"}});
 
         # And append the whole post to the list of posts.
-        $entrylist .= $self -> {"template"} -> process_template($entrytem, {"***posted***" => $self -> {"template"} -> format_time($post -> {"created"}),
-                                                                            "***profile***" => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
-                                                                            "***name***"    => $poster -> {"fullname"},
-                                                                            "***title***"   => $post -> {"subject"},
-                                                                            "***content***" => $content });
+        $entrylist .= $self -> {"template"} -> process_template($entrytem, {"***posted***"   => $self -> {"template"} -> format_time($post -> {"created"}),
+                                                                            "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
+                                                                            "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
+                                                                            "***name***"     => $poster -> {"fullname"},
+                                                                            "***gravhash***" => $poster -> {"gravatar_hash"},
+                                                                            "***title***"    => $post -> {"subject"},
+                                                                            "***content***"  => $content });
         last if(++$entry == $count);
     }
 
     $entrylist .= $self -> {"template"} -> load_template("feature/news/fetchmore.tem",
-                                                         {"***url****" => $self -> build_url(pathinfo => [ "api" ],
+                                                         {"***url****" => $self -> build_url(pathinfo => [ "api", "more" ],
                                                                                              paramstr => "postid=".$posts -> [$entry] -> {"id"})})
         if($show_fetchmore && scalar(@{$posts}) > $count);
 
@@ -200,6 +272,7 @@ sub build_news_list {
 # @return The string containing this block's page content.
 sub page_display {
     my $self = shift;
+    my ($content, $extrahead);
 
     # Confirm that the user is logged in and has access to the course
     # ALL FEATURES SHOULD DO THIS BEFORE DOING ANYTHING ELSE!!
@@ -207,12 +280,30 @@ sub page_display {
     return $error if($error);
 
     # Is this an API call, or a normal news page call?
-    my $apiop = $self -> api_operation();
-    if(defined($apiop)) {
-
+    my $apiop = $self -> is_api_operation();
+    if(defined($apiop) && $apiop eq "more") {
+#        $self -> api_response($self -> build_api_response(),
+#                              "KeepRoot" => 1,
+#                             );
     } else {
-        # Generate the next list
-        my ($content, $extrahead) = $self -> build_news_list();
+        # Is the user attempting to post a new news post? If so, they need permission
+        # and validation. Of the form submission, the user probably doesn't need validation.
+        if(defined($self -> {"cgi"} -> param("newpost"))) {
+            my ($error, $args) = $self -> validate_news_post();
+
+            # Has an error been encountered while generating the news post? If so,
+            # send everything back with the error message...
+            if(!ref($error)) {
+                ($content, $extrahead) = $self -> build_news_list($error, $args);
+
+            # Otherwise, send back the new page.
+            } else {
+                ($content, $extrahead) = $self -> build_news_list();
+            }
+        } else {
+            # Generate the news list
+            ($content, $extrahead) = $self -> build_news_list();
+        }
 
         # User has access, generate the news page for the course.
         return $self -> generate_course_page("{L_FEATURE_NEWS_TITLE}", $content, $extrahead);

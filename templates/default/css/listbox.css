@@ -70,10 +70,31 @@ ul.boxes ul.boxmeta li.iconlink a img.feed14 {
     border: none;
 }
 
-ul.boxes h3 {
+ul.boxes li > h3 {
     font-size: 14px;
     margin: 0px;
     white-space: nowrap;
+}
+
+ul.boxes li > h3 a {
+    text-decoration: none;
+    color: #666;
+    font-weight: bold;
+}
+
+ul.boxes li > h3 a:hover {
+    text-decoration: none;
+    color: #666;
+}
+
+ul.boxes li > h3 a:active {
+    text-decoration: none;
+    color: #49F;
+}
+
+ul.boxes li > h3 a:visited {
+    text-decoration: none;
+    color: #666;
 }
 
 ul.boxes .contents {

@@ -1,1 +1,2 @@
-<div class="returnlink"><a href="***url***">{L_NEWS_RETURNLINK}</a></div>
+<li id="returnlink"><div class="returnlink"><div class="button blue" onclick="location.href='***url***'">{L_FEATURE_NEWS_BACKLINK}</div></div></li>
+
