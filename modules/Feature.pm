@@ -24,6 +24,7 @@ use strict;
 use base qw(Block); # Features are just a specific form of Block
 use CGI::Util qw(escape);
 use Utils qw(is_defined_numeric path_join);
+use XML::Simple;
 
 # ============================================================================
 #  Permissions/Roles related.
@@ -406,14 +407,14 @@ sub build_url {
 # ============================================================================
 #  General utility
 
-## @method $ api_operation()
+## @method $ is_api_operation()
 # Determine whether the feature is being called in API mode, and if so what operation
 # is being requested.
 #
 # @return A string containing the API operation name if the script is being invoked
 #         in API mode, undef otherwise. Note that, if the script is invoked in API mode,
 #         but no operation has been specified, this returns an empty string.
-sub api_operation {
+sub is_api_operation {
     my $self = shift;
 
     # API stuff is encoded in the pathinfo
@@ -427,6 +428,42 @@ sub api_operation {
     return $pathinfo[1] || "" if($pathinfo[0] eq 'api');
 
     return undef;
+}
+
+
+## @method $ api_response($data, %xmlopts)
+# Generate an XML response containing the specified data. This function will not return
+# if it is successful - it will return an XML response and exit.
+#
+# @param data    A reference to a hash containing the data to send back to the client as an
+#                XML response.
+# @param xmlopts Options passed to XML::Simple::XMLout. Note that, if XMLDecl is not set,
+#                it will be automatically set for you (generally you want this to happen!)
+# @return Does not return if successful, otherwise returns undef.
+sub api_response {
+    my $self    = shift;
+    my $data    = shift;
+    my %xmlopts = @_;
+    my $xmldata;
+
+    $xmlopts{"XMLDecl"} = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
+        unless($xmlopts{"XMLDecl"});
+
+    eval { $xmldata = XMLout($data, %xmlopts); };
+    return $self -> self_error("Error encoding XML response: $@") if($@);
+
+    print $self -> {"cgi"} -> header(-type => 'application/xml',
+                                     -charset => 'utf-8');
+    print Encode::encode_utf8($xmldata);
+
+    $self -> {"template"} -> set_module_obj(undef);
+    $self -> {"system"} -> clear() if($self -> {"system"});
+    $self -> {"session"} -> {"auth"} -> {"app"} -> set_system(undef) if($self -> {"session"} -> {"auth"} -> {"app"});
+
+    $self -> {"dbh"} -> disconnect();
+    $self -> {"logger"} -> end_log();
+
+    exit;
 }
 
 
