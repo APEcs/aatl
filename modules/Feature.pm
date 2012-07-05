@@ -405,7 +405,7 @@ sub build_url {
 
 
 # ============================================================================
-#  General utility
+#  API support
 
 ## @method $ is_api_operation()
 # Determine whether the feature is being called in API mode, and if so what operation
@@ -431,14 +431,50 @@ sub is_api_operation {
 }
 
 
+## @method $ api_errorhash($code, $message)
+# Generate a hash that can be passed to api_response() to indicate that an error was encountered.
+#
+# @param code    A 'code' to identify the error. Does not need to be numeric, but it
+#                should be short, and as unique as possible to the error.
+# @param message The human-readable error message.
+# @return A reference to a hash to pass to api_response()
+sub api_errorhash {
+    my $self    = shift;
+    my $code    = shift;
+    my $message = shift;
+
+    return { 'error' => {
+                          'info' => $message,
+                          'code' => $code
+                        }
+           };
+}
+
+
+sub api_html_response {
+    my $self = shift;
+    my $data = shift;
+
+    # Fix up error hash returns
+    $data = $self -> {"template"} -> load_template("api/html_error.tem", {"***code***" => $data -> {"error"} -> {"code"},
+                                                                          "***info***" => $data -> {"error"} -> {"info"}})
+        if(ref($data) eq "HASH" && $data -> {"error"});
+
+    return $self -> {"template"} -> load_template("api/html_wrapper.tem", {"***data***" => $data});
+}
+
+
 ## @method $ api_response($data, %xmlopts)
 # Generate an XML response containing the specified data. This function will not return
 # if it is successful - it will return an XML response and exit.
 #
 # @param data    A reference to a hash containing the data to send back to the client as an
 #                XML response.
-# @param xmlopts Options passed to XML::Simple::XMLout. Note that, if XMLDecl is not set,
-#                it will be automatically set for you (generally you want this to happen!)
+# @param xmlopts Options passed to XML::Simple::XMLout. Note that the following defaults are
+#                set for you:
+#                - XMLDecl is set to '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
+#                - KeepRoot is set to 0
+#                - RootName is set to 'api'
 # @return Does not return if successful, otherwise returns undef.
 sub api_response {
     my $self    = shift;
@@ -447,10 +483,18 @@ sub api_response {
     my $xmldata;
 
     $xmlopts{"XMLDecl"} = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
-        unless($xmlopts{"XMLDecl"});
+        unless(defined($xmlopts{"XMLDecl"}));
+
+    $xmlopts{"KeepRoot"} = 0
+        unless(defined($xmlopts{"KeepRoot"}));
+
+    $xmlopts{"RootName"} = 'api'
+        unless(defined($xmlopts{"RootName"}));
 
     eval { $xmldata = XMLout($data, %xmlopts); };
-    return $self -> self_error("Error encoding XML response: $@") if($@);
+    $xmldata = $self -> {"template"} -> load_template("xml/error_response.tem", { "***code***"  => "encoding_failed",
+                                                                                  "***error***" => "Error encoding XML response: $@"})
+        if($@);
 
     print $self -> {"cgi"} -> header(-type => 'application/xml',
                                      -charset => 'utf-8');
@@ -466,6 +510,9 @@ sub api_response {
     exit;
 }
 
+
+# ============================================================================
+#  General utility
 
 ## @method $ get_saved_state()
 # A convenience wrapper around Session::get_variable() for fetching the state saved in

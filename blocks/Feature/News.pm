@@ -221,8 +221,7 @@ sub build_post_list {
     }
 
     $entrylist .= $self -> {"template"} -> load_template("feature/news/fetchmore.tem",
-                                                         {"***url****" => $self -> build_url(pathinfo => [ "api", "more" ],
-                                                                                             paramstr => "postid=".$posts -> [$entry] -> {"id"})})
+                                                         {"***url***" => $posts -> [$entry] -> {"id"}})
         if($show_fetchmore && scalar(@{$posts}) > $count);
 
     return $entrylist;
@@ -265,6 +264,30 @@ sub build_news_list {
 }
 
 
+## @method $ build_api_response()
+# Generate a hash that can be sent back to the user as an XML API response.
+# This behaves much like build_news_list(), except that it treats a specified
+# postid as the first post to return, and it will return up to Feature::News::post_count
+# posts as part of the response, and include a 'fetch more' button if appropriate.
+# The contents of the response may vary depending on whether the response succeeded.
+#
+# @return A hash containing the API response.
+sub build_api_response {
+    my $self = shift;
+    my $posts;
+
+    # Has the user requested a specific post id to show?
+    my $postid = is_defined_numeric($self -> {"cgi"}, "postid");
+
+    # Try to build the post list, give up with an error if it doesn't work
+    eval { $posts = $self -> build_post_list($postid, $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"}, 1) };
+    return $self -> api_errorhash("list_failed", $@)
+        if($@);
+
+    return $posts;
+}
+
+
 ## @method $ page_display()
 # Produce the string containing this block's full page content. This generates
 # a course news page, including all navigation and decoration.
@@ -276,15 +299,13 @@ sub page_display {
 
     # Confirm that the user is logged in and has access to the course
     # ALL FEATURES SHOULD DO THIS BEFORE DOING ANYTHING ELSE!!
-    my $error = $self -> check_login_courseview(0);
-    return $error if($error);
+#    my $error = $self -> check_login_courseview(0);
+#    return $error if($error);
 
     # Is this an API call, or a normal news page call?
     my $apiop = $self -> is_api_operation();
     if(defined($apiop) && $apiop eq "more") {
-#        $self -> api_response($self -> build_api_response(),
-#                              "KeepRoot" => 1,
-#                             );
+        return $self -> api_html_response($self -> build_api_response());
     } else {
         # Is the user attempting to post a new news post? If so, they need permission
         # and validation. Of the form submission, the user probably doesn't need validation.

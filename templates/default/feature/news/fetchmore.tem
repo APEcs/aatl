@@ -1,1 +1,1 @@
-<li id="showmore"><div class="showmore"><div class="button blue" onclick="fetchmore(***url***)">{L_FEATURE_NEWS_SHOWMORE}</div></div></li>
+<li id="showmore"><div class="showmore"><img style="opacity: 0" src="{V_[templatepath]}images/spinner.gif" width="24" height="24" alt="working" id="fetchimg" /><div id="fetchbtn" class="button blue" onclick="do_fetchmore('***url***')">{L_FEATURE_NEWS_SHOWMORE}</div></div></li>
