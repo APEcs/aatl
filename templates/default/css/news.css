@@ -17,3 +17,21 @@ ul.boxes > li#returnlink {
     background-color: transparent;
     text-align: right;
 }
+
+ul.boxes div.editinfo {
+    text-align: right;
+}
+
+ul.boxes div.editinfo ul.boxmeta {
+    float: none;
+}
+
+ul.boxes div.editinfo ul.boxmeta li a {
+    text-decoration: none;
+    color: #06A;
+}
+
+ul.boxes div.editinfo ul.boxmeta li a:hover {
+    text-decoration: none;
+    color: #666;
+}

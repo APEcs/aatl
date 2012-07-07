@@ -44,7 +44,7 @@ ul.boxes ul.boxmeta li.iconlink a {
 
 ul.boxes ul.boxmeta li.iconlink a:hover {
     text-decoration: none;
-    color: #666;
+    color: #06A;
 }
 
 ul.boxes ul.boxmeta li.iconlink a img {
@@ -84,7 +84,7 @@ ul.boxes li > h3 a {
 
 ul.boxes li > h3 a:hover {
     text-decoration: none;
-    color: #666;
+    color: #06A;
 }
 
 ul.boxes li > h3 a:active {

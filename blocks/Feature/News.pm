@@ -172,6 +172,20 @@ sub build_newpost_form {
 }
 
 
+## @method $ build_post_controls($post)
+# Generate the controls the user may use to operate on the specified post, if any.
+#
+# @param post A reference to a hash containing the post data.
+# @return A string containing the controls block to show in the post html.
+sub build_post_controls {
+    my $self = shift;
+    my $post = shift;
+
+
+
+}
+
+
 ## @method $ build_post_list($starid, $count, $show_fetchmore)
 # Generate a list of posts to show in the news list.
 #
@@ -198,17 +212,28 @@ sub build_post_list {
 
     my $entrytem   = $self -> {"template"} -> load_template("feature/news/post.tem");
     my $contenttem = $self -> {"template"} -> load_template("feature/news/post_content.tem");
+    my @edittem    = ($self -> {"template"} -> load_template("feature/news/editby_disabled.tem"),
+                      $self -> {"template"} -> load_template("feature/news/editby_enabled.tem"));
     my $entry = 0;
     my $entrylist = "";
 
     foreach my $post (@{$posts}) {
         # Obtain the details of the poster and possible editor
         my $poster = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"creator_id"});
-        my $editor = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"author_id"});
+        my $editor = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"editor_id"});
 
         # Generate the body of the post
         my $content = $self -> {"template"} -> process_template($contenttem, {"***message***" => $post -> {"message"}});
 
+        # Determine whether the post has been edited
+        my $editby = $self -> {"template"} -> process_template($edittem[(($post -> {"creator_id"} != $post -> {"editor_id"}) ||
+                                                                         ($post -> {"created"} != $post -> {"edited"}))],
+                                                               {"***edited***"   => $self -> {"template"} -> format_time($post -> {"edited"}),
+                                                                "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"}, "showhist" => "t" }),
+                                                                "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $editor -> {"username"} ]),
+                                                                "***name***"     => $editor -> {"fullname"},
+                                                                "***gravhash***" => $editor -> {"gravatar_hash"},
+                                                               });
         # And append the whole post to the list of posts.
         $entrylist .= $self -> {"template"} -> process_template($entrytem, {"***posted***"   => $self -> {"template"} -> format_time($post -> {"created"}),
                                                                             "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
@@ -216,7 +241,9 @@ sub build_post_list {
                                                                             "***name***"     => $poster -> {"fullname"},
                                                                             "***gravhash***" => $poster -> {"gravatar_hash"},
                                                                             "***title***"    => $post -> {"subject"},
-                                                                            "***content***"  => $content });
+                                                                            "***content***"  => $content,
+                                                                            "***editby***"   => $editby,
+                                                                            "***controls***" => ""});
         last if(++$entry == $count);
     }
 
@@ -299,8 +326,8 @@ sub page_display {
 
     # Confirm that the user is logged in and has access to the course
     # ALL FEATURES SHOULD DO THIS BEFORE DOING ANYTHING ELSE!!
-#    my $error = $self -> check_login_courseview(0);
-#    return $error if($error);
+    my $error = $self -> check_login_courseview(0);
+    return $error if($error);
 
     # Is this an API call, or a normal news page call?
     my $apiop = $self -> is_api_operation();

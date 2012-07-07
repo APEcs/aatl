@@ -189,3 +189,7 @@ textarea:focus {
 .overTxtLabel {
     color: #999;
 }
+
+a {
+    text-decoration: none;
+}

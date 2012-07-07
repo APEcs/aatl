@@ -115,12 +115,14 @@ sub create_post {
     my $metadataid = $self -> {"metadata"} -> create($parentid)
         or return $self -> self_error("Unable to create new metadata context: ".$self -> {"metadata"} -> {"errstr"});
 
+    my $now = time();
+
     # Make a new news post, with no postid
-    my $newsid = $self -> _new_news($metadataid, $courseid, $userid)
+    my $newsid = $self -> _new_news($metadataid, $courseid, $userid, $now)
         or return undef;
 
     # Set the news post.
-    return $self -> edit_post($newsid, $userid, $subject, $message);
+    return $self -> edit_post($newsid, $userid, $subject, $message, $now);
 }
 
 
@@ -254,27 +256,30 @@ sub _get_news_entry {
 }
 
 
-## @method $ _new_news($metadataid, $courseid, $userid)
+## @method $ _new_news($metadataid, $courseid, $userid, $timestamp)
 # Create a new entry in the Feature::news table to act as the 'header' for a
 # news post.
 #
 # @param metadataid The ID of the metadata context to associate with the news post.
 # @param courseid   The ID of the course the post is being made in (may be undef).
 # @param userid     The ID of the user creating the post.
+# @param timestamp  Optional unix typestamp to set for the entry. If not provided,
+#                   the current time is used.
 # @return The new post id on success, undef on error.
 sub _new_news {
     my $self       = shift;
     my $metadataid = shift;
     my $courseid   = shift;
     my $userid     = shift;
+    my $timestamp  = shift || time();
 
     $self -> clear_error();
 
     # Query to create a new news header
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."`
                                             (metadata_id, course_id, created, creator_id)
-                                            VALUES(?, ?, UNIX_TIMESTAMP(), ?)");
-    my $result = $newh -> execute($metadataid, $courseid, $userid);
+                                            VALUES(?, ?, ?, ?)");
+    my $result = $newh -> execute($metadataid, $courseid, $timestamp, $userid);
     return $self -> self_error("Unable to perform news insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("News insert failed, no rows inserted") if($result eq "0E0");
 
@@ -338,21 +343,24 @@ sub _set_news_current_postid {
 }
 
 
-## @method $ _new_post($newsid, $userid, $subject, $message)
+## @method $ _new_post($newsid, $userid, $subject, $message, $timestamp)
 # Create a new news post entry, automatically recording whether it is an edit
 # of a previous post or a new one.
 #
-# @param newsid The ID of the news entry this is a post for.
-# @param userid The ID of the user posting the post.
-# @param subject  The post subject.
-# @param message  The message to show in the post body.
+# @param newsid    The ID of the news entry this is a post for.
+# @param userid    The ID of the user posting the post.
+# @param subject   The post subject.
+# @param message   The message to show in the post body.
+# @param timestamp Optional unix typestamp to set for the post. If not provided,
+#                  the current time is used.
 # @return The ID of the new post on success, undef on error.
 sub _new_post {
-    my $self    = shift;
-    my $newsid  = shift;
-    my $userid  = shift;
-    my $subject = shift;
-    my $message = shift;
+    my $self      = shift;
+    my $newsid    = shift;
+    my $userid    = shift;
+    my $subject   = shift;
+    my $message   = shift;
+    my $timestamp = shift || time();
 
     $self -> clear_error();
 
@@ -364,7 +372,7 @@ sub _new_post {
     undef $previd if(!$previd);
 
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}."`
-                                            (author_id, entry_id, previous_id, subject, message, edited)
+                                            (editor_id, entry_id, previous_id, subject, message, edited)
                                             VALUES(?, ?, ?, ?, ?, UNIX_TIMESTAMP())");
 
     my $result = $newh -> execute($userid, $newsid, $previd, $subject, $message);

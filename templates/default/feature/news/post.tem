@@ -7,5 +7,9 @@
                         </li>
                     </ul>
                     <h3><a href="***posturl***">***title***</a></h3>
-                    <div class="contents">***content***</div>
+                    <div class="contents">
+                        <div class="message">***content***</div>
+                        ***controls***
+                        ***editby***
+                    </div>
                 </li>

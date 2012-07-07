@@ -63,3 +63,46 @@
     background-image: linear-gradient(top, #0078a5, #00adee); /* proposed W3C Markup */
 	filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0078a5', endColorstr='#00adee');
 }
+
+/* disabled */
+.disabled {
+    color: #555;
+    border: solid 1px #a3a3a3;
+
+    background-color: #cdcdcd; /* Fallback */
+    background-image: -ms-linear-gradient(top, #eeeeee, #a5a5a5); /* IE10 */
+    background-image: -moz-linear-gradient(top, #eeeeee, #a5a5a5); /* Firefox */
+    background-image: -o-linear-gradient(top, #eeeeee, #a5a5a5); /* Opera */
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#eeeeee), to(#a5a5a5)); /* old Webkit */
+    background-image: -webkit-linear-gradient(top, #eeeeee, #a5a5a5); /* new Webkit */
+    background-image: linear-gradient(top, #eeeeee, #a5a5a5); /* proposed W3C Markup */
+	filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#eeeeee', endColorstr='#a5a5a5');
+}
+
+.disabled:hover {
+    color: #555;
+    border: solid 1px #a3a3a3;
+
+    background-color: #cdcdcd; /* Fallback */
+    background-image: -ms-linear-gradient(top, #eeeeee, #a5a5a5); /* IE10 */
+    background-image: -moz-linear-gradient(top, #eeeeee, #a5a5a5); /* Firefox */
+    background-image: -o-linear-gradient(top, #eeeeee, #a5a5a5); /* Opera */
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#eeeeee), to(#a5a5a5)); /* old Webkit */
+    background-image: -webkit-linear-gradient(top, #eeeeee, #a5a5a5); /* new Webkit */
+    background-image: linear-gradient(top, #eeeeee, #a5a5a5); /* proposed W3C Markup */
+	filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#eeeeee', endColorstr='#a5a5a5');
+}
+
+.disabled:active {
+    color: #555;
+    border: solid 1px #a3a3a3;
+
+    background-color: #cdcdcd; /* Fallback */
+    background-image: -ms-linear-gradient(top, #eeeeee, #a5a5a5); /* IE10 */
+    background-image: -moz-linear-gradient(top, #eeeeee, #a5a5a5); /* Firefox */
+    background-image: -o-linear-gradient(top, #eeeeee, #a5a5a5); /* Opera */
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#eeeeee), to(#a5a5a5)); /* old Webkit */
+    background-image: -webkit-linear-gradient(top, #eeeeee, #a5a5a5); /* new Webkit */
+    background-image: linear-gradient(top, #eeeeee, #a5a5a5); /* proposed W3C Markup */
+	filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#eeeeee', endColorstr='#a5a5a5');
+}
