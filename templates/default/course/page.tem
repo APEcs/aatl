@@ -13,7 +13,7 @@
     <link href="{V_[templatepath]}css/course.css"    rel="stylesheet" type="text/css" />
 
     <!-- favicon -->
-    <link rel="icon" type="image/png" href="{V_[templatepath]}images/favicon.png">
+    <link rel="icon" type="image/png" href="{V_[templatepath]}images/favicon.png" />
 
     ***extrahead***
 </head>
@@ -22,9 +22,6 @@
         <div class="name">***coursetitle***</div>
     </div>
     <div id="container"> <!-- This is the body of the page -->
-        <style type="text/css">
-***menubgs***
-        </style>
         <div class="course-menu">
             <div class="logo"><a href="{V_[scriptpath]}"></a></div>
             <div class="menu">

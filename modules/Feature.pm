@@ -221,7 +221,7 @@ sub generate_course_page {
     my $self      = shift;
     my $title     = shift;
     my $content   = shift;
-    my $extrahead = shift;
+    my $extrahead = shift || "";
 
     my $courseid = $self -> determine_courseid()
         or return $self -> self_error("Unable to determine course id.");
@@ -251,12 +251,13 @@ sub generate_course_page {
             if($feature -> {"background-image"});
     }
 
+    $extrahead .= $self -> {"template"} -> load_template("course/menubgs.tem", { "***menubgs***" => $menubgs});
+
     return $self -> {"template"} -> load_template("course/page.tem", {"***extrahead***"    => $extrahead,
                                                                       "***title***"        => $title,
                                                                       "***coursecode***"   => $course -> {"code"},
                                                                       "***coursetitle***"  => $course -> {"title"},
                                                                       "***featurelinks***" => $featurelist,
-                                                                      "***menubgs***"      => $menubgs,
                                                                       "***rightboxes***"   => $rightboxes,
                                                                       "***rightspace***"   => $rightboxes ? "rightspace" : "",
                                                                       "***content***"      => $content,
@@ -384,7 +385,7 @@ sub build_url {
     push(@pairs, $args{"paramstr"}) if($args{"paramstr"});
 
     # And squish into a query string
-    my $querystring = join("&", @pairs);
+    my $querystring = join("&amp;", @pairs);
 
     # building time...
     my $url = "";
