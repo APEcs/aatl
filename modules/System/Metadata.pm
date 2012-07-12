@@ -204,7 +204,7 @@ sub parentid {
         if(defined($self -> {"cache"} -> {"metadata"} -> {$metadataid} -> {"parent_id"}));
 
     # Otherwise, fetch the parent
-    my $parentid = $self -> _fetch_metadata_parentid();
+    my $parentid = $self -> _fetch_metadata_parentid($metadataid);
     return undef if(!defined($parentid));
 
     # Cache the parent
