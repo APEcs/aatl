@@ -1,4 +1,4 @@
-                <li><ul class="boxmeta">
+                <li id="post-***postid***"><ul class="boxmeta">
                         <li><strong>{L_FEATURE_NEWS_POSTED}</strong>: ***posted***</li>
                         <li class="iconlink">
                             <a href="***profile***">***name***
@@ -6,9 +6,9 @@
                             </a>
                         </li>
                     </ul>
-                    <h3><a href="***posturl***">***title***</a></h3>
+                    <h3 id="subj-***postid***"><a href="***posturl***">***title***</a></h3>
                     <div class="contents">
-                        <div class="message">***content***</div>
+                        <div id="msg-***postid***" class="message">***content***</div>
                         ***controls***
                         ***editby***
                     </div>

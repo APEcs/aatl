@@ -21,14 +21,14 @@ table.ienotebox {
 table.notebox + table.notebox {   /* Single border between stacked boxes. */
     margin-top: -5px;
 }
-.notebox th.nbox-text,
-.notebox td.nbox-text {            /* The message body cell(s) */
+th.nbox-text,
+td.nbox-text {            /* The message body cell(s) */
     padding: 0.25em 0.5em;       /* 0.5em left/right */
 }
-.notebox td.nbox-image {           /* The left image cell */
+td.nbox-image {           /* The left image cell */
     padding: 2px 0 2px 0.5em;    /* 0.5em left, 0px right */
 }
-.notebox td.nbox-imageright {      /* The right image cell */
+td.nbox-imageright {      /* The right image cell */
     padding: 2px 0.5em 2px 0;    /* 0px left, 0.5em right */
 }
 

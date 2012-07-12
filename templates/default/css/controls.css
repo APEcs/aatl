@@ -1,0 +1,14 @@
+div.controls {
+    text-align: right;
+}
+
+ul.controls {
+    padding: 0px;
+    margin: 0px;
+}
+
+ul.controls > li {
+    list-style-type: none;
+    padding-left: 5px;
+    display: inline;
+}

@@ -5,6 +5,8 @@
 @import url('button.css');     /* button rules (okay?)                 */
 @import url('userbar.css');    /* Userbar styling.                     */
 @import url('listbox.css');    /* List of shadowed boxes               */
+@import url('controls.css');   /* control bars for boxes               */
+@import url('hotimage.css');   /* Images used as control buttons       */
 
 body  {
     font: 100% Verdana, Arial, Helvetica, sans-serif;

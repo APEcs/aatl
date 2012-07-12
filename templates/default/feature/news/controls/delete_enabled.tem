@@ -1,0 +1,1 @@
+<li><img class="hotimage" id="delbtn-***postid***" onclick="do_deletepost('***postid***', '{V_[templatepath]}images/spinner.gif')" src="{V_[templatepath]}feature/news/images/delete.png" width="16" height="16" alt="delete" title="{L_FEATURE_NEWS_DELETE}" /></li>
