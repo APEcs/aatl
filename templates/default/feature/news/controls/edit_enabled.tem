@@ -1,1 +1,1 @@
-<li><img class="hotimage" onclick="editpost('***postid***')" src="{V_[templatepath]}feature/news/images/edit.png" width="16" height="16" alt="edit" title="{L_FEATURE_NEWS_EDIT}" /></li>
+<li><img class="hotimage" id="editbtn-***postid***" onclick="make_editable('***postid***', '{V_[commonpath]}cke_configs/basic.js');" src="{V_[templatepath]}feature/news/images/edit.png" width="16" height="16" alt="edit" title="{L_FEATURE_NEWS_EDIT}" /></li>

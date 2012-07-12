@@ -54,3 +54,36 @@ function do_deletepost(postid, spinner)
                           });
     req.send("postid="+postid);  
 }
+
+
+/** Convert a post in the post list to a form suitable for editing. This
+ *  replaces the post subject with an input box, the body with a ckeditor 
+ *  text area, and adds an 'edit post' button.
+ * 
+ * @param postid The ID of the post to convert to edit mode.
+ */
+function make_editable(postid, config) 
+{
+    // Fix up the click action on the edit button before doing anything else
+    $('editbtn-'+postid).removeEvent('click');
+    
+
+    // Create the input elements needed to make the edit work
+    var subject = new Element('input', { type: 'text',
+                                         size: 70,
+                                         maxlength: 100,
+                                         value: $('subj-'+postid).text,
+                                         id: 'editsub-'+postid
+                                       });
+    var message = new Element('textarea', { rows: 3,
+                                            cols: 80,
+                                            html: $('msg-'+postid).innerHTML,
+                                            id: 'editmsg-'+postid
+                                          });
+
+    // Attach them to the page in place of the original elements
+    subject.replaces($('subj-'+postid));
+    message.replaces($('msg-'+postid));
+    CKEDITOR.replace('editmsg-'+postid, { customConfig: config });
+
+}
