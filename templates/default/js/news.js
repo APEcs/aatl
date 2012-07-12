@@ -1,25 +1,3 @@
-/** Generate a request path to send AJAX requests to. This will 
- *  automatically compensate for missing url fragments if needed.
- * 
- * @param operation The API operation to perform.
- * @return A string containing the request path to use.
- */
-function api_request_path(operation)
-{
-    var reqpath = window.location.pathname;
-
-    // Ensure the request path has a trailing slash
-    if(reqpath.charAt(reqpath.length - 1) != '/') reqpath += '/';
-
-    // Does the current page end in news/? If not, add it
-    if(!reqpath.test('news\/$')) reqpath += "news/";
-    
-    // Add the api call
-    reqpath += "api/"+operation+"/";
-    
-    return reqpath;
-}
-
 
 /** Fetch more posts from the server to show in the news list. This
  *  does a HTML request to the server requesting more posts to show
@@ -29,7 +7,7 @@ function api_request_path(operation)
  */
 function do_fetchmore(postid)
 {
-    var req = new Request.HTML({ url: api_request_path("more"),
+    var req = new Request.HTML({ url: api_request_path("news", "more"),
                                  onRequest: function() {
                                      $('fetchimg').fade('in');
                                      $('fetchbtn').removeEvents();
@@ -55,7 +33,7 @@ function do_fetchmore(postid)
  */
 function do_deletepost(postid, spinner)
 {
-    var req = new Request({ url: api_request_path("delete"),
+    var req = new Request({ url: api_request_path("news", "delete"),
                             onRequest: function() {
                                 $('delbtn-'+postid).oldsrc = $('delbtn-'+postid).getProperty('src');
                                 $('delbtn-'+postid).setProperty('src', spinner);
