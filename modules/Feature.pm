@@ -452,6 +452,14 @@ sub api_errorhash {
 }
 
 
+## @method $ api_html_response($data)
+# Generate a HTML response containing the specified data.
+#
+# @param data The data to send back to the client. If this is a hash, it is
+#             assumed to be the result of a call to api_errorhash() and it is
+#             converted to an appropriate error box. Otherwise, the data is
+#             wrapped in a minimal html wrapper for return to the client.
+# @return The html response to send back to the client.
 sub api_html_response {
     my $self = shift;
     my $data = shift;
