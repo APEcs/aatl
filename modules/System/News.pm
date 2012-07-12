@@ -153,8 +153,42 @@ sub edit_post {
 }
 
 
-# ============================================================================
+## @method $ delete_post($newsid, $userid)
+# Mark the specified news post as deleted. Note that this will not actually delete
+# the post, simply mark it as deleted so it won't show up in normal listings.
 #
+# @param newsid The id of the news entry to mark as deleted.
+# @param userid The ID of the user deleting the entry.
+# @param true on success, undef on error.
+sub delete_post {
+    my $self   = shift;
+    my $newsid = shift;
+    my $userid = shift;
+
+    return $self -> _delete_news($newsid, $userid);
+}
+
+
+# ============================================================================
+#  Listing code.
+
+## @method $ get_post($newsid, $edithist)
+# Obtain the data for a news entry, including its current post and potentially.
+# any edit history.
+#
+# @param newsid   The ID of the news post to obtain.
+# @param edithist If set to true, the returned hash contains a 'edithist' key,
+#                 the value of which is the complete edit history of the news
+#                 entry, with post updates sorted in reverse chronological order.
+# @return A reference to a hash containing the post data on success, undef on error.
+sub get_post {
+    my $self     = shift;
+    my $newsid   = shift;
+    my $edithist = shift;
+
+    return $self -> _get_news_entry($newsid, $edithist);
+}
+
 
 ## @method $ get_news_posts($courseid, $postid, $count)
 # Obtain a list of at most $count news posts from the specified course, starting
@@ -196,6 +230,7 @@ sub get_news_posts {
                                                   `".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}."` AS p
                                              WHERE n.course_id = ?
                                              AND n.created <= ?
+                                             AND n.deleted IS NULL
                                              AND p.id = n.post_id
                                              ORDER BY n.created DESC
                                              LIMIT $count");
@@ -228,6 +263,7 @@ sub _get_news_entry {
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."` AS n,
                                                   `".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}."` AS p
                                              WHERE n.id = ?
+                                             AND n.deleted IS NULL
                                              AND p.id = n.post_id");
     $newsh -> execute($newsid)
         or return $self -> self_error("Unable to fetch news entry ($newsid): ".$self -> {"dbh"} -> errstr);
@@ -293,6 +329,29 @@ sub _new_news {
         or return $self -> self_error("Error in metadata system: ".$self -> {"metadata"} -> {"errstr"});
 
     return $newsid;
+}
+
+
+## @method $ _delete_news($newsid, $userid)
+# Mark the specified news post as deleted. Note that this will not actually delete
+# the post, simply mark it as deleted so it won't show up in normal listings.
+#
+# @param newsid The ID of the news entry to mark as deleted.
+# @param userid The ID of the user deleting the entry.
+# @param true on success, undef on error.
+sub _delete_news {
+    my $self   = shift;
+    my $newsid = shift;
+    my $userid = shift;
+
+    my $delh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."`
+                                            SET deleted = UNIX_TIMESTAMP(), deleted_id = ?
+                                            WHERE id = ?");
+    my $result = $delh -> execute($userid, $newsid);
+    return $self -> self_error("Unable to perform news delete: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("News delete failed, no rows updated") if($result eq "0E0");
+
+    return 1;
 }
 
 

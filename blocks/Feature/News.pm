@@ -73,9 +73,11 @@ sub new {
 sub used_capabilities {
     my $self = shift;
 
-    return { "news.post"      => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.POST"),
-             "news.editown"   => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.EDITOWN"),
-             "news.editother" => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.EDITOTHER"),
+    return { "news.post"        => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.POST"),
+             "news.editown"     => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.EDITOWN"),
+             "news.editother"   => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.EDITOTHER"),
+             "news.deleteown"   => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.EDITOWN"),
+             "news.deleteother" => $self -> {"template"} -> replace_langvar("CAPABILITY_NEWS.EDITOTHER"),
            };
 }
 
@@ -99,8 +101,7 @@ sub validate_news_post {
     # Exit with a permission error unless the user has permission to post
     my $canpost = $self -> {"news"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
                                                         $self -> {"session"} -> get_session_userid(),
-                                                        "news.post",
-                                                        undef);
+                                                        "news.post");
     return ($self -> {"template"} -> load_template("error_list.tem",
                                                    {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
                                                     "***errors***"  => $self -> {"template"} -> process_template($errtem,
@@ -156,8 +157,7 @@ sub build_newpost_form {
     # Does the user have permission to post news posts in this course?
     my $canpost = $self -> {"news"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
                                                         $self -> {"session"} -> get_session_userid(),
-                                                        "news.post",
-                                                        undef);
+                                                        "news.post");
     return undef if(!defined($canpost));
 
     # Specifying a postid means that the user has linked a specific post. In that situation,
@@ -181,8 +181,20 @@ sub build_post_controls {
     my $self = shift;
     my $post = shift;
 
+    my $user    = $self -> {"session"} -> get_session_userid();
+    my $options = "";
 
+    # Is the post owned by the current user, or someone else?
+    my $ownership = ($post -> {"creator_id"} == $user ? "own" : "other");
 
+    # What permissions does the user have on the post?
+    my $canedit   = ($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $user, "news.edit$ownership")   ? "enabled" : "disabled");
+    my $candelete = ($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $user, "news.delete$ownership") ? "enabled" : "disabled");
+
+    $options .= $self -> {"template"} -> load_template("feature/news/controls/edit_${canedit}.tem", {"***postid***" => $post -> {"id"}});
+    $options .= $self -> {"template"} -> load_template("feature/news/controls/delete_${candelete}.tem", {"***postid***" => $post -> {"id"}});
+
+    return $self -> {"template"} -> load_template("feature/news/controls.tem", {"***controls***" => $options});
 }
 
 
@@ -235,7 +247,8 @@ sub build_post_list {
                                                                 "***gravhash***" => $editor -> {"gravatar_hash"},
                                                                });
         # And append the whole post to the list of posts.
-        $entrylist .= $self -> {"template"} -> process_template($entrytem, {"***posted***"   => $self -> {"template"} -> format_time($post -> {"created"}),
+        $entrylist .= $self -> {"template"} -> process_template($entrytem, {"***postid***"   => $post -> {"id"},
+                                                                            "***posted***"   => $self -> {"template"} -> format_time($post -> {"created"}),
                                                                             "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
                                                                             "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
                                                                             "***name***"     => $poster -> {"fullname"},
@@ -243,7 +256,7 @@ sub build_post_list {
                                                                             "***title***"    => $post -> {"subject"},
                                                                             "***content***"  => $content,
                                                                             "***editby***"   => $editby,
-                                                                            "***controls***" => ""});
+                                                                            "***controls***" => $self -> build_post_controls($post)});
         last if(++$entry == $count);
     }
 
@@ -291,7 +304,10 @@ sub build_news_list {
 }
 
 
-## @method $ build_api_response()
+# ============================================================================
+#  API Implementation
+
+## @method $ build_api_more_response()
 # Generate a hash that can be sent back to the user as an XML API response.
 # This behaves much like build_news_list(), except that it treats a specified
 # postid as the first post to return, and it will return up to Feature::News::post_count
@@ -299,7 +315,7 @@ sub build_news_list {
 # The contents of the response may vary depending on whether the response succeeded.
 #
 # @return A hash containing the API response.
-sub build_api_response {
+sub build_api_more_response {
     my $self = shift;
     my $posts;
 
@@ -314,6 +330,34 @@ sub build_api_response {
     return $posts;
 }
 
+
+sub build_api_delete_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Has a post been selected for deletion?
+    my $postid = is_defined_numeric($self -> {"cgi"}, "postid")
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_NOPOST"));
+
+    # Get the post so it can be checked for access
+    my $post = $self -> {"news"} -> get_post($postid)
+        or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    # Does the user have permission to delete it?
+    my $ownership = ($post -> {"creator_id"} == $userid ? "own" : "other");
+    return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_PERM"))
+        unless($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.delete$ownership"));
+
+    # Get here and the post id is valid and the user can delete it, try it
+    $self -> {"news"} -> delete_post($postid, $userid)
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    return { 'response' => { 'status' => 'ok' } };
+}
+
+
+# ============================================================================
+#  Interface
 
 ## @method $ page_display()
 # Produce the string containing this block's full page content. This generates
@@ -331,8 +375,12 @@ sub page_display {
 
     # Is this an API call, or a normal news page call?
     my $apiop = $self -> is_api_operation();
-    if(defined($apiop) && $apiop eq "more") {
-        return $self -> api_html_response($self -> build_api_response());
+    if(defined($apiop)) {
+        if($apiop eq "more") {
+            return $self -> api_html_response($self -> build_api_more_response());
+        } elsif($apiop eq "delete") {
+            return $self -> api_response($self -> build_api_delete_response());
+        }
     } else {
         # Is the user attempting to post a new news post? If so, they need permission
         # and validation. Of the form submission, the user probably doesn't need validation.
