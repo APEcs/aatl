@@ -31,15 +31,15 @@ function do_fetchmore(postid)
  * @param spinner The URL of a spinner image to replace the delete icon with
  *                while the delete request is being processed.
  */
-function do_deletepost(postid, spinner)
+function do_deletepost(postid)
 {
     var req = new Request({ url: api_request_path("news", "delete"),
                             onRequest: function() {
-                                $('delbtn-'+postid).oldsrc = $('delbtn-'+postid).getProperty('src');
-                                $('delbtn-'+postid).setProperty('src', spinner);
+                                $('delbtn-'+postid).addClass('working');
+                                $('delbtn-'+postid).getChildren('img')[0].fade('in');
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-'+postid).setProperty('src', $('delbtn-'+postid).oldsrc);
+                                $('delbtn-'+postid).getChildren('img')[0].fade('out').removeClass('working');
                                 
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
@@ -66,7 +66,7 @@ function make_editable(postid, config)
 {
     // Fix up the click action on the edit button before doing anything else
     $('editbtn-'+postid).removeEvent('click');
-    
+    $('editbtn-'+postid).addClass('ctrldisabled');
 
     // Create the input elements needed to make the edit work
     var subject = new Element('input', { type: 'text',
@@ -75,15 +75,74 @@ function make_editable(postid, config)
                                          value: $('subj-'+postid).text,
                                          id: 'editsub-'+postid
                                        });
-    var message = new Element('textarea', { rows: 3,
-                                            cols: 80,
-                                            html: $('msg-'+postid).innerHTML,
-                                            id: 'editmsg-'+postid
-                                          });
-
+    var message = new Element('div', { 'class': 'textwrapper'
+                                     }).adopt(new Element('textarea', { rows: 5,
+                                                                        cols: 80,
+                                                                        html: $('msg-'+postid).innerHTML,
+                                                                        id: 'editmsg-'+postid
+                                                                      }));
+    var submit = new Element('div', 
+                             { 'class': 'newpost formsubmit' 
+                             }).adopt([new Element('img', { id: 'workspin-'+postid,
+                                                            style: 'opacity: 0',
+                                                            src: spinner_url,
+                                                            height: '16',
+                                                            width: '16',
+                                                            alt: 'working'}),
+                                       new Element('input', { type: 'button',
+                                                              id: 'editpost-'+postid,
+                                                              name: 'editpost-'+postid,
+                                                              'class': 'button blue',
+                                                              onclick: 'do_editable(\''+postid+'\')',
+                                                              value: editbtn_name })]);
+    
+    var container = new Element('div', {'class': 'editbox'}).adopt([message, submit]);
+    
     // Attach them to the page in place of the original elements
     subject.replaces($('subj-'+postid));
-    message.replaces($('msg-'+postid));
+    container.replaces($('msg-'+postid));
     CKEDITOR.replace('editmsg-'+postid, { customConfig: config });
+    foo = 1;
+}
 
+
+function do_editable(postid)
+{
+    var req = new Request.HTML({ url: api_request_path("news", "edit"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('workspin-'+postid).fade('in');
+                                     $('editpost-'+postid).removeEvents();
+                                     $('editpost-'+postid).addClass('disabled');
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     var err = respHTML.match(/^<div id="apierror"/);
+                                     
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+
+                                         $('workspin-'+postid).fade('out');
+                                         $('editpost-'+postid).removeClass('disabled');
+                                         $('editpost-'+postid).addEvent('click', make_editable(postid));
+
+                                     // No error, post was edited, the element provided should
+                                     // be the updated <li>...
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+
+                                         var oldElem = $('post-'+postid);
+                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-'+postid].destroy(); 
+                                                                                             tmp.replaces(oldElem).reveal(); 
+                                                                                             oldElem.destroy(); });
+                                         
+                                     }
+                                     foo = 1;
+                                 }
+                               });
+    req.post({postid: postid,
+              subject: $('editsub-'+postid).get('value'),
+              message: CKEDITOR.instances['editmsg-'+postid].getData()
+             });  
 }

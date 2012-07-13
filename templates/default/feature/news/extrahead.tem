@@ -1,3 +1,8 @@
     <script type="text/javascript" src="{V_[scriptpath]}ckeditor/ckeditor.js"></script>
     <link href="{V_[templatepath]}css/news.css" rel="stylesheet" type="text/css" />
     <script type="text/javascript" src="{V_[templatepath]}js/news.js"></script>
+
+    <script type="text/javascript">
+        editbtn_name = "{L_FEATURE_NEWS_DOEDIT}";
+        spinner_url  = "{V_[templatepath]}images/spinner.gif";
+    </script>

@@ -20,10 +20,17 @@ FEATURE_NEWS_BACKLINK = Show all news posts
 FEATURE_NEWS_SHOWMORE = Show more
 
 FEATURE_NEWS_EDIT     = Edit this post
+FEATURE_NEWS_DOEDIT   = Save edit
 FEATURE_NEWS_DELETE   = Delete this post
 
-FEATURE_NEWS_ERR_POSTPERM  = You do not have permission to post news items.
+FEATURE_NEWS_ERR_POSTPERM   = You do not have permission to post news items.
+FEATURE_NEWS_ERR_POSTFAIL   = News message addition failed:
+FEATURE_NEWS_ERR_EDITFAIL   = News message edit failed:
 
-FEATURE_NEWS_APIERR_NOPOST = No news entry selected for deletion.
-FEATURE_NEWS_APIERR_FAILED = News entry delete failed: ***error***
-FEATURE_NEWS_APIERR_PERM   = You do not have permission to delete news items.
+FEATURE_NEWS_APIDEL_NOPOST  = No news entry selected for deletion.
+FEATURE_NEWS_APIDEL_FAILED  = News entry delete failed: ***error***
+FEATURE_NEWS_APIDEL_PERM    = You do not have permission to delete this news item.
+
+FEATURE_NEWS_APIEDIT_NOPOST = No news entry selected for editing.
+FEATURE_NEWS_APIEDIT_FAILED = News entry edit failed: ***error***
+FEATURE_NEWS_APIEDIT_PERM   = You do not have permission to edit this news item.

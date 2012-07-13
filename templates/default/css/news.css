@@ -18,6 +18,10 @@ ul.boxes > li#returnlink {
     text-align: right;
 }
 
+ul.boxes div.editbox {
+    padding-bottom: 3px;
+}
+
 ul.boxes div.editinfo {
     text-align: right;
 }

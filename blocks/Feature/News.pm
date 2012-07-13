@@ -85,6 +85,32 @@ sub used_capabilities {
 # ============================================================================
 #  Validation
 
+## @method private $ _validate_fields($args)
+# Validate the subject and message fields submitted by the user.
+#
+# @param args A reference to a hash to store validated data in.
+# @return undef on success, otherwise an error string.
+sub _validate_fields {
+    my $self = shift;
+    my $args = shift;
+    my ($errors, $error) = ("", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    ($args -> {"subject"}, $error) = $self -> validate_string("subject", {"required" => 1,
+                                                                          "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_SUBJECT"),
+                                                                          "minlen"   => 1,
+                                                                          "maxlen"   => 255});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    return $errors ? $errors : undef;
+}
+
+
 ## @method @ validate_news_post()
 # Determine whether the user has permission to post news posts, and if they do
 # validate the data they have submitted.
@@ -108,16 +134,8 @@ sub validate_news_post {
                                                                                                                  {"***error***" => "{L_FEATURE_NEWS_ERR_POSTPERM}"})}),
             $args) unless($canpost);
 
-    # User has post permission, have they filled in the form correctly?
-    ($args -> {"subject"}, $error) = $self -> validate_string("subject", {"required" => 1,
-                                                                          "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_SUBJECT"),
-                                                                          "minlen"   => 1,
-                                                                          "maxlen"   => 255});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
-
-    ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
-                                                                            "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+    $error = $self -> _validate_fields($args);
+    $errors += $error if($error);
 
     # Give up here if there are any errors
     return ($self -> {"template"} -> load_template("error_list.tem",
@@ -198,6 +216,42 @@ sub build_post_controls {
 }
 
 
+sub _build_post {
+    my $self     = shift;
+    my $post     = shift;
+    my $temcache = shift;
+
+    # Obtain the details of the poster and possible editor
+    my $poster = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"creator_id"});
+    my $editor = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"editor_id"});
+
+    # Generate the body of the post
+    my $content = $self -> {"template"} -> process_template($temcache -> {"contenttem"}, {"***message***" => $post -> {"message"}});
+
+    # Determine whether the post has been edited
+    my $editby = $self -> {"template"} -> process_template($temcache -> {"edittem"} -> [(($post -> {"creator_id"} != $post -> {"editor_id"}) ||
+                                                                                         ($post -> {"created"} != $post -> {"edited"}))],
+                                                           {"***edited***"   => $self -> {"template"} -> format_time($post -> {"edited"}),
+                                                            "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"}, "showhist" => "t" }),
+                                                            "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $editor -> {"username"} ]),
+                                                            "***name***"     => $editor -> {"fullname"},
+                                                            "***gravhash***" => $editor -> {"gravatar_hash"},
+                                                           });
+    # And return the fillled-in post.
+    return $self -> {"template"} -> process_template($temcache -> {"entrytem"},
+                                                     {"***postid***"   => $post -> {"id"},
+                                                      "***posted***"   => $self -> {"template"} -> format_time($post -> {"created"}),
+                                                      "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
+                                                      "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
+                                                      "***name***"     => $poster -> {"fullname"},
+                                                      "***gravhash***" => $poster -> {"gravatar_hash"},
+                                                      "***title***"    => $post -> {"subject"},
+                                                      "***content***"  => $content,
+                                                      "***editby***"   => $editby,
+                                                      "***controls***" => $self -> build_post_controls($post)});
+}
+
+
 ## @method $ build_post_list($starid, $count, $show_fetchmore)
 # Generate a list of posts to show in the news list.
 #
@@ -222,41 +276,20 @@ sub build_post_list {
     my $posts = $self -> {"news"} -> get_news_posts($self -> {"courseid"}, $startid, $count + ($count > 1 ? $show_fetchmore : 0))
         or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Unable to fetch news posts: ".$self -> {"news"} -> {"errstr"});
 
-    my $entrytem   = $self -> {"template"} -> load_template("feature/news/post.tem");
-    my $contenttem = $self -> {"template"} -> load_template("feature/news/post_content.tem");
-    my @edittem    = ($self -> {"template"} -> load_template("feature/news/editby_disabled.tem"),
-                      $self -> {"template"} -> load_template("feature/news/editby_enabled.tem"));
+    my $temcache = {
+        "entrytem"   => $self -> {"template"} -> load_template("feature/news/post.tem"),
+        "contenttem" => $self -> {"template"} -> load_template("feature/news/post_content.tem"),
+        "edittem"    => [
+                          $self -> {"template"} -> load_template("feature/news/editby_disabled.tem"),
+                          $self -> {"template"} -> load_template("feature/news/editby_enabled.tem")
+                        ]
+    };
+
     my $entry = 0;
     my $entrylist = "";
 
     foreach my $post (@{$posts}) {
-        # Obtain the details of the poster and possible editor
-        my $poster = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"creator_id"});
-        my $editor = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"editor_id"});
-
-        # Generate the body of the post
-        my $content = $self -> {"template"} -> process_template($contenttem, {"***message***" => $post -> {"message"}});
-
-        # Determine whether the post has been edited
-        my $editby = $self -> {"template"} -> process_template($edittem[(($post -> {"creator_id"} != $post -> {"editor_id"}) ||
-                                                                         ($post -> {"created"} != $post -> {"edited"}))],
-                                                               {"***edited***"   => $self -> {"template"} -> format_time($post -> {"edited"}),
-                                                                "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"}, "showhist" => "t" }),
-                                                                "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $editor -> {"username"} ]),
-                                                                "***name***"     => $editor -> {"fullname"},
-                                                                "***gravhash***" => $editor -> {"gravatar_hash"},
-                                                               });
-        # And append the whole post to the list of posts.
-        $entrylist .= $self -> {"template"} -> process_template($entrytem, {"***postid***"   => $post -> {"id"},
-                                                                            "***posted***"   => $self -> {"template"} -> format_time($post -> {"created"}),
-                                                                            "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
-                                                                            "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
-                                                                            "***name***"     => $poster -> {"fullname"},
-                                                                            "***gravhash***" => $poster -> {"gravatar_hash"},
-                                                                            "***title***"    => $post -> {"subject"},
-                                                                            "***content***"  => $content,
-                                                                            "***editby***"   => $editby,
-                                                                            "***controls***" => $self -> build_post_controls($post)});
+        $entrylist .= $self -> _build_post($post, $temcache);
         last if(++$entry == $count);
     }
 
@@ -331,30 +364,81 @@ sub build_api_more_response {
 }
 
 
+## @method $ build_api_delete_response()
+# Attempt to 'delete' (actually, mark as deleted) the post requested by the
+# client. This will perform all normal permission checks and generate an XML
+# API response hash to send to the client.
+#
+# @return A reference to a hash containing the API response data.
 sub build_api_delete_response {
     my $self   = shift;
     my $userid = $self -> {"session"} -> get_session_userid();
 
     # Has a post been selected for deletion?
     my $postid = is_defined_numeric($self -> {"cgi"}, "postid")
-        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_NOPOST"));
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_NOPOST"));
 
     # Get the post so it can be checked for access
     my $post = $self -> {"news"} -> get_post($postid)
-        or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
     # Does the user have permission to delete it?
     my $ownership = ($post -> {"creator_id"} == $userid ? "own" : "other");
-    return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_PERM"))
+    return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_PERM"))
         unless($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.delete$ownership"));
 
     # Get here and the post id is valid and the user can delete it, try it
     $self -> {"news"} -> delete_post($postid, $userid)
-        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIERR_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
     return { 'response' => { 'status' => 'ok' } };
 }
 
+
+sub build_api_edit_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+    my $args   = {};
+
+    # Has a post been selected for editing?
+    my $postid = is_defined_numeric($self -> {"cgi"}, "postid")
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_NOPOST"));
+
+    # Get the post so it can be checked for access
+    my $post = $self -> {"news"} -> get_post($postid)
+        or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    # Does the user have permission to delete it?
+    my $ownership = ($post -> {"creator_id"} == $userid ? "own" : "other");
+    return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_PERM"))
+        unless($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.edit$ownership"));
+
+    # User has permission, check the fields
+    my $errors = $self -> _validate_fields($args);
+
+    return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                       {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
+                                                                                        "***errors***"  => $errors}))
+        if($errors);
+
+    # Edit the post...
+    if($self -> {"news"} -> edit_post($postid, $userid, $args -> {"subject"}, $args -> {"message"})) {
+        $post = $self -> {"news"} -> get_post($postid);
+
+        return $self -> _build_post($post, { "entrytem"   => $self -> {"template"} -> load_template("feature/news/post.tem"),
+                                             "contenttem" => $self -> {"template"} -> load_template("feature/news/post_content.tem"),
+                                             "edittem"    => [
+                                                 $self -> {"template"} -> load_template("feature/news/editby_disabled.tem"),
+                                                 $self -> {"template"} -> load_template("feature/news/editby_enabled.tem")
+                                                 ]
+                                    });
+    } else {
+        return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                           {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
+                                                                                            "***errors***"  => $self -> {"news"} -> {"errstr"}}));
+    }
+
+}
 
 # ============================================================================
 #  Interface
@@ -380,6 +464,11 @@ sub page_display {
             return $self -> api_html_response($self -> build_api_more_response());
         } elsif($apiop eq "delete") {
             return $self -> api_response($self -> build_api_delete_response());
+        } elsif($apiop eq "edit") {
+            return $self -> api_html_response($self -> build_api_edit_response());
+        } else {
+            return $self -> api_html_response($self -> api_errorhash('bad_op',
+                                                                     $self -> {"template"} -> replace_langvar("API_BAD_OP")))
         }
     } else {
         # Is the user attempting to post a new news post? If so, they need permission

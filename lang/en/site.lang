@@ -3,3 +3,5 @@ SITE_AATL  = All About The Learning
 EMAIL_SIG  = The AATL Team
 
 SITE_CONTINUE = Continue
+
+API_BAD_OP = Unknown API operation requested.

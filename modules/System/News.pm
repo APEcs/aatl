@@ -231,7 +231,7 @@ sub get_news_posts {
                                              WHERE n.course_id = ?
                                              AND n.created <= ?
                                              AND n.deleted IS NULL
-                                             AND p.id = n.post_id
+                                             AND p.post_id = n.post_id
                                              ORDER BY n.created DESC
                                              LIMIT $count");
     $posth -> execute($courseid, $starttime)
@@ -264,7 +264,7 @@ sub _get_news_entry {
                                                   `".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}."` AS p
                                              WHERE n.id = ?
                                              AND n.deleted IS NULL
-                                             AND p.id = n.post_id");
+                                             AND p.post_id = n.post_id");
     $newsh -> execute($newsid)
         or return $self -> self_error("Unable to fetch news entry ($newsid): ".$self -> {"dbh"} -> errstr);
 

@@ -12,3 +12,48 @@ ul.controls > li {
     padding-left: 5px;
     display: inline;
 }
+
+.control {
+    width: 16px;
+    height: 16px;
+    background-image: url('../images/control_sprites.png');
+    background-repeat: no-repeat;
+    background-position: 0px 0px;
+    display: inline-block;
+}
+
+.control > img {
+    padding: 0px;
+    margin: 0px;
+    border: none;
+    opacity: 0;
+}
+
+.control.edit {
+    background-position: 0px 0px;
+}
+
+.control.edit:hover {
+    background-position: 0px -32px;
+}
+
+.control.edit.ctrldisabled {
+    background-position: 0px -16px;
+}
+
+.control.delete {
+    background-position: -16px 0px;
+}
+
+.control.delete:hover {
+    background-position: -16px -32px;
+}
+
+.control.delete.ctrldisabled {
+    background-position: -16px -16px;
+}
+
+.control.delete.working {
+    background-position: -16px -48px;
+}
+
