@@ -188,7 +188,7 @@ sub flag_question {
     return $self -> self_error("Question is already flagged")
         if($self -> _is_flagged($questionid, "question"));
 
-    return $self _set_flagged($questionid, "question", $userid);
+    return $self -> _set_flagged($questionid, "question", $userid);
 }
 
 
@@ -207,7 +207,7 @@ sub unflag_question {
     return $self -> self_error("Question is not flagged")
         unless($self -> _is_flagged($questionid, "question"));
 
-    return $self _set_flagged($questionid, "question", undef);
+    return $self -> _set_flagged($questionid, "question", undef);
 }
 
 
@@ -305,7 +305,7 @@ sub flag_answer {
     return $self -> self_error("Answer is already flagged")
         if($self -> _is_flagged($answerid, "answer"));
 
-    return $self _set_flagged($answerid, "answer", $userid);
+    return $self -> _set_flagged($answerid, "answer", $userid);
 }
 
 
@@ -324,7 +324,7 @@ sub unflag_answer {
     return $self -> self_error("Answer is not flagged")
         unless($self -> _is_flagged($answerid, "answer"));
 
-    return $self _set_flagged($answerid, "answer", undef);
+    return $self -> _set_flagged($answerid, "answer", undef);
 }
 
 
@@ -422,7 +422,7 @@ sub flag_comment {
     return $self -> self_error("Comment is already flagged")
         if($self -> _is_flagged($commentid, "comment"));
 
-    return $self _set_flagged($commentid, "comment", $userid);
+    return $self -> _set_flagged($commentid, "comment", $userid);
 }
 
 
@@ -441,7 +441,7 @@ sub unflag_comment {
     return $self -> self_error("Comment is not flagged")
         unless($self -> _is_flagged($commentid, "comment"));
 
-    return $self _set_flagged($commentid, "comment", undef);
+    return $self -> _set_flagged($commentid, "comment", undef);
 }
 
 
@@ -669,11 +669,11 @@ sub _get_question_metadataid {
     my $queryh = $self -> {"dbh"} -> prepare("SELECT metadata_id
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
                                               WHERE id = ?");
-    $queryh -> execute($id)
+    $queryh -> execute($questionid)
         or return $self -> self_error("Unable to execute question metadata id query: ".$self -> {"dbh"} -> {"errstr"});
 
     my $row = $queryh -> fetchrow_arrayref()
-        or return $self -> self_error("Unable to fetch metadata context for question $id: entry does not exist");
+        or return $self -> self_error("Unable to fetch metadata context for question $questionid: entry does not exist");
 
     return $row -> [0]
         or return $self -> self_error("No metadata context set for question $questionid. This should not happen");
