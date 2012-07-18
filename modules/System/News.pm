@@ -338,7 +338,7 @@ sub _new_news {
 #
 # @param newsid The ID of the news entry to mark as deleted.
 # @param userid The ID of the user deleting the entry.
-# @param true on success, undef on error.
+# @return true on success, undef on error.
 sub _delete_news {
     my $self   = shift;
     my $newsid = shift;
@@ -359,7 +359,7 @@ sub _delete_news {
 # Obtain the ID of the post currently set for the specified news entry.
 #
 # @param newsid The ID of the news entry to get the post ID for.
-# @param The post ID on success, 0 if the post has no ID set, undef on error.
+# @return The post ID on success, 0 if the post has no ID set, undef on error.
 sub _get_news_current_postid {
     my $self   = shift;
     my $newsid = shift;
@@ -432,9 +432,9 @@ sub _new_post {
 
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}."`
                                             (editor_id, entry_id, previous_id, subject, message, edited)
-                                            VALUES(?, ?, ?, ?, ?, UNIX_TIMESTAMP())");
+                                            VALUES(?, ?, ?, ?, ?, ?)");
 
-    my $result = $newh -> execute($userid, $newsid, $previd, $subject, $message);
+    my $result = $newh -> execute($userid, $newsid, $previd, $subject, $message, $timestamp);
     return $self -> self_error("Unable to perform news post insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("News post insert failed, no rows inserted") if($result eq "0E0");
 
