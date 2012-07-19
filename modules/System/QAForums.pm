@@ -1148,13 +1148,13 @@ sub _mark_as_helpful {
 
     # The or on this should never actually happen - the update above should fail first, but check anyway.
     my $helpful = $rateh -> fetchrow_arrayref()
-        or return $self -> self_error("Unable to fetch $type rating: entry does not exist?");
+        or return $self -> self_error("Unable to fetch comment rating: entry does not exist?");
 
     # Now create a new history entry
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_helpfuls"}."`
                                             (comment_id, marked, marked_id, rating)
                                             VALUES(?, UNIX_TIMESTAMP(), ?, ?)");
-    $result = $newh -> execute($commentid, $userid, $rate -> [0]);
+    $result = $newh -> execute($commentid, $userid, $helpful -> [0]);
     return $self -> self_error("Unable to perform helpful history insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Helpful history insert failed, no rows inserted") if($result eq "0E0");
 
