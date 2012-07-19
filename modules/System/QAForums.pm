@@ -229,18 +229,39 @@ sub rate_question {
 
 
 ## @method $ unrate_question($questionid, $userid)
-# Cancel a user's rating on the specified question.
+# Cancel a user's rating on the specified question. This is safe to call
+# even if the user has not rated the question.
 #
 # @param questionid The ID of the question to cancel the rating for.
 # @param userid     The user whose rating shold be cancelled.
 # @return true on success, undef on error.
-sub rate_question {
+sub unrate_question {
     my $self       = shift;
     my $questionid = shift;
     my $userid     = shift;
-    my $direction  = shift;
 
     return $self -> _unrate_entry($questionid, "question", $userid);
+}
+
+
+## @method $ user_has_rated_question($questionid, $userid)
+# Check whether the user has already rated this question.  Note that this
+# will not check whether the user has already rated the question - the
+# caller should do this using user_has_rated_question() before calling this.
+#
+# @param questionid The ID of the question to check the rating history on.
+# @param userid     The ID of the user to check for rating operations.
+# @return true if the user has rated the question, false otherwise,
+#         undef on error.
+sub user_has_rated_question {
+    my $self       = shift;
+    my $questionid = shift;
+    my $userid     = shift;
+
+    my $rating = $self -> _user_has_rated($questionid, "question", $userid)
+        or return undef;
+
+    return $rating -> {"rated"} || 0;
 }
 
 
@@ -362,35 +383,56 @@ sub unflag_answer {
 
 
 ## @method $ rate_answer($answerid, $userid, $direction)
-# Update the rating on the specified answer.
+# Update the rating on the specified answer. Note that this will not check
+# whether the user has already rated the answer - the caller should do this
+# using user_has_rated_answer() before calling this.
 #
 # @param answerid  The ID of the answer to rate.
 # @param userid    The user performing the rating.
 # @param direction The direction to rate the answer, must be "up" or "down"
 # @return true on success, undef on error.
 sub rate_answer {
-    my $self       = shift;
-    my $answerid = shift;
-    my $userid     = shift;
-    my $direction  = shift;
+    my $self      = shift;
+    my $answerid  = shift;
+    my $userid    = shift;
+    my $direction = shift;
 
     return $self -> _rate_entry($answerid, "answer", $userid, $direction);
 }
 
 
 ## @method $ unrate_answer($answerid, $userid)
-# Cancel a user's rating on the specified answer.
+# Cancel a user's rating on the specified answer. This is safe to call
+# even if the user has not rated the answer.
 #
 # @param answerid The ID of the answer to cancel the rating for.
 # @param userid   The user whose rating shold be cancelled.
 # @return true on success, undef on error.
-sub rate_answer {
-    my $self       = shift;
-    my $answerid = shift;
-    my $userid     = shift;
-    my $direction  = shift;
+sub unrate_answer {
+    my $self      = shift;
+    my $answerid  = shift;
+    my $userid    = shift;
 
     return $self -> _unrate_entry($answerid, "answer", $userid);
+}
+
+
+## @method $ user_has_rated_answer($answerid, $userid)
+# Check whether the user has already rated this answer.
+#
+# @param answerid The ID of the answer to check the rating history on.
+# @param userid   The ID of the user to check for rating operations.
+# @return true if the user has rated the answer, false otherwise,
+#         undef on error.
+sub user_has_rated_answer {
+    my $self     = shift;
+    my $answerid = shift;
+    my $userid   = shift;
+
+    my $rating = $self -> _user_has_rated($answerid, "answer", $userid)
+        or return undef;
+
+    return $rating -> {"rated"} || 0;
 }
 
 
@@ -511,8 +553,58 @@ sub unflag_comment {
 }
 
 
-## @method $ mark_as_helpful($commentid, $userid)
-# Update the 'helpful' counter
+## @method $ comment_is_helpful($commentid, $userid)
+# Update the 'helpful' counter for the specified comment. This will not check whether
+# the user has already marked the comment as helpful - the caller should do this
+# using user_marked_helpful() before calling this
+#
+# @param commentid The ID of the comment deemed helpful by the user.
+# @param userid    The ID of the user marking the comment.
+# @return true on success, undef otherwise.
+sub comment_is_helpful {
+    my $self      = shift;
+    my $commentid = shift;
+    my $userid    = shift;
+
+    return $self -> _mark_as_helpful($commentid, $userid);
+}
+
+
+## @method $ cancel_is_helpful($commentid, $userid)
+# The user has decided the comment isn't helpful, so cancel a previous 'is helpful'
+# mark by the user.
+#
+# @param commentid The ID of the comment the user has decided isn't helpful after all.
+# @param userid    The ID of the user who can't make up their mind.
+# @return true on success (or no action needed), undef otherwise.
+sub cancel_is_helpful {
+    my $self      = shift;
+    my $commentid = shift;
+    my $userid    = shift;
+
+    return $self -> _undo_as_helpful($commentid, $userid);
+}
+
+
+## @method $ user_marked_helpful($commentid, $userid)
+# Determine whether the user has marked the comment as helpful. If the user
+# has marked the comment as helpful, and has not yet cancelled that mark,
+# this will return true.
+#
+# @param commentid The ID of the comment to check for helpfulness to the user.
+# @param userid    The ID of the user who may or may not find the comment helpful.
+# @return true if the user has marked the comment as helpful, false otherwise,
+#         and undef on error.
+sub user_marked_helpful {
+    my $self      = shift;
+    my $commentid = shift;
+    my $userid    = shift;
+
+    my $rating = $self -> _user_recorded_helpful($commentid, $userid)
+        or return undef;
+
+    return $rating -> {"marked"} || 0;
+}
 
 
 # ============================================================================
