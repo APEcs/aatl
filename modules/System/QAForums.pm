@@ -211,6 +211,39 @@ sub unflag_question {
 }
 
 
+## @method $ rate_question($questionid, $userid, $direction)
+# Update the rating on the specified question.
+#
+# @param questionid The ID of the question to rate.
+# @param userid     The user performing the rating.
+# @param direction  The direction to rate the question, must be "up" or "down"
+# @return true on success, undef on error.
+sub rate_question {
+    my $self       = shift;
+    my $questionid = shift;
+    my $userid     = shift;
+    my $direction  = shift;
+
+    return $self -> _rate_entry($questionid, "question", $userid, $direction);
+}
+
+
+## @method $ unrate_question($questionid, $userid)
+# Cancel a user's rating on the specified question.
+#
+# @param questionid The ID of the question to cancel the rating for.
+# @param userid     The user whose rating shold be cancelled.
+# @return true on success, undef on error.
+sub rate_question {
+    my $self       = shift;
+    my $questionid = shift;
+    my $userid     = shift;
+    my $direction  = shift;
+
+    return $self -> _unrate_entry($questionid, "question", $userid);
+}
+
+
 ## @method $ create_answer($questionid, $userid, $message)
 # Create a new answer using the values provided. This will create a new answer
 # in the specified question's thread.
@@ -325,6 +358,39 @@ sub unflag_answer {
         unless($self -> _is_flagged($answerid, "answer"));
 
     return $self -> _set_flagged($answerid, "answer", undef);
+}
+
+
+## @method $ rate_answer($answerid, $userid, $direction)
+# Update the rating on the specified answer.
+#
+# @param answerid  The ID of the answer to rate.
+# @param userid    The user performing the rating.
+# @param direction The direction to rate the answer, must be "up" or "down"
+# @return true on success, undef on error.
+sub rate_answer {
+    my $self       = shift;
+    my $answerid = shift;
+    my $userid     = shift;
+    my $direction  = shift;
+
+    return $self -> _rate_entry($answerid, "answer", $userid, $direction);
+}
+
+
+## @method $ unrate_answer($answerid, $userid)
+# Cancel a user's rating on the specified answer.
+#
+# @param answerid The ID of the answer to cancel the rating for.
+# @param userid   The user whose rating shold be cancelled.
+# @return true on success, undef on error.
+sub rate_answer {
+    my $self       = shift;
+    my $answerid = shift;
+    my $userid     = shift;
+    my $direction  = shift;
+
+    return $self -> _unrate_entry($answerid, "answer", $userid);
 }
 
 
@@ -443,6 +509,8 @@ sub unflag_comment {
 
     return $self -> _set_flagged($commentid, "comment", undef);
 }
+
+
 
 
 # ============================================================================
@@ -614,7 +682,6 @@ sub _new_text {
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."`
                                             (edited, editor_id, previous_id, subject, message)
                                             VALUES(?, ?, ?, ?, ?)");
-
     my $result = $newh -> execute($timestamp, $userid, $previd, $subject, $message);
     return $self -> self_error("Unable to perform text insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Text insert failed, no rows inserted") if($result eq "0E0");
@@ -757,6 +824,10 @@ sub _is_flagged {
     my $id   = shift;
     my $type = shift;
 
+    # Check the type is valid for safety
+    return $self -> self_error("Illegal type specified in call to _is_flagged")
+        unless($type eq "question" || $type eq "answer");
+
     # Check the entry
     my $checkh = $self -> {"dbh"} -> prepare("SELECT flagged_id
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
@@ -786,6 +857,10 @@ sub _set_flagged {
     my $user = shift;
     my $now;
 
+    # Check the type is valid for safety
+    return $self -> self_error("Illegal type specified in call to _set_flagged")
+        unless($type eq "question" || $type eq "answer");
+
     $now = time() if($user);
 
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
@@ -793,9 +868,159 @@ sub _set_flagged {
                                             WHERE id = ?");
     my $result = $seth -> execute($now, $user, $id);
     return $self -> self_error("Unable to perform $type flagged update: ". $self -> {"dbh"} -> errstr) if(!$result);
-    return $self -> self_error("$type flagged update failed, no rows inserted") if($result eq "0E0");
+    return $self -> self_error("$type flagged update failed, no rows updated") if($result eq "0E0");
 
     return 1;
+}
+
+
+## @method $ _rate_entry($id, $type, $userid, $mode)
+# Update the rating of a question or answer. This creates a new rating history entry
+# in the ratings table, and then attaches it to a question or answer according to the
+# specified type. Note that this does not check whether the user has already rated the
+# question or answer first - the caller should check this with _user_has_rated() before
+# calling this.
+#
+# @param id     The ID of the question or answer to change the rating of.
+# @param type   The type of entry to rate, must be "question" or "answer".
+# @param userid The ID of the user performing the rating operation.
+# @param mode   The rating change, must be "up" or "down".
+# @return true on success, undef on error.
+sub _rate_entry {
+    my $self   = shift;
+    my $id     = shift;
+    my $type   = shift;
+    my $userid = shift;
+    my $mode   = shift;
+
+    # Check the type is valid for safety
+    return $self -> self_error("Illegal type specified in call to _update_rating")
+        unless($type eq "question" || $type eq "answer");
+
+    # Check the mode is valid for safety
+    return $self -> self_error("Illegal mode specified in call to _update_rating")
+        unless($mode eq "up" || $mode eq "down");
+
+    # To a hopefully near-atomic update to the rating on the question/answer
+    my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
+                                             SET rating = rating ".($mode eq "up" ? "+" : "-")." 1
+                                             WHERE id = ?");
+    my $result = $tickh -> execute($id);
+    return $self -> self_error("Unable to perform $type rating update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("$type rating update failed, no rows updated") if($result eq "0E0");
+
+    # Now get the new rating
+    my $rateh = $self -> {"dbh"} -> prepare("SELECT rating
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
+                                             WHERE id = ?");
+    $rateh -> execute($id)
+        or return $self -> self_error("Unable to execute $type rating query: ".$self -> {"dbh"} -> errstr);
+
+    # The or on this should never actually happen - the update above should fail first, but check anyway.
+    my $rate = $rateh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch $type rating: entry does not exist?");
+
+    # Now create a new rating history entry
+    my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_ratings"}."`
+                                            (rated, rater_id, updown, rating)
+                                            VALUES(UNIX_TIMESTAMP(), ?, ?, ?)");
+    $result = $newh -> execute($userid, $mode, $rate -> [0]);
+    return $self -> self_error("Unable to perform rating history insert: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Rating history insert failed, no rows inserted") if($result eq "0E0");
+
+    my $ratingid = $self -> {"dbh"} -> {"mysql_insertid"}
+        or return $self -> self_error("Unable to obtain new rating history entry row id");
+
+    # Now it needs to be attached to the question/answer
+    my $attach = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_ratings"}."`
+                                            (${type}_id, rating_id)
+                                            VALUES(?, ?)");
+    $result = $attach -> execute($id, $ratingid);
+    return $self -> self_error("Unable to perform rating relation insert: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Rating relation insert failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
+## @method $ _unrate_entry($id, $type, $userid)
+# Cancel a user's rating of the specified question or answer, if they have
+# rated it. If this user has not rated the entry, this does nothing and
+# returns true.
+#
+# @param id     The ID of the question or answer to change the rating of.
+# @param type   The type of entry to rate, must be "question" or "answer".
+# @param userid The ID of the user performing the rating operation.
+# @return true on success (or no unrating was needed), undef on error.
+sub _unrate_entry {
+    my $self   = shift;
+    my $id     = shift;
+    my $type   = shift;
+    my $userid = shift;
+
+    # Check the type is valid for safety
+    return $self -> self_error("Illegal type specified in call to _unrate_entry")
+        unless($type eq "question" || $type eq "answer");
+
+    # Determine whether the user has rated the entry; this gets the data if they have
+    my $rated = $self -> _user_has_rated($id, $type, $userid);
+    return undef unless(defined($rated));
+
+    # No rating recorded? Exit with 'success' as unrating is not needed.
+    return 1 unless($rated -> {"rated"});
+
+    # Rating happened, undo it
+    my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
+                                             SET rating = rating ".($rated -> {"updown"} eq "up" ? "-" : "+")." 1
+                                             WHERE id = ?");
+    my $result = $tickh -> execute($id);
+    return $self -> self_error("Unable to perform $type rating update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("$type rating update failed, no rows updated") if($result eq "0E0");
+
+    # Cancel the rating
+    my $cancelh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_ratings"}."`
+                                               SET cancelled = UNIX_TIMESTAMP()
+                                               WHERE id = ?");
+    $result = $cancelh -> execute($rated -> {"id"});
+    return $self -> self_error("Unable to perform $type rating cancel: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("$type rating cancel failed, no rows updated") if($result eq "0E0");
+
+    return 1;
+}
+
+
+## @method $ _user_has_rated($id, $type, $userid)
+# Determine whether the specified user has rated this question or answer.
+#
+# @param id     The ID of the question or answer to check the rating history on.
+# @param type   The type of entry to check, must be "question" or "answer".
+# @param userid The ID of the user to check for rating operations.
+# @return The user's rating data for this entry if they have rated the
+#         question or answer, an empty hash if they have not, undef on error.
+sub _user_has_rated {
+    my $self   = shift;
+    my $id     = shift;
+    my $type   = shift;
+    my $userid = shift;
+
+    # Check the type is valid for safety
+    return $self -> self_error("Illegal type specified in call to _user_has_rated")
+        unless($type eq "question" || $type eq "answer");
+
+    # Look for uncancelled rating operations
+    my $checkh = $self -> {"dbh"} -> prepare("SELECT h.*
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_ratings"}."` AS h,
+                                                   `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_ratings"}."` AS r
+                                              WHERE r.${type}_id = ?
+                                              AND h.id = r.rating_id
+                                              AND h.rater_id = ?
+                                              AND h.cancelled IS NULL");
+    $checkh -> execute($id, $userid)
+        or return $self -> self_error("Unable to execute $type rating lookup for user $userid: ".$self -> {"dbh"} -> errstr);
+
+    my $rated = $checkh -> fetchrow_hashref();
+
+    return $rated ? $rated : {};
 }
 
 1;
