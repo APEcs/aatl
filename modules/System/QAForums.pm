@@ -511,12 +511,14 @@ sub unflag_comment {
 }
 
 
+## @method $ mark_as_helpful($commentid, $userid)
+# Update the 'helpful' counter
 
 
 # ============================================================================
 #  Internals
 
-## @method $ _new_question($metadataid, $courseid, $userid, $timestamp)
+## @method private $ _new_question($metadataid, $courseid, $userid, $timestamp)
 # Create a new entry in the Feature::qaforums_questions table to act as the 'header' for a
 # question.
 #
@@ -556,7 +558,7 @@ sub _new_question {
 }
 
 
-## @method $ _new_answer($metadataid, $questionid, $userid, $timestamp)
+## @method private $ _new_answer($metadataid, $questionid, $userid, $timestamp)
 # Create a new entry in the Feature::qaforums_answers table to act as the 'header' for a
 # question.
 #
@@ -596,7 +598,7 @@ sub _new_answer {
 }
 
 
-## @method $ _new_comment($userid, $timestamp)
+## @method private $ _new_comment($userid, $timestamp)
 # Create a new entry in the Feature::qaforums_comments table to act as the 'header' for a
 # comment.
 #
@@ -628,7 +630,7 @@ sub _new_comment {
 }
 
 
-## @method $ _delete($id, $type, $userid)
+## @method private $ _delete($id, $type, $userid)
 # Mark the specified question, answer, or comment as deleted, and record who deleted it
 # and when.
 #
@@ -654,7 +656,7 @@ sub _delete {
 }
 
 
-## @method $ _new_text($userid, $subject, $message, $timestamp, $previd)
+## @method private $ _new_text($userid, $subject, $message, $timestamp, $previd)
 # Create a new text entry, recording whether it is an edit of a previous entry
 # or a new one.
 #
@@ -695,7 +697,7 @@ sub _new_text {
 }
 
 
-## @method $ _attach_comment($id, $type, $commentid)
+## @method private $ _attach_comment($id, $type, $commentid)
 # Attach the specified comment to a question or answer.
 #
 # @param id        The ID of the question or answer to attach the comment to.
@@ -722,7 +724,7 @@ sub _attach_comment {
 }
 
 
-## @method $ _get_question_metadataid($questionid)
+## @method private $ _get_question_metadataid($questionid)
 # Obtain the ID of the metadata context attached to the specified question.
 #
 # @param questionid The ID of the question to get the context for.
@@ -747,7 +749,7 @@ sub _get_question_metadataid {
 }
 
 
-## @method $ _get_current_textid($id, $type)
+## @method private $ _get_current_textid($id, $type)
 # Obtain the ID of the text currently set for the specified question, answer,
 # or comment.
 #
@@ -780,7 +782,7 @@ sub _get_current_textid {
 }
 
 
-## @method $ _set_current_textid($id, $type, $textid)
+## @method private $ _set_current_textid($id, $type, $textid)
 # Set the ID of the current text for the specified question, answer, or comment.
 #
 # @param id     The ID of the question entry to set the text ID for.
@@ -811,7 +813,7 @@ sub _set_current_textid {
 }
 
 
-## @method $ _is_flagged($id, $type)
+## @method private $ _is_flagged($id, $type)
 # Determine whether the specified question, answer, or comment has been flagged,
 # and if it has return the ID of the user who flagged it.
 #
@@ -842,7 +844,7 @@ sub _is_flagged {
 }
 
 
-## @method $ _set_flagged($id, $type, $user)
+## @method private $ _set_flagged($id, $type, $user)
 # Set or clear the flagged status of the specified entry.
 #
 # @param id    The ID of the question, answer, or comment to alter the flagged status of
@@ -874,7 +876,7 @@ sub _set_flagged {
 }
 
 
-## @method $ _rate_entry($id, $type, $userid, $mode)
+## @method private $ _rate_entry($id, $type, $userid, $mode)
 # Update the rating of a question or answer. This creates a new rating history entry
 # in the ratings table, and then attaches it to a question or answer according to the
 # specified type. Note that this does not check whether the user has already rated the
@@ -901,7 +903,7 @@ sub _rate_entry {
     return $self -> self_error("Illegal mode specified in call to _update_rating")
         unless($mode eq "up" || $mode eq "down");
 
-    # To a hopefully near-atomic update to the rating on the question/answer
+    # Do a hopefully near-atomic update to the rating on the question/answer
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
                                              SET rating = rating ".($mode eq "up" ? "+" : "-")." 1
                                              WHERE id = ?");
@@ -943,7 +945,7 @@ sub _rate_entry {
 }
 
 
-## @method $ _unrate_entry($id, $type, $userid)
+## @method private $ _unrate_entry($id, $type, $userid)
 # Cancel a user's rating of the specified question or answer, if they have
 # rated it. If this user has not rated the entry, this does nothing and
 # returns true.
@@ -989,14 +991,15 @@ sub _unrate_entry {
 }
 
 
-## @method $ _user_has_rated($id, $type, $userid)
+## @method private $ _user_has_rated($id, $type, $userid)
 # Determine whether the specified user has rated this question or answer.
 #
 # @param id     The ID of the question or answer to check the rating history on.
 # @param type   The type of entry to check, must be "question" or "answer".
 # @param userid The ID of the user to check for rating operations.
-# @return The user's rating data for this entry if they have rated the
-#         question or answer, an empty hash if they have not, undef on error.
+# @return A reference to a hash containing the user's rating data for this
+#         entry if they have rated the question or answer, an empty hash if
+#         they have not, undef on error.
 sub _user_has_rated {
     my $self   = shift;
     my $id     = shift;
@@ -1017,6 +1020,119 @@ sub _user_has_rated {
                                               AND h.cancelled IS NULL");
     $checkh -> execute($id, $userid)
         or return $self -> self_error("Unable to execute $type rating lookup for user $userid: ".$self -> {"dbh"} -> errstr);
+
+    my $rated = $checkh -> fetchrow_hashref();
+
+    return $rated ? $rated : {};
+}
+
+
+## @method private $ _mark_as_helpful($commentid, $userid)
+# Allow a user to mark a comment as helpful. This increments the comment's 'helpful' counter
+# and records the user's action in a history table.
+#
+# @param commentid The ID of the comment deemed helpful by the user.
+# @param userid    The ID of the user marking the comment.
+# @return true on success, undef otherwise.
+sub _mark_as_helpful {
+    my $self      = shift;
+    my $commentid = shift;
+    my $userid    = shift;
+
+    # Do a hopefully near-atomic update to the rating on the question/answer
+    my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
+                                             SET helpful = helpful + 1
+                                             WHERE id = ?");
+    my $result = $tickh -> execute($commentid);
+    return $self -> self_error("Unable to perform comment rating update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Comment rating update failed, no rows updated") if($result eq "0E0");
+
+    # Now get the new rating
+    my $rateh = $self -> {"dbh"} -> prepare("SELECT helpful
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
+                                             WHERE id = ?");
+    $rateh -> execute($commentid)
+        or return $self -> self_error("Unable to execute comment rating query: ".$self -> {"dbh"} -> errstr);
+
+    # The or on this should never actually happen - the update above should fail first, but check anyway.
+    my $helpful = $rateh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch $type rating: entry does not exist?");
+
+    # Now create a new history entry
+    my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_helpfuls"}."`
+                                            (comment_id, marked, marked_id, rating)
+                                            VALUES(?, UNIX_TIMESTAMP(), ?, ?)");
+    $result = $newh -> execute($commentid, $userid, $rate -> [0]);
+    return $self -> self_error("Unable to perform helpful history insert: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Helpful history insert failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
+## @method $ _undo_as_helpful($commentid, $userid)
+# Cancel the user's assessment of this comment as helpful. This undoes the helpful
+# rating made by the user (assuming such a rating has been made). If the user has
+# not rated the comment, this does nothing and returns true.
+#
+# @param commentid The ID of the comment the user has decided isn't helpful after all.
+# @param userid    The ID of the user who can't make up their mind.
+# @return true on success (or no action needed), undef otherwise.
+sub _undo_as_helpful {
+    my $self      = shift;
+    my $commentid = shift;
+    my $userid    = shift;
+
+    # Determine whether the user has rated the comment; this gets the data if they have
+    my $rated = $self -> _user_recorded_helpful($commentid, $userid);
+    return undef unless(defined($rated));
+
+    # No rating recorded? Exit with 'success' as unrating is not needed.
+    return 1 unless($rated -> {"marked"});
+
+    # Rating happened, undo it
+    my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
+                                             SET helpful = helpful - 1
+                                             WHERE id = ?");
+    my $result = $tickh -> execute($commentid);
+    return $self -> self_error("Unable to perform coment helpfulness update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Comment helpfullness update failed, no rows updated") if($result eq "0E0");
+
+    # Cancel the helpfulness
+    my $cancelh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_helpfuls"}."`
+                                               SET cancelled = UNIX_TIMESTAMP()
+                                               WHERE id = ?");
+    $result = $cancelh -> execute($rated -> {"id"});
+    return $self -> self_error("Unable to perform comment rating cancel: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Comment rating cancel failed, no rows updated") if($result eq "0E0");
+
+    return 1;
+
+}
+
+
+## @method private $ _user_recorded_helpful($commentid, $userid)
+# Determine whether the user has marked the comment as helpful. If the user
+# has marked the comment as helpful, and has not yet cancelled that mark,
+# this will return the data.
+#
+# @param commentid The ID of the comment to check for helpfulness to the user.
+# @param userid    The ID of the user who may or may not find the comment helpful.
+# @return A reference to a hash containing the user's helpful data on success,
+#         an empty hash if the user has not marked the comment as helpful, or
+#         undef on error.
+sub _user_recorded_helpful {
+    my $self      = shift;
+    my $commentid = shift;
+    my $userid    = shift;
+
+    my $checkh = $self -> {"dbh"} -> prepare("SELECT *
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
+                                              WHERE comment_id = ?
+                                              AND marked_id = ?
+                                              AND cancelled IS NULL");
+    $checkh -> execute($commentid, $userid)
+        or return $self -> self_error("Unable to execute helpful history lookup for user $userid: ".$self -> {"dbh"} -> errstr);
 
     my $rated = $checkh -> fetchrow_hashref();
 
