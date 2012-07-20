@@ -143,8 +143,6 @@ sub edit_question {
     my $subject    = shift;
     my $message    = shift;
 
-    $self -> clear_error();
-
     my $previd = $self -> _get_current_textid($questionid, "question");
     return undef unless(defined($previd));
 
@@ -185,6 +183,8 @@ sub flag_question {
     my $questionid = shift;
     my $userid     = shift;
 
+    $self -> clear_error();
+
     return $self -> self_error("Question is already flagged")
         if($self -> _is_flagged($questionid, "question"));
 
@@ -203,6 +203,8 @@ sub unflag_question {
     my $self       = shift;
     my $questionid = shift;
     my $userid     = shift;
+
+    $self -> clear_error();
 
     return $self -> self_error("Question is not flagged")
         unless($self -> _is_flagged($questionid, "question"));
@@ -296,7 +298,10 @@ sub create_answer {
         or return undef;
 
     # Set the answer text.
-    return $self -> edit_answer($aid, $userid, $message, $now);
+    $self -> edit_answer($aid, $userid, $message, $now)
+        or return undef;
+
+    return $self -> _sync_counts($questionid);
 }
 
 
@@ -308,7 +313,7 @@ sub create_answer {
 # @param userid   The ID of the user creating the new text.
 # @param message  The message to show in the text body.
 # @return True on success, undef on error.
-sub edit_question {
+sub edit_answer {
     my $self     = shift;
     my $answerid = shift;
     my $userid   = shift;
@@ -324,7 +329,13 @@ sub edit_question {
         or return undef;
 
     # Update the answer text id
-    return $self -> _set_current_textid($answerid, "answer", $textid);
+    $self -> _set_current_textid($answerid, "answer", $textid)
+        or return undef;
+
+    my $qid = $self -> _get_answer_questionid($answerid, "answer")
+        or return undef;
+
+    return $self -> _sync_counts($qid);
 }
 
 
@@ -340,7 +351,13 @@ sub delete_answer {
     my $answerid = shift;
     my $userid   = shift;
 
-    return $self -> _delete($answerid, "answer", $userid);
+    $self -> _delete($answerid, "answer", $userid)
+        or return undef;
+
+    my $qid = $self -> _get_answer_questionid($answerid, "answer")
+        or return undef;
+
+    return $self -> _sync_counts($qid);
 }
 
 
@@ -355,6 +372,8 @@ sub flag_answer {
     my $self     = shift;
     my $answerid = shift;
     my $userid   = shift;
+
+    $self -> clear_error();
 
     return $self -> self_error("Answer is already flagged")
         if($self -> _is_flagged($answerid, "answer"));
@@ -374,6 +393,8 @@ sub unflag_answer {
     my $self     = shift;
     my $answerid = shift;
     my $userid   = shift;
+
+    $self -> clear_error();
 
     return $self -> self_error("Answer is not flagged")
         unless($self -> _is_flagged($answerid, "answer"));
@@ -465,7 +486,13 @@ sub create_comment {
         or return undef;
 
     # Attach it
-    $self -> _attach_comment($id, $type, $cid);
+    $self -> _attach_comment($id, $type, $cid)
+        or return undef;
+
+    my $qid = $self -> _get_comment_questionid($cid)
+        or return undef;
+
+    return $self -> _sync_counts($qid);
 }
 
 
@@ -483,8 +510,6 @@ sub edit_comment {
     my $userid    = shift;
     my $message   = shift;
 
-    $self -> clear_error();
-
     my $previd = $self -> _get_current_textid($commentid, "comment");
     return undef unless(defined($previd));
 
@@ -493,7 +518,13 @@ sub edit_comment {
         or return undef;
 
     # Update the comment text id
-    return $self -> _set_current_textid($commentid, "comment", $textid);
+    $self -> _set_current_textid($commentid, "comment", $textid)
+        or return undef;
+
+    my $qid = $self -> _get_comment_questionid($commentid)
+        or return undef;
+
+    return $self -> _sync_counts($qid);
 }
 
 
@@ -511,7 +542,13 @@ sub delete_comment {
     my $commentid = shift;
     my $userid    = shift;
 
-    return $self -> _delete($commentid, "comment", $userid);
+    $self -> _delete($commentid, "comment", $userid)
+        or return undef;
+
+    my $qid = $self -> _get_comment_questionid($commentid)
+        or return undef;
+
+    return $self -> _sync_counts($qid);
 }
 
 
@@ -526,6 +563,8 @@ sub flag_comment {
     my $self      = shift;
     my $commentid = shift;
     my $userid    = shift;
+
+    $self -> clear_error();
 
     return $self -> self_error("Comment is already flagged")
         if($self -> _is_flagged($commentid, "comment"));
@@ -545,6 +584,8 @@ sub unflag_comment {
     my $self      = shift;
     my $commentid = shift;
     my $userid    = shift;
+
+    $self -> clear_error();
 
     return $self -> self_error("Comment is not flagged")
         unless($self -> _is_flagged($commentid, "comment"));
@@ -605,6 +646,13 @@ sub user_marked_helpful {
 
     return $rating -> {"marked"} || 0;
 }
+
+
+# ============================================================================
+#  Listing and extraction
+
+## @method $ get_question_list($courseid, $mode)
+# Generate an array of question
 
 
 # ============================================================================
@@ -737,6 +785,8 @@ sub _delete {
     my $type   = shift;
     my $userid = shift;
 
+    $self -> clear_error();
+
     my $delh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
                                             SET deleted = UNIX_TIMESTAMP(), deleted_id = ?
                                             WHERE id = ?");
@@ -802,8 +852,10 @@ sub _attach_comment {
     my $type      = shift;
     my $commentid = shift;
 
-    return $self -> self_error("Illegal type passed to _attach_comment")
-        unless($type eq "question" || $type eq "answer");
+    $self -> clear_error();
+
+    # Force a legal type
+    $type = "question" unless($type eq "answer");
 
     my $atth = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."`
                                             (${type}_id, comment_id)
@@ -841,6 +893,69 @@ sub _get_question_metadataid {
 }
 
 
+## @method private $ _get_answer_questionid($answerid)
+# Obtain the ID of the question this answer is attached to.
+#
+# @param answerid The ID of the answer to fetch the question id for.
+# @return The question ID on success, undef on error.
+sub _get_answer_questionid {
+    my $self     = shift;
+    my $answerid = shift;
+
+    $self -> clear_error();
+
+    my $queryh = $self -> {"dbh"} -> prepare("SELECT question_id
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."`
+                                              WHERE id = ?");
+    $queryh -> execute($answerid)
+        or return $self -> self_error("Unable to execute answer question id query: ".$self -> {"dbh"} -> {"errstr"});
+
+    my $row = $queryh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch question id for answer $answerid: entry does not exist");
+
+    return $row -> [0]
+        or return $self -> self_error("No question id set for answer $answerid. This should not happen");
+}
+
+
+## @method private $ _get_comment_questionid($commentid)
+# Obtain the ID of the question this comment is attached to, either directly
+# por via a question.
+#
+# @param commentid The ID of the comment to fetch the question ID for.
+# @return The question ID on success, undef on error.
+sub _get_comment_questionid {
+    my $self      = shift;
+    my $commentid = shift;
+
+    # First check for the commentid in the question/comment relation table, that's
+    # the simple case...
+    my $questh = $self -> {"dbh"} -> prepare("SELECT question_id
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions_comments"}."`
+                                              WHERE comment_id = ?");
+    $questh -> execute($commentid)
+        or return $self -> self_error("Unable to execute question/comment lookup: ".$self -> {"dbh"} -> errstr);
+
+    # If this returns a row, the comment is attached to a question, so life is easy
+    my $quest = $questh -> fetchrow_arrayref();
+    return $quest -> [0] if($quest);
+
+    # Comment is not on a question, must be on an answer (we hope...)
+    my $ansh = $self -> {"dbh"} -> prepare("SELECT answer_id
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers_comments"}."`
+                                            WHERE comment_id = ?");
+    $ansh -> execute($commentid)
+        or return $self -> self_error("Unable to execute answer/comment lookup: ".$self -> {"dbh"} -> errstr);
+
+    # If the comment is set on an answer, get its question id
+    my $answer = $ansh -> fetchrow_arrayref();
+    return $self -> _get_answer_questionid($answer -> [0]) if($answer);
+
+    # Get here and the comment doesn't seem to be attached to anything, panic.
+    return $self -> self_error("Comment $commentid does not appear to be attached to anything!");
+}
+
+
 ## @method private $ _get_current_textid($id, $type)
 # Obtain the ID of the text currently set for the specified question, answer,
 # or comment.
@@ -857,9 +972,8 @@ sub _get_current_textid {
 
     $self -> clear_error();
 
-    # Check the type is valid for safety
-    return $self -> self_error("Illegal type specified in call to _get_current_textid")
-        unless($type eq "question" || $type eq "answer" || $type eq "comment");
+    # Force a legal type
+    $type = "question" unless($type eq "answer" || $type eq "comment");
 
     my $queryh = $self -> {"dbh"} -> prepare("SELECT text_id
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
@@ -890,9 +1004,8 @@ sub _set_current_textid {
 
     $self -> clear_error();
 
-    # Check the type is valid for safety
-    return $self -> self_error("Illegal type specified in call to _set_current_textid")
-        unless($type eq "question" || $type eq "answer" || $type eq "comment");
+    # Force a legal type
+    $type = "question" unless($type eq "answer" || $type eq "comment");
 
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
                                             SET text_id = ?
@@ -918,9 +1031,10 @@ sub _is_flagged {
     my $id   = shift;
     my $type = shift;
 
-    # Check the type is valid for safety
-    return $self -> self_error("Illegal type specified in call to _is_flagged")
-        unless($type eq "question" || $type eq "answer");
+    $self -> clear_error();
+
+    # Force a legal type
+    $type = "question" unless($type eq "answer");
 
     # Check the entry
     my $checkh = $self -> {"dbh"} -> prepare("SELECT flagged_id
@@ -951,9 +1065,10 @@ sub _set_flagged {
     my $user = shift;
     my $now;
 
-    # Check the type is valid for safety
-    return $self -> self_error("Illegal type specified in call to _set_flagged")
-        unless($type eq "question" || $type eq "answer");
+    $self -> clear_error();
+
+    # Force a legal type
+    $type = "question" unless($type eq "answer");
 
     $now = time() if($user);
 
@@ -987,13 +1102,11 @@ sub _rate_entry {
     my $userid = shift;
     my $mode   = shift;
 
-    # Check the type is valid for safety
-    return $self -> self_error("Illegal type specified in call to _update_rating")
-        unless($type eq "question" || $type eq "answer");
+    $self -> clear_error();
 
-    # Check the mode is valid for safety
-    return $self -> self_error("Illegal mode specified in call to _update_rating")
-        unless($mode eq "up" || $mode eq "down");
+    # Force a legal type and mode
+    $type = "question" unless($type eq "answer");
+    $mode = "down"     unless($mode eq "up");
 
     # Do a hopefully near-atomic update to the rating on the question/answer
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
@@ -1052,9 +1165,10 @@ sub _unrate_entry {
     my $type   = shift;
     my $userid = shift;
 
-    # Check the type is valid for safety
-    return $self -> self_error("Illegal type specified in call to _unrate_entry")
-        unless($type eq "question" || $type eq "answer");
+    $self -> clear_error();
+
+    # Force a legal type
+    $type = "question" unless($type eq "answer");
 
     # Determine whether the user has rated the entry; this gets the data if they have
     my $rated = $self -> _user_has_rated($id, $type, $userid);
@@ -1098,9 +1212,10 @@ sub _user_has_rated {
     my $type   = shift;
     my $userid = shift;
 
-    # Check the type is valid for safety
-    return $self -> self_error("Illegal type specified in call to _user_has_rated")
-        unless($type eq "question" || $type eq "answer");
+    $self -> clear_error();
+
+    # Force a legal type
+    $type = "question" unless($type eq "answer");
 
     # Look for uncancelled rating operations
     my $checkh = $self -> {"dbh"} -> prepare("SELECT h.*
@@ -1130,6 +1245,8 @@ sub _mark_as_helpful {
     my $self      = shift;
     my $commentid = shift;
     my $userid    = shift;
+
+    $self -> clear_error();
 
     # Do a hopefully near-atomic update to the rating on the question/answer
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
@@ -1162,7 +1279,7 @@ sub _mark_as_helpful {
 }
 
 
-## @method $ _undo_as_helpful($commentid, $userid)
+## @method private $ _undo_as_helpful($commentid, $userid)
 # Cancel the user's assessment of this comment as helpful. This undoes the helpful
 # rating made by the user (assuming such a rating has been made). If the user has
 # not rated the comment, this does nothing and returns true.
@@ -1174,6 +1291,8 @@ sub _undo_as_helpful {
     my $self      = shift;
     my $commentid = shift;
     my $userid    = shift;
+
+    $self -> clear_error();
 
     # Determine whether the user has rated the comment; this gets the data if they have
     my $rated = $self -> _user_recorded_helpful($commentid, $userid);
@@ -1218,6 +1337,8 @@ sub _user_recorded_helpful {
     my $commentid = shift;
     my $userid    = shift;
 
+    $self -> clear_error();
+
     my $checkh = $self -> {"dbh"} -> prepare("SELECT *
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
                                               WHERE comment_id = ?
@@ -1229,6 +1350,98 @@ sub _user_recorded_helpful {
     my $rated = $checkh -> fetchrow_hashref();
 
     return $rated ? $rated : {};
+}
+
+
+## @method private @ _get_comment_stats($id, $type)
+# Obtain the count of comments attached to the specified question or answer, and the
+# timestamp of the latest comment edit.
+#
+# @param id   The ID of the question or answer to fetch comment stats for.
+# @param type The type of entry to get stats for, must be "question" or "answer"
+# @return An array of two values: the number of comments, and the
+sub _get_comment_stats {
+    my $self = shift;
+    my $id   = shift;
+    my $type = shift;
+
+    $self -> clear_error();
+
+    # Force a legal type
+    $type = "question" unless($type eq "answer");
+
+    # Get the number of non-deleted comments attached to the question or answer
+    my $comstath = $self -> {"dbh"} -> prepare("SELECT COUNT(r.comment_id), MAX(t.edited)
+                                                FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."` AS r,
+                                                     `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."` AS c,
+                                                     `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                                WHERE r.${type}_id = ?
+                                                AND c.id = r.comment_id
+                                                AND c.deleted IS NULL
+                                                AND t.id = c.text_id");
+    $comstath -> execute($id)
+        or return ($self -> self_error("Unable to execute comment stats query: ".$self -> {"dbh"} -> errstr), undef);
+
+    my $stats = $comstath -> fetchrow_arrayref()
+        or return ($self -> self_error("Stats query did not return sane values."), undef);
+
+    return (@{$stats});
+}
+
+
+## @method private $ _sync_counts($questionid)
+# Recalculate the number of answers and comments on the specified question, and the
+# latest post times of both.
+#
+# @parma questionid The ID of the question to resync.
+# @return true on success, undef otherwise.
+sub _sync_counts {
+    my $self       = shift;
+    my $questionid = shift;
+
+    $self -> clear_error();
+
+    # Counters and stuff to store the stats in
+    my $answers        = 0;
+    my $latest_answer  = undef;
+    my $comments       = 0;
+    my $latest_comment = undef;
+
+    ($comments, $latest_comment) = $self -> _get_comment_stats($questionid, "question");
+    return undef if(!defined($comments));
+
+    # Now fetch the answer headers, and calculate their comments too
+    my $ansh = $self -> {"dbh"} -> prepare("SELECT a.id, t.edited
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."` AS a,
+                                                 `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                            WHERE a.question_id = ?
+                                            AND a.deleted IS NULL
+                                            AND t.id = a.text_id");
+    $ansh -> execute($questionid)
+        or return $self -> self_error("Unable to execute answer lookup: ".$self -> {"dbh"} -> errstr);
+
+    while(my $answer = $ansh -> fetchrow_hashref()) {
+        # record the answer, and update the timestamp if needed
+        ++$answers;
+        $latest_answer = $answer -> {"edited"} if($answer -> {"edited"} > $latest_answer);
+
+        # And fetch the stats for the answer's comments
+        my ($count, $latest) = $self -> _get_comment_stats($answer -> {"id"}, "answer");
+        return undef if(!defined($count));
+
+        $comments += $count;
+        $latest_comment = $latest if($latest > $latest_comment);
+    }
+
+    # Now update the question
+    my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                            SET answers = ?, comments = ?, latest_answer = ?, latest_comment = ?
+                                            WHERE id = ?");
+    my $result = $seth -> execute($answers, $comments, $latest_answer, $latest_comment, $questionid);
+    return $self -> self_error("Unable to perform question stats update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Question stats update failed, no rows updated") if($result eq "0E0");
+
+    return 1;
 }
 
 1;
