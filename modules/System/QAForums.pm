@@ -22,6 +22,7 @@ package System::QAForums;
 
 use strict;
 use base qw(SystemModule);
+use List::Util qw(max);
 
 # ==============================================================================
 #  Creation
@@ -652,7 +653,11 @@ sub user_marked_helpful {
 #  Listing and extraction
 
 ## @method $ get_question_list($courseid, $mode)
-# Generate an array of question
+# Generate an array of questions set in the current course, sorted by the specified
+# mode.
+#
+# @param courseid The ID of the course to fetch questions from
+# @
 
 
 # ============================================================================
@@ -679,9 +684,9 @@ sub _new_question {
 
     # Query to create a new question header
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
-                                            (metadata_id, course_id, created, creator_id)
-                                            VALUES(?, ?, ?, ?)");
-    my $result = $newh -> execute($metadataid, $courseid, $timestamp, $userid);
+                                            (metadata_id, course_id, created, creator_id, updated)
+                                            VALUES(?, ?, ?, ?, ?)");
+    my $result = $newh -> execute($metadataid, $courseid, $timestamp, $userid, $timestamp);
     return $self -> self_error("Unable to perform question insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Question insert failed, no rows inserted") if($result eq "0E0");
 
@@ -719,9 +724,9 @@ sub _new_answer {
 
     # Query to create a new answer header
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."`
-                                            (metadata_id, question_id, created, creator_id)
-                                            VALUES(?, ?, ?, ?)");
-    my $result = $newh -> execute($metadataid, $questionid, $timestamp, $userid);
+                                            (metadata_id, question_id, created, creator_id, updated)
+                                            VALUES(?, ?, ?, ?, ?)");
+    my $result = $newh -> execute($metadataid, $questionid, $timestamp, $userid, $timestamp);
     return $self -> self_error("Unable to perform answer insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Answer insert failed, no rows inserted") if($result eq "0E0");
 
@@ -755,9 +760,9 @@ sub _new_comment {
 
     # Query to create a new comment header
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
-                                            (created, creator_id)
-                                            VALUES(?, ?)");
-    my $result = $newh -> execute($timestamp, $userid);
+                                            (created, creator_id, updated)
+                                            VALUES(?, ?, ?)");
+    my $result = $newh -> execute($timestamp, $userid, $timestamp);
     return $self -> self_error("Unable to perform comment insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Comment insert failed, no rows inserted") if($result eq "0E0");
 
@@ -788,7 +793,7 @@ sub _delete {
     $self -> clear_error();
 
     my $delh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
-                                            SET deleted = UNIX_TIMESTAMP(), deleted_id = ?
+                                            SET deleted = UNIX_TIMESTAMP(), deleted_id = ?, updated = UNIX_TIMESTAMP()
                                             WHERE id = ?");
     my $result = $delh -> execute($userid, $id);
     return $self -> self_error("Unable to perform $type delete: ". $self -> {"dbh"} -> errstr) if(!$result);
@@ -1008,7 +1013,7 @@ sub _set_current_textid {
     $type = "question" unless($type eq "answer" || $type eq "comment");
 
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
-                                            SET text_id = ?
+                                            SET text_id = ?, updated = UNIX_TIMESTAMP()
                                             WHERE id = ?");
     my $result = $seth -> execute($textid, $id);
     return $self -> self_error("Unable to perform $type text update: ". $self -> {"dbh"} -> errstr) if(!$result);
@@ -1073,7 +1078,7 @@ sub _set_flagged {
     $now = time() if($user);
 
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
-                                            SET flagged = ?, flagged_id = ?
+                                            SET flagged = ?, flagged_id = ?, updated = UNIX_TIMESTAMP()
                                             WHERE id = ?");
     my $result = $seth -> execute($now, $user, $id);
     return $self -> self_error("Unable to perform $type flagged update: ". $self -> {"dbh"} -> errstr) if(!$result);
@@ -1110,7 +1115,7 @@ sub _rate_entry {
 
     # Do a hopefully near-atomic update to the rating on the question/answer
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
-                                             SET rating = rating ".($mode eq "up" ? "+" : "-")." 1
+                                             SET updated = UNIX_TIMESTAMP(), rating = rating ".($mode eq "up" ? "+" : "-")." 1
                                              WHERE id = ?");
     my $result = $tickh -> execute($id);
     return $self -> self_error("Unable to perform $type rating update: ". $self -> {"dbh"} -> errstr) if(!$result);
@@ -1179,7 +1184,7 @@ sub _unrate_entry {
 
     # Rating happened, undo it
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
-                                             SET rating = rating ".($rated -> {"updown"} eq "up" ? "-" : "+")." 1
+                                             SET updated = UNIX_TIMESTAMP(), rating = rating ".($rated -> {"updown"} eq "up" ? "-" : "+")." 1
                                              WHERE id = ?");
     my $result = $tickh -> execute($id);
     return $self -> self_error("Unable to perform $type rating update: ". $self -> {"dbh"} -> errstr) if(!$result);
@@ -1250,7 +1255,7 @@ sub _mark_as_helpful {
 
     # Do a hopefully near-atomic update to the rating on the question/answer
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
-                                             SET helpful = helpful + 1
+                                             SET updated = UNIX_TIMESTAMP(), helpful = helpful + 1
                                              WHERE id = ?");
     my $result = $tickh -> execute($commentid);
     return $self -> self_error("Unable to perform comment rating update: ". $self -> {"dbh"} -> errstr) if(!$result);
@@ -1303,7 +1308,7 @@ sub _undo_as_helpful {
 
     # Rating happened, undo it
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
-                                             SET helpful = helpful - 1
+                                             SET updated = UNIX_TIMESTAMP(), helpful = helpful - 1
                                              WHERE id = ?");
     my $result = $tickh -> execute($commentid);
     return $self -> self_error("Unable to perform coment helpfulness update: ". $self -> {"dbh"} -> errstr) if(!$result);
@@ -1371,14 +1376,12 @@ sub _get_comment_stats {
     $type = "question" unless($type eq "answer");
 
     # Get the number of non-deleted comments attached to the question or answer
-    my $comstath = $self -> {"dbh"} -> prepare("SELECT COUNT(r.comment_id), MAX(t.edited)
+    my $comstath = $self -> {"dbh"} -> prepare("SELECT COUNT(r.comment_id), MAX(c.updated)
                                                 FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."` AS r,
-                                                     `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."` AS c,
-                                                     `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                                     `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."` AS c
                                                 WHERE r.${type}_id = ?
                                                 AND c.id = r.comment_id
-                                                AND c.deleted IS NULL
-                                                AND t.id = c.text_id");
+                                                AND c.deleted IS NULL");
     $comstath -> execute($id)
         or return ($self -> self_error("Unable to execute comment stats query: ".$self -> {"dbh"} -> errstr), undef);
 
@@ -1411,19 +1414,17 @@ sub _sync_counts {
     return undef if(!defined($comments));
 
     # Now fetch the answer headers, and calculate their comments too
-    my $ansh = $self -> {"dbh"} -> prepare("SELECT a.id, t.edited
-                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."` AS a,
-                                                 `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
-                                            WHERE a.question_id = ?
-                                            AND a.deleted IS NULL
-                                            AND t.id = a.text_id");
+    my $ansh = $self -> {"dbh"} -> prepare("SELECT id, updated
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."`
+                                            WHERE question_id = ?
+                                            AND deleted IS NULL");
     $ansh -> execute($questionid)
         or return $self -> self_error("Unable to execute answer lookup: ".$self -> {"dbh"} -> errstr);
 
     while(my $answer = $ansh -> fetchrow_hashref()) {
         # record the answer, and update the timestamp if needed
         ++$answers;
-        $latest_answer = $answer -> {"edited"} if($answer -> {"edited"} > $latest_answer);
+        $latest_answer = $answer -> {"updated"} if($answer -> {"updated"} > $latest_answer);
 
         # And fetch the stats for the answer's comments
         my ($count, $latest) = $self -> _get_comment_stats($answer -> {"id"}, "answer");
@@ -1433,11 +1434,25 @@ sub _sync_counts {
         $latest_comment = $latest if($latest > $latest_comment);
     }
 
+    # When was the question itself updated?
+    my $timeh = $self -> {"dbh"} -> prepare("SELECT updated
+                                             FROM  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                             WHERE id = ?");
+    $timeh -> execute($questionid)
+        or return $self -> self_error("Unable to execute question update lookup: ".$self -> {"dbh"} -> errstr);
+
+    my $updated = $timeh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch update time for question $questionid: entry does not exist.");
+
+    # Work out what the latest update was across everything.
+    my @times = ($latest_answer, $latest_comment, $updated -> [0]);
+    $updated = max(@times);
+
     # Now update the question
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
-                                            SET answers = ?, comments = ?, latest_answer = ?, latest_comment = ?
+                                            SET answers = ?, comments = ?, latest_answer = ?, latest_comment = ?, updated = ?
                                             WHERE id = ?");
-    my $result = $seth -> execute($answers, $comments, $latest_answer, $latest_comment, $questionid);
+    my $result = $seth -> execute($answers, $comments, $latest_answer, $latest_comment, $questionid, $updated);
     return $self -> self_error("Unable to perform question stats update: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Question stats update failed, no rows updated") if($result eq "0E0");
 
