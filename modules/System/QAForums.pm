@@ -652,12 +652,41 @@ sub user_marked_helpful {
 # ============================================================================
 #  Listing and extraction
 
-## @method $ get_question_list($courseid, $mode)
+## @method $ get_question_list($courseid, $settings)
 # Generate an array of questions set in the current course, sorted by the specified
-# mode.
+# mode. The settings argument determines, primarily, the order entries are returned in,
+# and any filtering and limiting that may be needed. The following settings are
+# understood by the function:
+#
+# - `mode`     - determines what controls the sort order. Should be either "created",
+#                "updated", or "rating". If not specified, this defaults to "created".
+# - `ordering" - controls whether newer/higher rated entries appear first or last.
+#                Should be "highfirst" for newer/higher rated, or "lowfirst" for older/
+#                lower rated. If not set, defaults to "highfirst".
+# - `noanswer` - if true, only questions with no answers are returned. Default is false.
+# - `offset`   - Offset from the start of the results to return. Defaults to 0.
+# - `count`    - The number of entries to return. If not set, all entries are returned.
+#                Note that, if the count is not set, the offset will be ignored.
 #
 # @param courseid The ID of the course to fetch questions from
-# @
+# @param settings A reference to a hash of settings to control the listing.
+# @return A reference to a hash containing the total question count, and a reference
+#         to an array containing question data on success, undef on error.
+sub get_question_list {
+    my $self     = shift;
+    my $courseid = shift;
+    my $settings = shift || {};
+
+    # Check the configuration values are sane
+    $settings -> {"mode"} = "created"
+        unless(defined($settings -> {"mode"}) && ($settings -> {"mode"} eq "updated" || $settings -> {"mode"} eq "rating"));
+
+    $settings -> {"ordering"} = "highfirst"
+        unless(defined($settings -> {"ordering"}) && $settings -> {"ordering"} eq "lowfirst");
+
+
+
+}
 
 
 # ============================================================================
@@ -860,7 +889,7 @@ sub _attach_comment {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer");
+    $type = "question" unless(defined($type) && $type eq "answer");
 
     my $atth = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."`
                                             (${type}_id, comment_id)
@@ -978,7 +1007,7 @@ sub _get_current_textid {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer" || $type eq "comment");
+    $type = "question" unless(defined($type) && ($type eq "answer" || $type eq "comment"));
 
     my $queryh = $self -> {"dbh"} -> prepare("SELECT text_id
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
@@ -1010,7 +1039,7 @@ sub _set_current_textid {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer" || $type eq "comment");
+    $type = "question" unless(defined($type) && ($type eq "answer" || $type eq "comment"));
 
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
                                             SET text_id = ?, updated = UNIX_TIMESTAMP()
@@ -1039,7 +1068,7 @@ sub _is_flagged {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer");
+    $type = "question" unless(defined($type) && $type eq "answer");
 
     # Check the entry
     my $checkh = $self -> {"dbh"} -> prepare("SELECT flagged_id
@@ -1073,7 +1102,7 @@ sub _set_flagged {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer");
+    $type = "question" unless(defined($type) && $type eq "answer");
 
     $now = time() if($user);
 
@@ -1110,8 +1139,8 @@ sub _rate_entry {
     $self -> clear_error();
 
     # Force a legal type and mode
-    $type = "question" unless($type eq "answer");
-    $mode = "down"     unless($mode eq "up");
+    $type = "question" unless(defined($type) && $type eq "answer");
+    $mode = "down"     unless(defined($mode) && $mode eq "up");
 
     # Do a hopefully near-atomic update to the rating on the question/answer
     my $tickh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
@@ -1173,7 +1202,7 @@ sub _unrate_entry {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer");
+    $type = "question" unless(defined($type) && $type eq "answer");
 
     # Determine whether the user has rated the entry; this gets the data if they have
     my $rated = $self -> _user_has_rated($id, $type, $userid);
@@ -1220,7 +1249,7 @@ sub _user_has_rated {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer");
+    $type = "question" unless(defined($type) && $type eq "answer");
 
     # Look for uncancelled rating operations
     my $checkh = $self -> {"dbh"} -> prepare("SELECT h.*
@@ -1373,7 +1402,7 @@ sub _get_comment_stats {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless($type eq "answer");
+    $type = "question" unless(defined($type) && $type eq "answer");
 
     # Get the number of non-deleted comments attached to the question or answer
     my $comstath = $self -> {"dbh"} -> prepare("SELECT COUNT(r.comment_id), MAX(c.updated)
