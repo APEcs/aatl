@@ -676,6 +676,7 @@ sub get_question_list {
     my $self     = shift;
     my $courseid = shift;
     my $settings = shift || {};
+    my $result   = {};
 
     # Check the configuration values are sane
     $settings -> {"mode"} = "created"
@@ -684,8 +685,59 @@ sub get_question_list {
     $settings -> {"ordering"} = "highfirst"
         unless(defined($settings -> {"ordering"}) && $settings -> {"ordering"} eq "lowfirst");
 
+    $settings -> {"count"} = undef
+        unless(defined($settings -> {"count"}) && $settings -> {"count"} =~ /^\d+$/);
 
+    $settings -> {"offset"} = undef
+        unless(defined($settings -> {"count"}) && defined($settings -> {"offset"}) && $settings -> {"offset"} =~ /^\d+$/);
 
+    my @limit;
+    push(@limit, $settings -> {"offset"}) if($settings -> {"offset"});
+    push(@limit, $settings -> {"count"})  if($settings -> {"count"});
+
+    # Copy the limit over, in case it is needed later
+    $result -> {"offset"} = $settings -> {"offset"};
+    $result -> {"count"}  = $settings -> {"count"};
+
+    # Now construct the queries - first a general count of entries that will match with no limit. Sorting
+    # is irrelivant, as are any other tables than the question table. We just want raw numbers from this.
+    my $counth = $self -> {"dbh"} -> prepare("SELECT COUNT(id)
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                              WHERE course_id = ?
+                                              AND deleted IS NULL");
+    $counth -> execute($counth)
+        or return $self -> self_error("Unable to execute question list count query: ".$self -> {"dbh"} -> errstr);
+
+    my $count = $counth -> fetchrow_arrayref()
+        or return $self -> self_error("Question list count query returned no value. This should not happen");
+
+    # Store the count, and if it's nonzero fetch the rows...
+    $result -> {"total"} = $count -> [0];
+    if($result -> {"total"}) {
+        my $query = "SELECT q.*, u.*, t.subject
+                     FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."` AS q
+                          `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                          `".$self -> {"settings"} -> {"database"} -> {"users"}."` AS u
+                     WHERE q.course_id = ?
+                     AND deleted IS NULL
+                     AND t.id = q.textid
+                     AND u.user_id = q.creator_id ".
+                    ($settings -> {"noanswer"} ? "AND q.answers = 0 " : " ").
+                    "ORDER BY ".$settings -> {"mode"}." ".
+                    ($settings -> {"ordering"} eq "highfirst" ? "DESC " : "ASC ");
+
+        $query .= "LIMIT ".join(",", @limit) if(scalar(@limit));
+
+        my $qlisth = $self -> {"dbh"} -> prepare($query);
+
+        $qlisth -> execute($courseid)
+            or return $self -> self_error("Unable to execute question list query: ".$self -> {"dbh"} -> errstr);
+
+        # fetchall should do everything needed here...
+        $result -> {"rows"} = $qlisth -> fetchall_arrayref({});
+    }
+
+    return $result;
 }
 
 
