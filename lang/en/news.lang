@@ -1,0 +1,28 @@
+# News page
+FEATURE_NEWS_ERROR    = Error
+FEATURE_NEWS_ERROROK  = Continue
+
+FEATURE_NEWS_TITLE    = News
+FEATURE_NEWS_POSTED   = Posted
+FEATURE_NEWS_EDITED   = Edited
+FEATURE_NEWS_SUBJECT  = News post subject
+FEATURE_NEWS_MSG      = Enter your news message here
+FEATURE_NEWS_POST     = Post news entry
+FEATURE_NEWS_BACKLINK = Show all news posts
+FEATURE_NEWS_SHOWMORE = Show more
+
+FEATURE_NEWS_EDIT     = Edit this post
+FEATURE_NEWS_DOEDIT   = Save edit
+FEATURE_NEWS_DELETE   = Delete this post
+
+FEATURE_NEWS_ERR_POSTPERM   = You do not have permission to post news items.
+FEATURE_NEWS_ERR_POSTFAIL   = News message addition failed:
+FEATURE_NEWS_ERR_EDITFAIL   = News message edit failed:
+
+FEATURE_NEWS_APIDEL_NOPOST  = No news entry selected for deletion.
+FEATURE_NEWS_APIDEL_FAILED  = News entry delete failed: ***error***
+FEATURE_NEWS_APIDEL_PERM    = You do not have permission to delete this news item.
+
+FEATURE_NEWS_APIEDIT_NOPOST = No news entry selected for editing.
+FEATURE_NEWS_APIEDIT_FAILED = News entry edit failed: ***error***
+FEATURE_NEWS_APIEDIT_PERM   = You do not have permission to edit this news item.

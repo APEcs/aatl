@@ -1,0 +1,14 @@
+FEATURE_QAFORUM_TAB_ACTIVE   = Active
+FEATURE_QAFORUM_TITLE_ACTIVE = Questions with recent activity
+FEATURE_QAFORUM_TAB_LATEST   = Newest
+FEATURE_QAFORUM_TITLE_LATEST = Recently asked questions
+FEATURE_QAFORUM_TAB_RATED    = Votes
+FEATURE_QAFORUM_TITLE_RATED  = Questions with the most votes
+FEATURE_QAFORUM_TAB_NOANS    = Unanswered
+FEATURE_QAFORUM_TITLE_NOANS  = Questions with no answers
+FEATURE_QAFORUM_TAB_FAQS     = FAQs
+FEATURE_QAFORUM_TITLE_FAQS   = Commonly asked questions with the best answers
+FEATURE_QAFORUM_TAB_ASK      = Ask Question
+FEATURE_QAFORUM_TITLE_ASK    = Add a question to the forum
+
+
