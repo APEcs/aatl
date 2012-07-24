@@ -652,6 +652,35 @@ sub user_marked_helpful {
 # ============================================================================
 #  Listing and extraction
 
+## @method $ get_question_count($courseid, $noanswer)
+# Determine how many questions are available in the category the user has selected.
+# This will count how many questions have been asked in the current course, potentially
+# filtering the list so that only unanswered questions are counted.
+#
+# @param courseid The ID of the course to check for qaforum questions
+# @param noanswer If true, this will only count questions with no answers, otherwise
+#                 all questions (with or without answers) are counted.
+# @return The number of questions on success (*which may be zero*), or undef on error.
+sub get_question_count {
+    my $self     = shift;
+    my $courseid = shift;
+    my $noanswer = shift;
+
+    my $counth = $self -> {"dbh"} -> prepare("SELECT COUNT(*)
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                              WHERE course_id = ?
+                                              AND deleted IS NULL".
+                                             ($noanswer ? "AND answers = 0 " : ""));
+    $counth -> execute($courseid)
+        or return $self -> self_error("Unable to execute question count query: ".$self -> {"dbh"} -> errstr);
+
+    my $count = $counth -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch question count data. This should not happen");
+
+    return $count -> [0];
+}
+
+
 ## @method $ get_question_list($courseid, $settings)
 # Generate an array of questions set in the current course, sorted by the specified
 # mode. The settings argument determines, primarily, the order entries are returned in,
@@ -670,13 +699,11 @@ sub user_marked_helpful {
 #
 # @param courseid The ID of the course to fetch questions from
 # @param settings A reference to a hash of settings to control the listing.
-# @return A reference to a hash containing the total question count, and a reference
-#         to an array containing question data on success, undef on error.
+# @return A reference to an array containing question data on success, undef on error.
 sub get_question_list {
     my $self     = shift;
     my $courseid = shift;
     my $settings = shift || {};
-    my $result   = {};
 
     # Check the configuration values are sane
     $settings -> {"mode"} = "created"
@@ -695,49 +722,28 @@ sub get_question_list {
     push(@limit, $settings -> {"offset"}) if($settings -> {"offset"});
     push(@limit, $settings -> {"count"})  if($settings -> {"count"});
 
-    # Copy the limit over, in case it is needed later
-    $result -> {"offset"} = $settings -> {"offset"};
-    $result -> {"count"}  = $settings -> {"count"};
+    # fetch the rows...
+    my $query = "SELECT q.*, u.*, t.subject
+                 FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."` AS q
+                      `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                      `".$self -> {"settings"} -> {"database"} -> {"users"}."` AS u
+                 WHERE q.course_id = ?
+                 AND q.deleted IS NULL
+                 AND t.id = q.textid
+                 AND u.user_id = q.creator_id ".
+                ($settings -> {"noanswer"} ? "AND q.answers = 0 " : "").
+                "ORDER BY ".$settings -> {"mode"}." ".
+               ($settings -> {"ordering"} eq "highfirst" ? "DESC " : "ASC ");
 
-    # Now construct the queries - first a general count of entries that will match with no limit. Sorting
-    # is irrelivant, as are any other tables than the question table. We just want raw numbers from this.
-    my $counth = $self -> {"dbh"} -> prepare("SELECT COUNT(id)
-                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
-                                              WHERE course_id = ?
-                                              AND deleted IS NULL");
-    $counth -> execute($counth)
-        or return $self -> self_error("Unable to execute question list count query: ".$self -> {"dbh"} -> errstr);
+    $query .= "LIMIT ".join(",", @limit) if(scalar(@limit));
 
-    my $count = $counth -> fetchrow_arrayref()
-        or return $self -> self_error("Question list count query returned no value. This should not happen");
+    my $qlisth = $self -> {"dbh"} -> prepare($query);
 
-    # Store the count, and if it's nonzero fetch the rows...
-    $result -> {"total"} = $count -> [0];
-    if($result -> {"total"}) {
-        my $query = "SELECT q.*, u.*, t.subject
-                     FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."` AS q
-                          `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
-                          `".$self -> {"settings"} -> {"database"} -> {"users"}."` AS u
-                     WHERE q.course_id = ?
-                     AND deleted IS NULL
-                     AND t.id = q.textid
-                     AND u.user_id = q.creator_id ".
-                    ($settings -> {"noanswer"} ? "AND q.answers = 0 " : " ").
-                    "ORDER BY ".$settings -> {"mode"}." ".
-                    ($settings -> {"ordering"} eq "highfirst" ? "DESC " : "ASC ");
+    $qlisth -> execute($courseid)
+        or return $self -> self_error("Unable to execute question list query: ".$self -> {"dbh"} -> errstr);
 
-        $query .= "LIMIT ".join(",", @limit) if(scalar(@limit));
-
-        my $qlisth = $self -> {"dbh"} -> prepare($query);
-
-        $qlisth -> execute($courseid)
-            or return $self -> self_error("Unable to execute question list query: ".$self -> {"dbh"} -> errstr);
-
-        # fetchall should do everything needed here...
-        $result -> {"rows"} = $qlisth -> fetchall_arrayref({});
-    }
-
-    return $result;
+    # fetchall should do everything needed here...
+    return $qlisth -> fetchall_arrayref({});
 }
 
 
