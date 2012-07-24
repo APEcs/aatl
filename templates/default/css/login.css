@@ -3,6 +3,7 @@
 @import url('shadowbox.css');  /* and support for shadowed divs        */
 @import url('messagebox.css'); /* support for message boxes            */
 @import url('button.css');     /* button rules (okay?)                 */
+@import url('inputglow.css');  /* make input boxes glow when active    */
 
 body  {
     font: 100% Verdana, Arial, Helvetica, sans-serif;
@@ -47,18 +48,6 @@ a:hover, a:focus {
     background: url('../images/page_layout/logo.png') 50% top no-repeat;
     padding-bottom: 10px;
     margin: 0px auto;
-}
-
-input[type=text], input[type=password] {
-    font-size: 20px;
-    margin-bottom: 10px;
-    margin-top: 2px;
-}
-
-input[type=text]:focus, input[type=password]:focus, input[type=checkbox]:focus {
-    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
 }
 
 textarea:focus {

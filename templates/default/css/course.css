@@ -7,6 +7,7 @@
 @import url('listbox.css');    /* List of shadowed boxes               */
 @import url('controls.css');   /* control bars for boxes               */
 @import url('hotimage.css');   /* Images used as control buttons       */
+@import url('inputglow.css');  /* make input boxes glow when active    */
 
 body  {
     font: 100% Verdana, Arial, Helvetica, sans-serif;
@@ -73,21 +74,6 @@ textarea.flext {
     width: 100%;
 	padding: 0px; /* important, or growing breaks in opera */
 }
-
-
-/* glows */
-input[type=text]:focus {
-    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-}
-
-textarea:focus {
-    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-}
-
 
 /* menu classes */
 .aatl #container .course-menu {
