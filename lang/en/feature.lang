@@ -5,3 +5,11 @@ FEATURE_ERR_COURSE_NOACCESS_DESC    = You do not have access to this course at t
 FEATURE_ERR_NOCOURSE_TITLE          = No course specified
 FEATURE_ERR_NOCOURSE_SUMMARY        = Course ID missing from session.
 FEATURE_ERR_NOCOURSE_DESC           = The system has not been able to determine which course you are attempting to view. This should, generally, never happen unless you attempt to access a course that does not exist - if you see this, please report it to the support team with details of what you were doing before encountering this error.
+
+NAVBOX_FIRST  = First
+NAVBOX_PREV   = Prev
+NAVBOX_NEXT   = Next
+NAVBOX_LAST   = Last
+NAVBOX_PAGE   = Page
+NAVBOX_PAGEOF = of
+NAVBOX_SPACER = ...
