@@ -8,6 +8,7 @@
 @import url('controls.css');   /* control bars for boxes               */
 @import url('hotimage.css');   /* Images used as control buttons       */
 @import url('inputglow.css');  /* make input boxes glow when active    */
+@import url('tabs.css');       /* fancy tabbing stuff                  */
 
 body  {
     font: 100% Verdana, Arial, Helvetica, sans-serif;
@@ -22,6 +23,10 @@ body  {
 body, h1, h2, h3, h4, h5 {
     margin: 0;
     padding: 0;
+}
+
+.clear {
+    clear: both;
 }
 
 .aatl #title {
