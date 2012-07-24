@@ -1,0 +1,21 @@
+
+#qlist-container {
+    display: block;
+    margin: 0px 0px 20px;
+    position: relative;
+}
+
+#qlist-container .containerbox {
+    background: #FAFAFA;
+    border-bottom: 1px solid #DDDDDD;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-left: 1px solid #DDDDDD;
+    border-right: 1px solid #DDDDDD;
+    border-top: 1px solid #FFFFFF;
+    color: #333333;
+    font-size: 12px;
+    margin-bottom: 10px;
+    padding: 10px;
+    position: relative;
+}
