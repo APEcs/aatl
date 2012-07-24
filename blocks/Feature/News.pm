@@ -24,7 +24,6 @@ use strict;
 use base qw(Feature);
 use System::News;
 use Utils qw(is_defined_numeric);
-use Data::Dumper;
 
 # ============================================================================
 #  Constructor
@@ -216,6 +215,13 @@ sub build_post_controls {
 }
 
 
+## @method private $ _build_post($post, $temcache)
+# Generate the body of a post to show in the news post list.
+#
+# @param post     A reference to a hash containing the post to generate.
+# @param temcache A reference to a hash containing the templates used to generate
+#                 the post block.
+# @return A string containing the post HTML.
 sub _build_post {
     my $self     = shift;
     my $post     = shift;
