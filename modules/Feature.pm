@@ -535,4 +535,29 @@ sub get_saved_state {
 }
 
 
+## @method $ tab_bar($tabs, $hascontents)
+# Generate a tab bar to show on a page. This takes a reference to an array of tabs, and
+# generates a html block containing the tab bar.
+#
+# @param tabs        A reference to an array of hashrefs, each entry should contain the keys
+#                    'url', 'text' and optionally 'active' for active tabs.
+# @param hascontents If true, the tab is assumed to be connected to a larger display block.
+# @return A string containing the tab bar html.
+sub tab_bar {
+    my $self        = shift;
+    my $tabs        = shift;
+    my $hascontents = shift;
+
+    my $opttem = $self -> {"template"} -> load_template("tabs/option.tem");
+    my $options = "";
+    foreach my $opt (@{$tabs}) {
+        $options .= $self -> {"template"} -> process_template($opttem, {"***url***"    => $opt -> {"url"},
+                                                                        "***text***"   => $opt -> {"text"},
+                                                                        "***active***" => $opt -> {"active"} ? "active" : ""});
+    }
+
+    return $self -> {"template"} -> load_template("tab/container.tem", {"***options***"  => $options,
+                                                                        "***contents***" => $hascontents ? "contents" : ""});
+}
+
 1;
