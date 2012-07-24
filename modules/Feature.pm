@@ -540,7 +540,7 @@ sub get_saved_state {
 # generates a html block containing the tab bar.
 #
 # @param tabs        A reference to an array of hashrefs, each entry should contain the keys
-#                    'url', 'text' and optionally 'active' for active tabs.
+#                    'url', 'text', 'title', and optionally 'active' for active tabs.
 # @param hascontents If true, the tab is assumed to be connected to a larger display block.
 # @return A string containing the tab bar html.
 sub tab_bar {
@@ -553,6 +553,7 @@ sub tab_bar {
     foreach my $opt (@{$tabs}) {
         $options .= $self -> {"template"} -> process_template($opttem, {"***url***"    => $opt -> {"url"},
                                                                         "***text***"   => $opt -> {"text"},
+                                                                        "***title***"  => $opt -> {"title"},
                                                                         "***active***" => $opt -> {"active"} ? "active" : ""});
     }
 
