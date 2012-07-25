@@ -23,6 +23,9 @@ package Feature::QAForums;
 use strict;
 use base qw(Feature);
 use System::QAForums;
+use POSIX qw(ceil);
+use HTML::Scrubber;
+use Data::Dumper;
 
 # ============================================================================
 #  Constructor
@@ -54,6 +57,45 @@ sub new {
 
     # Cache the courseid for later
     $self -> {"courseid"} = $self -> determine_courseid();
+
+    # Precalculate the tab bar information for later
+    $self -> {"tabbar"} = [ { "mode"    => "updated",
+                              "url"     => $self -> build_url(block => "qaforum", pathinfo => ["updated"]),
+                              "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_ACTIVE"),
+                              "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_ACTIVE"),
+                              "reqperm" => "qaforums.read",
+                            },
+                            { "mode"    => "created",
+                              "url"     => $self -> build_url(block => "qaforum", pathinfo => ["created"]),
+                              "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_LATEST"),
+                              "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_LATEST"),
+                              "reqperm" => "qaforums.read",
+                            },
+                            { "mode"    => "rating",
+                              "url"     => $self -> build_url(block => "qaforum", pathinfo => ["rating"]),
+                              "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_RATED"),
+                              "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_RATED"),
+                              "reqperm" => "qaforums.read",
+                            },
+                            { "mode"    => "unanswered",
+                              "url"     => $self -> build_url(block => "qaforum", pathinfo => ["unanswered"]),
+                              "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_NOANS"),
+                              "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_NOANS"),
+                              "reqperm" => "qaforums.read",
+                            },
+                            { "mode"    => "faq",
+                              "url"     => $self -> build_url(block => "qaforum", pathinfo => ["faq"]),
+                              "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_FAQS"),
+                              "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_FAQS"),
+                              "reqperm" => "qaforums.read",
+                            },
+                            { "mode"    => "ask",
+                              "url"     => $self -> build_url(block => "qaforum", pathinfo => ["ask"]),
+                              "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_ASK"),
+                              "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_ASK"),
+                              "reqperm" => "qaforums.ask",
+                            },
+        ];
 
     return $self;
 }
@@ -88,17 +130,231 @@ sub used_capabilities {
 }
 
 
+
+# ============================================================================
+#  General utility code
+
+## @method private $ _build_tab_bar($mode)
+# Generate the tab bar to show above question lists, etc.
+#
+# @param mode The mode to set, must be one of the modes present in $self -> {"tabbar"}
+# @return The tab bar html
+sub _build_tab_bar {
+    my $self = shift;
+    my $mode = shift;
+
+    my $metadataid = $self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"});
+    my $userid     = $self -> {"session"} -> get_session_userid();
+
+    # Activate the appropriate entry in the tab bar first
+    my $acttitle = "";
+    foreach my $tab (@{$self -> {"tabbar"}}) {
+        if($tab -> {"visible"} = $self -> {"qaforums"} -> check_permission($metadataid, $userid, $tab -> {"reqperm"})) {
+            $tab -> {"active"} = ($mode eq $tab -> {"mode"});
+            $acttitle = $tab -> {"title"} if($tab -> {"active"});
+        }
+    }
+
+    return $self -> tab_bar($self -> {"tabbar"}, 1);
+}
+
+
 # ============================================================================
 #  Question listing control.
 
-## @method @
-sub show_question_list {
+## @method private @ _show_question_list($mode, $page)
+# Generate a list of questions to show the user. This will generate a paginated list
+# of visible (ie: non-deleted) questions posted in the current course's forums.
+#
+# @param mode The view mode, should be "updated", "created", "rating", or "unanswered"
+# @param page The page number to show. This in the range 1 <= page <= maxpages, and will
+#             be clamped if out of range.
+# @return Three values: the page title, the content to show in the page, and the extra
+#         css and javascript directives to place in the header.
+sub _show_question_list {
     my $self = shift;
+    my $mode = shift;
+    my $page = shift || 1;
 
+    my ($tabs, $acttitle) = $self -> _build_tab_bar($mode);
 
+    # How many questions need to be shown?
+    my $count = $self -> {"qaforums"} -> get_question_count($self -> {"courseid"}, $mode eq "unanswered");
+    $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Fatal error: ".$self -> {"qaforums"} -> {"errstr"})
+        if(!defined($count));
+
+    # Make sure that pagination is sane
+    my $pagesize = ($self -> {"settings"} -> {"config"} -> {"Feature::QAForums::question_count"} || 15);
+    my $maxpage  = ceil($count / $pagesize);
+    $page = 1 if($page < 1);
+    $page = $maxpage if($page > $maxpage);
+
+    my $pagination = $self -> build_pagination($maxpage, $page, $mode, $self -> {"settings"} -> {"config"} -> {"pagination_width"});
+
+    # Work out what the list mode should be
+    my $listmode = $mode;
+    $listmode = "created" if($mode eq "unanswered");
+
+    # Fetch the question list
+    my $questions = $self -> {"qaforums"} -> get_question_list($self -> {"courseid"},
+                                                               {"mode"     => $listmode,
+                                                                "noanswer" => $mode eq "unanswered",
+                                                                "offset"   => ($page - 1) * $pagesize,
+                                                                "count"    => $pagesize})
+        or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Fatal error: ".$self -> {"qaforums"} -> {"errstr"});
+
+    my $qlist = "";
+    my $questiontem = $self -> {"template"} -> load_template("feature/qaforums/questionlist_question.tem");
+    my $scrubber = HTML::Scrubber -> new();
+
+    foreach my $question (@{$questions}) {
+        my $asker  = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($question -> {"creator_id"});
+
+        # Work out what state the question is in for styling
+        my $status = "unanswered";
+        $status  = "answered" if($question -> {"answers"});
+        $status .= " chosen"  if($question -> {"best_answer_id"});
+
+        # Strip any html from the string
+        my $preview = $scrubber -> scrub($question -> {"message"});
+        $preview = $self -> {"template"} -> truncate_words($preview, $self -> {"settings"} -> {"config"} -> {"Feature::QAForums::preview_length"});
+
+        # Work out any 'answered', 'updated' data...
+        my $extrainfo = "";
+
+        $qlist .= $self -> {"template"} -> process_template($questiontem, {"***qid***"       => $question -> {"id"},
+                                                                           "***rating***"    => $question -> {"rating"},
+                                                                           "***status***"    => $status,
+                                                                           "***answers***"   => $question -> {"answers"},
+                                                                           "***views***"     => $question -> {"views"},
+                                                                           "***subject***"   => $question -> {"subject"},
+                                                                           "***preview***"   => $preview,
+                                                                           "***extrainfo***" => $extrainfo,
+                                                                           "***asked***"     => $self -> {"template"} -> format_time($question -> {"created"}),
+                                                                           "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $asker -> {"username"} ]),
+                                                                           "***name***"      => $asker -> {"fullname"},
+                                                                           "***gravhash***"  => $asker -> {"gravatar_hash"},
+                                                            });
+    }
+
+    return ($self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_QLIST_TITLE", {"***title***" => $acttitle}),
+            $self -> {"template"} -> load_template("feature/qaforums/questionlist_container.tem",
+                                                   {"***error***"      => "",
+                                                    "***tabs***"       => $tabs,
+                                                    "***pagination***" => $pagination,
+                                                    "***contents***"   => $self -> {"template"} -> load_template("feature/qaforums/questionlist_list.tem",
+                                                                                                                 {"***contents***" => $qlist}),
+                                                   }),
+            $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"));
 
 }
 
+
+# ============================================================================
+#  Question validation and addition
+
+## @method private $ _validate_question_fields($args)
+# Validate the subject and message fields submitted by the user.
+#
+# @param args A reference to a hash to store validated data in.
+# @return undef on success, otherwise an error string.
+sub _validate_question_fields {
+    my $self = shift;
+    my $args = shift;
+    my ($errors, $error) = ("", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    ($args -> {"subject"}, $error) = $self -> validate_string("subject", {"required" => 1,
+                                                                          "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_SUBJECT"),
+                                                                          "minlen"   => 1,
+                                                                          "maxlen"   => 255});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    return $errors ? $errors : undef;
+}
+
+
+sub validate_question {
+    my $self = shift;
+    my ($args, $errors, $error) = ({}, "", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    # Exit with a permission error unless the user has permission to post
+    my $canpost = $self -> {"qaforums"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                            $self -> {"session"} -> get_session_userid(),
+                                                            "qaforums.ask");
+    return ($self -> {"template"} -> load_template("error_list.tem",
+                                                   {"***message***" => "{L_FEATURE_QAFORUM_ASK_FAILED}",
+                                                    "***errors***"  => $self -> {"template"} -> process_template($errtem,
+                                                                                                                 {"***error***" => "{L_FEATURE_QAFORUM_ASK_ERRPERM}"})}),
+            $args) unless($canpost);
+
+    $error = $self -> _validate_question_fields($args);
+    $errors += $error if($error);
+
+    # Give up here if there are any errors
+    return ($self -> {"template"} -> load_template("error_list.tem",
+                                                   {"***message***" => "{L_FEATURE_QAFORUM_ASK_FAILED}",
+                                                    "***errors***"  => $errors}), $args)
+        if($errors);
+
+    # No errors, try adding the question
+    my $qid = $self -> {"qaforums"} -> create_question($self -> {"courseid"},
+                                                       $self -> {"session"} -> get_session_userid(),
+                                                       $args -> {"subject"},
+                                                       $args -> {"message"});
+    return ($self -> {"template"} -> load_template("error_list.tem",
+                                                   {"***message***" => "{L_FEATURE_QAFORUM_ASK_FAILED}",
+                                                    "***errors***"  => $self -> {"template"} -> process_template($errtem,
+                                                                                                                 {"***error***" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_ASK_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}})
+                                                                                                                 })
+                                                   }),
+            $args)
+        unless($qid);
+
+    return (undef, $args);
+}
+
+
+sub _ask_question {
+    my $self    = shift;
+    my $content = "";
+    my $error   = "";
+    my $args    = {};
+
+    # Activate the appropriate entry in the tab bar first
+    my ($tabs, $acttitle) = $self -> _build_tab_bar("ask");
+
+    if($self -> {"cgi"} -> param("newquest")) {
+        ($error, $args) = $self -> validate_question();
+
+
+    }
+
+    $content = $self -> {"template"} -> load_template("feature/qaforums/askform.tem", {"***url***" => $self -> build_url(block => "qaforum", pathinfo => ["ask"]),
+                                                                                       "***subject***" => $args -> {"subject"},
+                                                                                       "***message***" => $args -> {"message"},
+                                                      });
+    # Wrap the errors if needed
+    $error = $self -> {"template"} -> load_template("feature/qaforums/error_box.tem", {"***message***" => $error})
+        if($error);
+
+    # put everything together to send back
+    return ($self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_ASK_TITLE"),
+            $self -> {"template"} -> load_template("feature/qaforums/questionlist_container.tem",
+                                                   {"***error***"      => $error,
+                                                    "***tabs***"       => $tabs,
+                                                    "***pagination***" => "",
+                                                    "***contents***"   => $content,
+                                                   }),
+            $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"));
+}
 
 # ============================================================================
 #  Interface
@@ -117,11 +373,40 @@ sub page_display {
     my $error = $self -> check_login_courseview(0);
     return $error if($error);
 
+    # Exit with a permission error unless the user has permission to read
+    my $canread = $self -> {"qaforums"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                            $self -> {"session"} -> get_session_userid(),
+                                                            "qaforums.read");
+    if(!$canread) {
+        my $userbar = $self -> {"module"} -> load_module("Feature::Userbar");
+        return $self -> {"template"} -> load_template("error/general.tem",
+                                                      {"***title***"     => "{L_FEATURE_QAFORUM_VIEWPERM_TITLE}",
+                                                       "***message***"   => "{L_FEATURE_QAFORUM_VIEWPERM}",
+                                                       "***extrahead***" => "",
+                                                       "***userbar***"   => $userbar -> block_display(),
+                                                      })
+    }
+
     # Is this an API call, or a normal news page call?
     my $apiop = $self -> is_api_operation();
     if(defined($apiop)) {
 
     } else {
+        my @pathinfo = $self -> {"cgi"} -> param('pathinfo');
+
+        # Note that the mode parameters to show_question_list() could conceivably
+        # be set straight from $pathinfo[0] when appropriate, that has Tainting Issues.
+        if(!scalar(@pathinfo) || $pathinfo[0] eq "updated") {
+            ($title, $content, $extrahead) = $self -> _show_question_list("updated"   , $pathinfo[1]);
+        } elsif($pathinfo[0] eq "created") {
+            ($title, $content, $extrahead) = $self -> _show_question_list("created"   , $pathinfo[1]);
+        } elsif($pathinfo[0] eq "rating") {
+            ($title, $content, $extrahead) = $self -> _show_question_list("rating"    , $pathinfo[1]);
+        } elsif($pathinfo[0] eq "unanswered") {
+            ($title, $content, $extrahead) = $self -> _show_question_list("unanswered", $pathinfo[1]);
+        } elsif($pathinfo[0] eq "ask") {
+            ($title, $content, $extrahead) = $self -> _ask_question();
+        }
 
         # User has access, generate the news page for the course.
         return $self -> generate_course_page($title, $content, $extrahead);

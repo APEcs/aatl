@@ -104,3 +104,9 @@ div.regform {
     display: inline-block;
     /*float: left;*/
 }
+
+input[type=text], input[type=password] {
+    font-size: 20px;
+    margin-bottom: 10px;
+    margin-top: 2px;
+}

@@ -1,0 +1,29 @@
+<li class="question" id="qid-***qid***">
+    <div class="stats">
+        <div class="rating">***rating***
+            <div class="title">{L_FEATURE_QLIST_RATING}</div>
+        </div>
+        <div class="answers ***status***">***answers***
+            <div class="title">{L_FEATURE_QLIST_ANSWERS}</div>
+        </div>
+        <div class="views">***views***
+            <div class="title">{L_FEATURE_QLIST_VIEWS}</div>
+        </div>
+    </div>
+    <div class="question">
+        <h3>***subject***</h3>
+        <div class="preview">***preview***</div>
+        <!-- tags go here... -->
+        <div class="editinfo">
+            <ul class="boxmeta">
+                ***extrainfo***
+                <li><strong>{L_FEATURE_QLIST_ASKED}</strong>: ***asked***</li>
+                <li class="iconlink">
+                    <a href="***profile***">***name***
+                        <img alt="" src="http://www.gravatar.com/avatar/***gravhash***?s=16&amp;d=mm&amp;r=g" class="avatar avatar-16" height="16" width="16" />
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</li>

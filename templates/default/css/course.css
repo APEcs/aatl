@@ -72,7 +72,7 @@ body, h1, h2, h3, h4, h5 {
 /* autogrow text areas */
 .textwrapper {
     margin: 0px;
-    padding: 3px;
+    padding: 3px 0px;
 }
 
 textarea.flext {
@@ -149,7 +149,7 @@ textarea.flext {
     background-image: url('../images/navigation/blocks/materials.png');
 }
 
-.course-menu .menu a.block-forum {
+.course-menu .menu a.block-qaforum {
     background-image: url('../images/navigation/blocks/forums.png');
 }
 

@@ -1,1 +1,1 @@
-<li class="tab***active***"><a href="***url***">***text***</a></li>
+<li class="tab ***active***"><a class="***active***" href="***url***" title="***title***">***text***</a></li>

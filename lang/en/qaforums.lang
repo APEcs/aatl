@@ -11,4 +11,19 @@ FEATURE_QAFORUM_TITLE_FAQS   = Commonly asked questions with the best answers
 FEATURE_QAFORUM_TAB_ASK      = Ask Question
 FEATURE_QAFORUM_TITLE_ASK    = Add a question to the forum
 
+FEATURE_QAFORUM_QLIST_TITLE  = QA Forum: ***title***
+FEATURE_QAFORUM_ASK_TITLE    = Ask a question
+FEATURE_QAFORUM_SUBJECT      = Enter a brief description of your question here
+FEATURE_QAFORUM_ASK          = Post your question
+FEATURE_QAFORUM_DOEDIT       = Edit
+FEATURE_QAFORUM_ASK_FAILED   = Question posting failed
+FEATURE_QAFORUM_ASK_ERROR    = Question addition failed: ***error***
 
+FEATURE_QAFORUM_VIEWPERM_TITLE = Permission error
+FEATURE_QAFORUM_VIEWPERM       = You do not have permission to view the QA Forum.
+FEATURE_QAFORUM_ASK_ERR_PERM   = You do not have permission to ask questions.
+
+FEATURE_QLIST_RATING   = Rating
+FEATURE_QLIST_ANSWERS  = Answers
+FEATURE_QLIST_VIEWS    = Views
+FEATURE_QLIST_ASKED    = Asked

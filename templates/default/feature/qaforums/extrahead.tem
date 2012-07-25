@@ -1,0 +1,8 @@
+    <script type="text/javascript" src="{V_[scriptpath]}ckeditor/ckeditor.js"></script>
+    <link href="{V_[templatepath]}css/qaforums.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="{V_[templatepath]}js/qaforums.js"></script>
+
+    <script type="text/javascript">
+        editbtn_name = "{L_FEATURE_QAFORUM_DOEDIT}";
+        spinner_url  = "{V_[templatepath]}images/spinner.gif";
+    </script>

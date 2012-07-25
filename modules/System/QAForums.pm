@@ -99,7 +99,7 @@ sub check_permission {
 # @param subject  The question subject.
 # @param message  The message to show in the question body.
 # @param tags     A comma separated list of tag names to apply initially.
-# @return True on success, undef on error.
+# @return The new question id on success, undef on error.
 sub create_question {
     my $self     = shift;
     my $courseid = shift;
@@ -124,7 +124,12 @@ sub create_question {
         or return undef;
 
     # Set the queston text.
-    return $self -> edit_question($qid, $userid, $subject, $message, $now);
+    $self -> edit_question($qid, $userid, $subject, $message, $now)
+        or return undef;
+
+    # DO TAGS HERE
+
+    return $qid;
 }
 
 
@@ -152,7 +157,10 @@ sub edit_question {
         or return undef;
 
     # Update the question textid
-    return $self -> _set_current_textid($questionid, "question", $textid);
+    $self -> _set_current_textid($questionid, "question", $textid)
+        or return undef;
+
+    return $self -> _sync_counts($questionid);
 }
 
 
@@ -723,14 +731,12 @@ sub get_question_list {
     push(@limit, $settings -> {"count"})  if($settings -> {"count"});
 
     # fetch the rows...
-    my $query = "SELECT q.*, u.*, t.subject
-                 FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."` AS q
+    my $query = "SELECT q.*, t.edited, t.editor_id, t.subject, t.message
+                 FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."` AS q,
                       `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
-                      `".$self -> {"settings"} -> {"database"} -> {"users"}."` AS u
                  WHERE q.course_id = ?
                  AND q.deleted IS NULL
-                 AND t.id = q.textid
-                 AND u.user_id = q.creator_id ".
+                 AND t.id = q.text_id ".
                 ($settings -> {"noanswer"} ? "AND q.answers = 0 " : "").
                 "ORDER BY ".$settings -> {"mode"}." ".
                ($settings -> {"ordering"} eq "highfirst" ? "DESC " : "ASC ");
@@ -1105,6 +1111,26 @@ sub _set_current_textid {
     my $result = $seth -> execute($textid, $id);
     return $self -> self_error("Unable to perform $type text update: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("$type text update failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
+## @method private $ _view_question($questionid)
+# Increment the view counter for the specified question.
+#
+# @param questionid The ID of the question to update the view counter for
+# @return true on success, undef otherwise.
+sub _view_question {
+    my $self       = shift;
+    my $questionid = shift;
+
+    my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questionss"}."`
+                                            SET viewed = UNIX_TIMESTAMP(), views = views + 1
+                                            WHERE id = ?");
+    my $result = $seth -> execute($questionid);
+    return $self -> self_error("Unable to perform view count update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("View count update failed, no rows inserted") if($result eq "0E0");
 
     return 1;
 }
@@ -1539,7 +1565,7 @@ sub _sync_counts {
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
                                             SET answers = ?, comments = ?, latest_answer = ?, latest_comment = ?, updated = ?
                                             WHERE id = ?");
-    my $result = $seth -> execute($answers, $comments, $latest_answer, $latest_comment, $questionid, $updated);
+    my $result = $seth -> execute($answers, $comments, $latest_answer, $latest_comment, $updated, $questionid);
     return $self -> self_error("Unable to perform question stats update: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Question stats update failed, no rows updated") if($result eq "0E0");
 

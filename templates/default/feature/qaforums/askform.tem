@@ -1,0 +1,15 @@
+<div id="askform">
+    <form action="***url***" method="post">
+    <div class="input"><input type="text" name="subject" id="new-subject" size="70" maxlength="100" title="{L_FEATURE_QAFORUM_SUBJECT}" value="***subject***"/></div>
+    <div class="contents">
+        <div class="textwrapper"><textarea name="message" id="new-message" rows="3" cols="80">***message***</textarea></div>
+        <div class="newpost formsubmit"><input type="submit" id="newquest" name="newquest" class="button blue" value="{L_FEATURE_QAFORUM_ASK}" /></div>
+    </div>
+    </form>
+</div>
+<script type="text/javascript">
+window.addEvent('domready', function() {
+    CKEDITOR.replace('new-message', { customConfig: '{V_[commonpath]}cke_configs/basic_open.js' });
+    new OverText($('new-subject'));
+});
+</script>

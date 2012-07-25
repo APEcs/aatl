@@ -243,7 +243,7 @@ sub generate_course_page {
     my $entrytem    = $self -> {"template"} -> load_template("course/menu_entry.tem");
     my $bgtem       = $self -> {"template"} -> load_template("course/menu_bg.tem");
     foreach my $feature (@{$features}) {
-        $featurelist .= $self -> {"template"} -> process_template($entrytem, {"***url***"    => $self -> build_url(block => $feature -> {"block_name"}),
+        $featurelist .= $self -> {"template"} -> process_template($entrytem, {"***url***"    => $self -> build_url(block => $feature -> {"block_name"}, pathinfo => "none"),
                                                                               "***name***"   => $feature -> {"block_name"},
                                                                               "***title***"  => $feature -> {"title"},
                                                                               "***active***" => $self -> {"block"} eq $feature -> {"block_name"} ? "menu-active" : ""});
@@ -338,7 +338,8 @@ sub build_return_url {
 # * cid      - the course id to use. If this is not specified, the current cid is used
 #              instead. If no cid is set, no cid is included in the url.
 # * pathinfo - either a string containing pathinfo to append to the course/block, or
-#              a reference to an array of pathinfo fragments to join and append.
+#              a reference to an array of pathinfo fragments to join and append. If this
+#              is set to "none", no pathinfo will be appended at all.
 # * params   - a reference to a hash of additional query string arguments. Values may
 #              be references to arrays, in which case multiple copies of the parameter
 #              are added to the query string.
@@ -361,10 +362,14 @@ sub build_url {
 
     # Work out any additional pathinfo
     my @parampath = $self -> {"cgi"} -> param("pathinfo");
-    # If the user-supplied pathinfo is a reference to an array, join it into a string.
-    $args{"pathinfo"} = join("/", @{$args{"pathinfo"}}) if(ref($args{"pathinfo"}) eq "ARRAY");
-    # If there is no user-supplied pathinfo, try building it from the stored pathinfo
-    $args{"pathinfo"} = join("/", @parampath) unless($args{"pathinfo"});
+    if($args{"pathinfo"} && $args{"pathinfo"} ne "none") {
+        # If the user-supplied pathinfo is a reference to an array, join it into a string.
+        $args{"pathinfo"} = join("/", @{$args{"pathinfo"}}) if(ref($args{"pathinfo"}) eq "ARRAY");
+        # If there is no user-supplied pathinfo, try building it from the stored pathinfo
+        $args{"pathinfo"} = join("/", @parampath) unless($args{"pathinfo"});
+    } else {
+        $args{"pathinfo"} = undef;
+    }
 
     my @pairs;
     # make sure the cid is first in the query strint, if set.
@@ -551,14 +556,16 @@ sub tab_bar {
     my $opttem = $self -> {"template"} -> load_template("tabs/option.tem");
     my $options = "";
     foreach my $opt (@{$tabs}) {
+        next unless($opt -> {"visible"});
+
         $options .= $self -> {"template"} -> process_template($opttem, {"***url***"    => $opt -> {"url"},
                                                                         "***text***"   => $opt -> {"text"},
                                                                         "***title***"  => $opt -> {"title"},
-                                                                        "***active***" => $opt -> {"active"} ? "active" : ""});
+                                                                        "***active***" => $opt -> {"active"} ? " active" : ""});
     }
 
-    return $self -> {"template"} -> load_template("tab/container.tem", {"***options***"  => $options,
-                                                                        "***contents***" => $hascontents ? "contents" : ""});
+    return $self -> {"template"} -> load_template("tabs/container.tem", {"***options***"  => $options,
+                                                                         "***contents***" => $hascontents ? " contents" : ""});
 }
 
 
@@ -607,7 +614,7 @@ sub build_pagination {
             if($start > 1);
 
         # Potentially add a spacer if needed
-        $pagelust .= $spacertem if($start > 2);
+        $pagelist .= $spacertem if($start > 2);
 
         # Generate the list of pages
         for(my $pnum = $start; $pnum <= $end; ++$pnum) {
