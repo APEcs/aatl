@@ -159,8 +159,31 @@ sub _build_tab_bar {
 }
 
 
+## @method private $ _nice_value($value)
+# Convert the specified value to a more readable string. If the value exceeds
+# 3 digits it is represnted in 'k'. If it exceeds 6 digits, it is represented as
+# 'm'
+#
+# @param value The value to convert
+# @return A string containing the converted value
+sub _nice_value {
+    my $self  = shift;
+    my $value = shift;
+
+    if($value < 1000) {
+        return $value;
+    } elsif($value < 100000) {
+        return sprintf("%.1fk", $value / 1000);
+    } elsif($value < 1000000) {
+        return sprintf("%dk", $value / 1000);
+    } else {
+        return sprintf("%.1fm", $value / 1000000);
+    }
+}
+
+
 # ============================================================================
-#  Question listing control.
+#  Question viewing
 
 ## @method private @ _show_question_list($mode, $page)
 # Generate a list of questions to show the user. This will generate a paginated list
@@ -175,6 +198,9 @@ sub _show_question_list {
     my $self = shift;
     my $mode = shift;
     my $page = shift || 1;
+
+    # If the page has been set, make sure it is numeric
+    $page = 1 unless($page =~ /^\d+$/);
 
     my ($tabs, $acttitle) = $self -> _build_tab_bar($mode);
 
@@ -223,10 +249,12 @@ sub _show_question_list {
         my $extrainfo = "";
 
         $qlist .= $self -> {"template"} -> process_template($questiontem, {"***qid***"       => $question -> {"id"},
-                                                                           "***rating***"    => $question -> {"rating"},
+                                                                           "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $question -> {"id"} ]),
+                                                                           "***rating***"    => $self -> _nice_value($question -> {"rating"}),
                                                                            "***status***"    => $status,
                                                                            "***answers***"   => $question -> {"answers"},
-                                                                           "***views***"     => $question -> {"views"},
+                                                                           "***rawviews***"  => $question -> {"views"},
+                                                                           "***views***"     => $self -> _nice_value($question -> {"views"}),
                                                                            "***subject***"   => $question -> {"subject"},
                                                                            "***preview***"   => $preview,
                                                                            "***extrainfo***" => $extrainfo,
@@ -246,9 +274,154 @@ sub _show_question_list {
                                                                                                                  {"***contents***" => $qlist}),
                                                    }),
             $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"));
-
 }
 
+
+## @method private @ _build_comments($id, $type, $permissions)
+# Generate the block of questions currently set for the specified question
+# or answer.
+#
+# @param id          The ID of the question or answer to build the comment block for.
+# @param type        The type of entry the ID refers to, must be "question" or "answer".
+# @param permissions A hash containing the user's permissions.
+# @return A block of html containing the comment list and controls.
+sub _build_comments {
+    my $self        = shift;
+    my $id          = shift;
+    my $type        = shift;
+    my $permissions = shift;
+
+    my $comments = $self -> {"qaforums"} -> get_comments($id, $type);
+
+    my $commtem = $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem");
+
+    my $qlist = "";
+    foreach my $comment (@$comments) {
+        my $commenter = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($comment -> {"creator_id"});
+
+        $qlist .= $self -> {"template"} -> process_template($commtem, {"***cid***"      => $comment -> {"id"},
+                                                                       "***helpfuls***" => $comment -> {"helpful"},
+                                                                       "***helpop***"   => "",
+                                                                       "***flagop***"   => "",
+                                                                       "***deleteop***" => "",
+                                                                       "***message***"  => $comment -> {"message"},
+                                                                       "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $commenter -> {"username"} ]),
+                                                                       "***name***"     => $commenter -> {"fullname"},
+                                                            });
+    }
+
+    my $qform = "";
+    $qform = $self -> {"template"} -> load_template("feature/qaforums/comment_form.tem", {"***id***"   => $id,
+                                                                                          "***mode***" => $type});
+
+    return $self -> {"template"} -> load_template("feature/qaforums/question_comments.tem", {"***comments***"    => $qlist,
+                                                                                             "***commentform***" => $qform});
+}
+
+
+## @method private @ _show_question($questionid)
+# Generate a page containing the specified question, its answers and comments.
+#
+# @param questionid The ID of the question to show.
+# @return Three values: the page title, the content to show in the page, and the extra
+#         css and javascript directives to place in the header.
+sub _show_question {
+    my $self       = shift;
+    my $questionid = shift;
+    my $userid     = $self -> {"session"} -> get_session_userid(); # cache the user for permission checks
+
+    my ($tabs, $acttitle) = $self -> _build_tab_bar("");
+
+    # The questionid must be numeric to fetch the question data
+    my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $questionid)
+        if($questionid =~ /^\d+$/);
+
+    # If there is no question here, return an error
+    if(!defined($question)) {
+        return ($self -> {"template"} -> replace_langvar("FEATURE_QVIEW_ERROR_TITLE"),
+                $self -> {"template"} -> message_box("{L_FEATURE_QVIEW_ERROR_TITLE}",
+                                                     "error",
+                                                     "{L_FEATURE_QVIEW_ERROR}",
+                                                     "{L_FEATURE_QVIEW_NOQUESTION}",
+                                                     undef,
+                                                     "errorcore",
+                                                     [ {"message" => $self -> {"template"} -> replace_langvar("SITE_CONTINUE"),
+                                                        "colour"  => "blue",
+                                                        "action"  => "location.href='".$self -> build_url(block => "news")."'"} ]),
+                $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"))
+    }
+
+    my ($questionblock, $answerblock, $answerform) = ("", "", "");
+
+    # Check some permissions
+    my $permissions = {
+        "rate"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.rate"),
+        "flag"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.flag"),
+        "unflag"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.unflag"),
+        "answer"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.answer"),
+        "comment"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.comment"),
+        "editown"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editown"),
+        "editother"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editother"),
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deletether"),
+    };
+
+    # Potentially disable delete anyway if the question has answers or comments.
+    $permissions -> {"deleteown"}   = $permissions -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+    $permissions -> {"deleteother"} = $permissions -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+
+    my $asker  = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($question -> {"creator_id"});
+
+    my ($rateup, $ratedown) = ("", "");
+    if($permissions -> {"rate"}) {
+        $rateup   = $self -> {"template"} -> load_template("feature/qaforums/rateup.tem");
+        $ratedown = $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem");
+    }
+
+    my $rated = $self -> {"qaforums"} -> user_has_rated_question($questionid, $userid);
+
+    # Generate the question block
+    $questionblock = $self -> {"template"} -> load_template("feature/qaforums/question_question.tem",
+                                                            {"***qid***"       => $question -> {"id"},
+                                                             "***rating***"    => $question -> {"rating"},
+                                                             "***rateup***"    => $self -> {"template"} -> process_template($rateup  , {"***active***" => ($rated eq "up" ? "rated" : ""),
+                                                                                                                                        "***id***"     => "rup-qid-".$question -> {"id"},
+                                                                                                                                        "***title***"  => "{L_FEATURE_QVIEW_QRUP}"}),
+                                                             "***ratedown***"  => $self -> {"template"} -> process_template($ratedown, {"***active***" => ($rated eq "down" ? "rated" : ""),
+                                                                                                                                        "***id***"     => "rdn-qid-".$question -> {"id"},
+                                                                                                                                        "***title***"  => "{L_FEATURE_QVIEW_QRDOWN}"}),
+                                                             "***locked***"    => "", # TODO
+                                                             "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $question -> {"id"} ]),
+                                                             "***subject***"   => $question -> {"subject"},
+                                                             "***message***"   => $question -> {"message"},
+                                                             "***extrainfo***" => "", # TODO
+                                                             "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $asker -> {"username"} ]),
+                                                             "***asked***"     => $self -> {"template"} -> format_time($question -> {"created"}),
+                                                             "***name***"      => $asker -> {"fullname"},
+                                                             "***gravhash***"  => $asker -> {"gravatar_hash"},
+                                                             "***comments***"  => $self -> _build_comments($question -> {"id"}, "question"),
+                                                            });
+
+    # If the user can answer, add the form for that
+    $answerform = $self -> {"template"} -> load_template("feature/qaforums/question_answerform.tem", {"***qid***" => $question -> {"id"},
+                                                                                                      "***message***" => ""
+                                                         })
+        if($permissions -> {"answer"});
+
+    return ($self -> {"template"} -> replace_langvar("FEATURE_QVIEW_TITLE", {"***title***" => $question -> {"subject"}}),
+            $self -> {"template"} -> load_template("feature/qaforums/questionlist_container.tem",
+                                                   {"***error***"      => "",
+                                                    "***tabs***"       => $tabs,
+                                                    "***pagination***" => "",
+                                                    "***contents***"   => $self -> {"template"} -> load_template("feature/qaforums/question_contents.tem",
+                                                                                                                 {"***question***"   => $questionblock,
+                                                                                                                  "***answers***"    => $answerblock,
+                                                                                                                  "***answerform***" => $answerform}),
+                                                   }),
+            $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"));
+
+
+}
 
 # ============================================================================
 #  Question validation and addition
@@ -318,7 +491,8 @@ sub validate_question {
             $args)
         unless($qid);
 
-    return (undef, $args);
+    print $self -> {"cgi"} -> redirect($self -> build_url(block => "qaforum", pathinfo => ["question", $qid]));
+    exit;
 }
 
 
@@ -379,9 +553,19 @@ sub page_display {
                                                             "qaforums.read");
     if(!$canread) {
         my $userbar = $self -> {"module"} -> load_module("Feature::Userbar");
+        my $message = $self -> {"template"} -> message_box("{L_FEATURE_QAFORUM_VIEWPERM_TITLE}",
+                                                           "error",
+                                                           "{L_FEATURE_QAFORUM_VIEWPERM}",
+                                                           "",
+                                                           undef,
+                                                           "errorcore",
+                                                           [ {"message" => $self -> {"template"} -> replace_langvar("SITE_CONTINUE"),
+                                                              "colour"  => "blue",
+                                                              "action"  => "location.href='".$self -> build_url(block => "news")."'"} ]);
+
         return $self -> {"template"} -> load_template("error/general.tem",
                                                       {"***title***"     => "{L_FEATURE_QAFORUM_VIEWPERM_TITLE}",
-                                                       "***message***"   => "{L_FEATURE_QAFORUM_VIEWPERM}",
+                                                       "***message***"   => $message,
                                                        "***extrahead***" => "",
                                                        "***userbar***"   => $userbar -> block_display(),
                                                       })
@@ -406,6 +590,8 @@ sub page_display {
             ($title, $content, $extrahead) = $self -> _show_question_list("unanswered", $pathinfo[1]);
         } elsif($pathinfo[0] eq "ask") {
             ($title, $content, $extrahead) = $self -> _ask_question();
+        } elsif($pathinfo[0] eq "question") {
+            ($title, $content, $extrahead) = $self -> _show_question($pathinfo[1]);
         }
 
         # User has access, generate the news page for the course.

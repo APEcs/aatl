@@ -1,0 +1,11 @@
+<div class="commentform">
+    <div class="show" id="cshow-***mode***-***id***" onclick="show_commform('***mode***-***id***')">{L_FEATURE_QVIEW_ADDCOMMENT}</div>
+    <div class="body" style="display: none"><form id="form-***mode***-***id***" action="">
+        <div class="textentry"><textarea name="msg-***mode***-***id***" id="msg-***mode***-***id***" cols="70" rows="3"></textarea></div>
+        <div class="controls" >
+            <div><button id="newquest" name="newquest" class="button blue" >{L_FEATURE_QVIEW_DOADDCOMM}</button></div>
+            <div><a href="">{L_FEATURE_QVIEW_COMMHELPSHOW}</a></div>
+        </div>
+    </div>
+    <!-- help here -->
+</div>

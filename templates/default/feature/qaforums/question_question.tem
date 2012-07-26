@@ -1,16 +1,15 @@
-<li class="question" id="qid-***qid***">
+<div class="qblock" id="qid-***qid***">
+    <h3><a href="***url***">***subject***</a></h3>
     <div class="stats">
-        <div class="bigstat rating"><div class="value">***rating***</div>
-            <div class="title">{L_FEATURE_QLIST_RATING}</div>
+        ***rateup***
+        <div class="bigstat rating">
+            <div class="value">***rating***</div>
         </div>
-        <div class="bigstat answers ***status***"><div class="value ***status***">***answers***</div>
-            <div class="title">{L_FEATURE_QLIST_ANSWERS}</div>
-        </div>
-        <div class="views" title="***rawviews***">***views*** {L_FEATURE_QLIST_VIEWS}</div>
+        ***ratedown***
+        ***locked***
     </div>
     <div class="question">
-        <h3><a href="***url***">***subject***</a></h3>
-        <div class="preview">***preview***</div>
+         <div class="message">***message***</div>
         <!-- tags go here... -->
         <div class="editinfo">
             <ul class="boxmeta">
@@ -23,5 +22,8 @@
                 </li>
             </ul>
         </div>
+        <div class="comments">
+            ***comments***
+        </div>
     </div>
-</li>
+</div>

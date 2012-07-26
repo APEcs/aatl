@@ -27,3 +27,23 @@ FEATURE_QLIST_RATING   = Rating
 FEATURE_QLIST_ANSWERS  = Answers
 FEATURE_QLIST_VIEWS    = Views
 FEATURE_QLIST_ASKED    = Asked
+
+
+FEATURE_QVIEW_ERROR_TITLE = Error
+FEATURE_QVIEW_ERROR       = An error has been encountered.
+FEATURE_QVIEW_NOQUESTION  = No question ID has been specified, or the specified ID does not correspond to a valid question.
+FEATURE_QVIEW_TITLE       = Question: ***title***
+FEATURE_QVIEW_HELPFULS    = Number of 'helpful comment' votes received.
+FEATURE_QVIEW_MARKHELPFUL = This is a helpful comment (click to toggle).
+
+FEATURE_QVIEW_ADDCOMMENT   = Add a comment
+FEATURE_QVIEW_DOADDCOMM    = Add comment
+FEATURE_QVIEW_COMMHELPSHOW = Help
+FEATURE_QVIEW_COMMHELPHIDE = Hide help
+
+FEATURE_QVIEW_ANSWER       = Your answer
+FEATURE_QVIEW_ADDANSWER    = Post your answer
+
+FEATURE_QVIEW_QRUP         = This is a useful, clear, well stated and researched question (click again to undo)
+FEATURE_QVIEW_QRDOWN       = This question is unclear, is a duplicate, or shows no attempt at research (click again to undo)
+

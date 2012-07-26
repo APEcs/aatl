@@ -262,7 +262,7 @@ sub unrate_question {
 #
 # @param questionid The ID of the question to check the rating history on.
 # @param userid     The ID of the user to check for rating operations.
-# @return true if the user has rated the question, false otherwise,
+# @return "up" or "down" if the user has rated the question, "" otherwise,
 #         undef on error.
 sub user_has_rated_question {
     my $self       = shift;
@@ -272,7 +272,7 @@ sub user_has_rated_question {
     my $rating = $self -> _user_has_rated($questionid, "question", $userid)
         or return undef;
 
-    return $rating -> {"rated"} || 0;
+    return $rating -> {"updown"} || "";
 }
 
 
@@ -750,6 +750,62 @@ sub get_question_list {
 
     # fetchall should do everything needed here...
     return $qlisth -> fetchall_arrayref({});
+}
+
+
+## @method $ get_question($questionid)
+# Obtain the data for the specified question. This returns the question data, if avaulable,
+# including the latest revision text. Note that it does not include any answers, or comment
+# and those need to be fetched separately with get_comments() and get_answers().
+#
+# @param courseid   The ID of the course the question is in. This is not strictly needed
+#                   for lookup, but is used to enfore access control.
+# @param questionid The ID of the question to get the data for.
+# @return A reference to a hash containing the question data on success, undef on error.
+sub get_question {
+    my $self       = shift;
+    my $courseid   = shift;
+    my $questionid = shift;
+
+    my $geth = $self -> {"dbh"} -> prepare("SELECT q.*, t.edited, t.editor_id, t.subject, t.message
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."` AS q,
+                                                 `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                            WHERE q.course_id = ?
+                                            AND q.id = ?
+                                            AND q.deleted IS NULL
+                                            AND t.id = q.text_id");
+    $geth -> execute($courseid, $questionid)
+        or return $self -> self_error("Unable to execute question query: ".$self -> {"dbh"} -> errstr);
+
+    return $geth -> fetchrow_hashref();
+}
+
+
+## @method $ get_comments($id, $type)
+# FEtch all the comments attached to the specified answer or question.
+#
+# @param id   The ID of the question or answer to fetch the comments for.
+# @param type The type of entry to fetch the comments for, must be "question" or "answer".
+# @return A reference to an array of hashrefs containing the comment data on success
+#         (note: if there are no comments, this will be an empty array!), undef on error.
+sub get_comments {
+    my $self = shift;
+    my $id   = shift;
+    my $type = shift;
+
+    my $commh = $self -> {"dbh"} -> prepare("SELECT c.*, t.message, t.editor_id, t.edited
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."` AS r,
+                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."` AS c,
+                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                             WHERE r.${type}_id = ?
+                                             AND c.id = r.comment_id
+                                             AND c.deleted IS NULL
+                                             AND t.id = c.text_id
+                                             ORDER BY c.created");
+    $commh -> execute($id)
+        or return $self -> self_error("Unable to execute comment query: ".$self -> {"dbh"} -> errstr);
+
+    return $commh -> fetchall_arrayref({});
 }
 
 

@@ -7,6 +7,9 @@ ul.tabs {
     border-bottom: 1px solid #ddd;
     margin: 10px 0px 0px;
     padding: 0px ;
+    -moz-box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
+    -webkit-box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
+    box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
 }
 
 ul.tabs.contents,
