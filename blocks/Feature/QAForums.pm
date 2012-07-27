@@ -351,6 +351,10 @@ sub _show_question {
                 $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"))
     }
 
+    # Touch the question view
+    $self -> {"qaforums"} -> _view_question($questionid)
+        or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Fatal error: ".$self -> {"qaforums"} -> {"errstr"});
+
     my ($questionblock, $answerblock, $answerform) = ("", "", "");
 
     # Check some permissions
@@ -375,7 +379,7 @@ sub _show_question {
 
     my ($rateup, $ratedown) = ("", "");
     # Note that users can not rate their own questions
-    if($permissions -> {"rate"}) {# && $userid != $question -> {"creator_id"}) {
+    if($permissions -> {"rate"} && $userid != $question -> {"creator_id"}) {
         $rateup   = $self -> {"template"} -> load_template("feature/qaforums/rateup.tem");
         $ratedown = $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem");
     }
@@ -710,7 +714,7 @@ sub _build_api_rating_response {
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRATE_PERMS"))
-        if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"));# || $self -> {"qaforums"} -> user_is_owner($id, $mode, $userid));
+        if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate") || $self -> {"qaforums"} -> user_is_owner($id, $mode, $userid));
 
     # Determine whether the user has rated the question or answer
     my $rated = $self -> {"qaforums"} -> user_has_rated($id, $mode, $userid);

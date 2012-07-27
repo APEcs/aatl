@@ -1418,7 +1418,7 @@ sub _view_question {
     my $self       = shift;
     my $questionid = shift;
 
-    my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questionss"}."`
+    my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
                                             SET viewed = UNIX_TIMESTAMP(), views = views + 1
                                             WHERE id = ?");
     my $result = $seth -> execute($questionid);
