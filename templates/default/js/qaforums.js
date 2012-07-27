@@ -2,9 +2,10 @@
 function rate_toggle(element) 
 {
     var full_id = element.get('id');
+    var op      = full_id.substr(0, 3);
     var core_id = full_id.substr(4);
 
-    var req = new Request({ url: api_request_path("qaforums", "rateup"),
+    var req = new Request({ url: api_request_path("qaforum", op),
                             onSuccess: function(respText, respXML) {
                                 var err = respXML.getElementsByTagName("error")[0];
 
@@ -27,7 +28,11 @@ function rate_toggle(element)
                                     } else {
                                         $('rdn-'+core_id).removeClass('rated');    
                                     }
-                                        
+
+                                    var value = res.getAttribute("rating");
+                                    if(value != null) {
+                                        $('val-'+core_id).set('html', value);
+                                    }
                                 }
                             }
                           });
@@ -35,12 +40,10 @@ function rate_toggle(element)
 }
 
 
-function setup_ratings() {
-    
-    $$('div.qblock div.stats div.rating').each(
+window.addEvent('domready', function() {
+    $$('div.ratectl').each(
         function(element) {
-            
+            element.addEvent('click', function() { rate_toggle(element) });
         }
     );
-
-}
+});

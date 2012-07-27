@@ -347,13 +347,13 @@ sub build_news_list {
 #  API Implementation
 
 ## @method $ build_api_more_response()
-# Generate a hash that can be sent back to the user as an XML API response.
+# Generate a string or hash that can be sent back to the user as an API response.
 # This behaves much like build_news_list(), except that it treats a specified
 # postid as the first post to return, and it will return up to Feature::News::post_count
 # posts as part of the response, and include a 'fetch more' button if appropriate.
 # The contents of the response may vary depending on whether the response succeeded.
 #
-# @return A hash containing the API response.
+# @return A string or hash containing the API response.
 sub build_api_more_response {
     my $self = shift;
     my $posts;
@@ -401,6 +401,12 @@ sub build_api_delete_response {
 }
 
 
+## @method $ build_api_edit_response()
+# Generate a string or hash to return to the caller in response to an API edit
+# request. This will edit the post, if the user has permission to do so, and
+# it will send back the edited post text in the response.
+#
+# @return A string or hash containing the API response.
 sub build_api_edit_response {
     my $self   = shift;
     my $userid = $self -> {"session"} -> get_session_userid();
@@ -414,7 +420,7 @@ sub build_api_edit_response {
     my $post = $self -> {"news"} -> get_post($postid)
         or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
-    # Does the user have permission to delete it?
+    # Does the user have permission to edit it?
     my $ownership = ($post -> {"creator_id"} == $userid ? "own" : "other");
     return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_PERM"))
         unless($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.edit$ownership"));
@@ -445,6 +451,7 @@ sub build_api_edit_response {
     }
 
 }
+
 
 # ============================================================================
 #  Interface

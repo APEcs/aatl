@@ -423,6 +423,7 @@ sub _show_question {
 
 }
 
+
 # ============================================================================
 #  Question validation and addition
 
@@ -452,7 +453,14 @@ sub _validate_question_fields {
 }
 
 
-sub validate_question {
+## @method private $ _validate_question()
+# Validate the subject and message submitted by the user, and potentially add
+# a new question to the system. Note that this will not return if the question
+# fields validate; it will redirect the user to the new question and exit.
+#
+# @return An error message, and a reference to a hash containing
+#         the fields that passed validation.
+sub _validate_question {
     my $self = shift;
     my ($args, $errors, $error) = ({}, "", "");
 
@@ -496,6 +504,11 @@ sub validate_question {
 }
 
 
+## @method private $ _ask_question()
+# Generate the 'ask a question' form.
+#
+# @return Three values: the page title, the content to show in the page, and the extra
+#         css and javascript directives to place in the header.
 sub _ask_question {
     my $self    = shift;
     my $content = "";
@@ -506,9 +519,7 @@ sub _ask_question {
     my ($tabs, $acttitle) = $self -> _build_tab_bar("ask");
 
     if($self -> {"cgi"} -> param("newquest")) {
-        ($error, $args) = $self -> validate_question();
-
-
+        ($error, $args) = $self -> _validate_question();
     }
 
     $content = $self -> {"template"} -> load_template("feature/qaforums/askform.tem", {"***url***" => $self -> build_url(block => "qaforum", pathinfo => ["ask"]),
@@ -529,6 +540,116 @@ sub _ask_question {
                                                    }),
             $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"));
 }
+
+
+
+# ============================================================================
+#  Answer validation and addition
+
+## @method private $ _validate_answer_fields($args)
+# Validate the message field submitted by the user.
+#
+# @param args A reference to a hash to store validated data in.
+# @return undef on success, otherwise an error string.
+sub _validate_answer_fields {
+    my $self = shift;
+    my $args = shift;
+    my ($errors, $error) = ("", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    return $errors ? $errors : undef;
+}
+
+
+# ============================================================================
+#  API implementation
+
+## @method private $ _build_api_rating_response($op)
+# Update the rate attached the entry selected by the user. This supports rating
+# of both questions and answers, based on the ID provided to the api call.
+#
+# @param op The operation to apply, must be "rup" or "rdn"
+# @return A hash containing the API response to return to the user. Should be
+#         passed to api_response().
+sub _build_api_rating_response {
+    my $self   = shift;
+    my $op     = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # convert the op to a more readable direction for convenience
+    my $opdir = ($op eq "rup" ? "up" : "down");
+
+    # Get the ID and parse out the mode and id
+    my $fullid = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRATE_NOID"));
+
+    my ($mode, $id) = $fullid =~ /^(aid|qid)-(\d+)$/;
+    return $self -> api_errorhash("bad_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRATE_BADID"))
+        unless($mode && $id);
+
+    $mode = ($mode eq "qid" ? "question" : "answer");
+
+    # Check the user can rate
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRATE_PERMS"))
+        unless($self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"));
+
+    # Determine whether the user has rated the question or answer
+    my $rated = $self -> {"qaforums"} -> user_has_rated($id, $mode, $userid);
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+        if(!defined($rated));
+
+    # if the user has rated the question or answer, cancel it
+    my $newrating = $self -> {"qaforums"} -> unrate($id, $mode, $userid) if($rated);
+
+    # If the op indicates rating in a different direction to a previous rating, do it
+    $self -> {"qaforums"} -> rate($id, $mode, $userid, $opdir)
+        if($opdir ne $rated);
+
+    $rated = $self -> {"qaforums"} -> user_has_rated($id, $mode, $userid);
+
+    # Get the current rating...
+    my $rating = $self -> {"qaforums"} -> get_rating($id, $mode);
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+        if(!defined($rating));
+
+    return { 'rated' => { "up"     => ($rated eq "up" ? "set" : ""),
+                          "down"   => ($rated eq "down" ? "set" : ""),
+                          "rating" => $rating} };
+}
+
+
+## @method $ _build_api_answer_add_response()
+# Attempt to add and answer to a question. This will validate that the data submitted by
+# the user is valid, and if so it will add the answer and send back the answer fragment to
+# embed in the page.
+#
+# @return
+sub _build_api_answer_add_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # The question ID should be provided by the query
+    my $qid = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_NOID"));
+
+    # Check that the user has permission to answer the question.
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, "question")
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_PERMS"))
+        unless($self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.answer"));
+
+
+}
+
 
 # ============================================================================
 #  Interface
@@ -574,6 +695,12 @@ sub page_display {
     # Is this an API call, or a normal news page call?
     my $apiop = $self -> is_api_operation();
     if(defined($apiop)) {
+        if($apiop eq "rup" || $apiop eq "rdn") {
+            return $self -> api_response($self -> _build_api_rating_response($apiop));
+        } else {
+            return $self -> api_html_response($self -> api_errorhash('bad_op',
+                                                                     $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+        }
 
     } else {
         my @pathinfo = $self -> {"cgi"} -> param('pathinfo');
@@ -598,7 +725,5 @@ sub page_display {
         return $self -> generate_course_page($title, $content, $extrahead);
     }
 }
-
-
 
 1;

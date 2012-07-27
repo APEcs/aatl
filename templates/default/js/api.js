@@ -9,6 +9,12 @@ function api_request_path(block, operation)
 {
     var reqpath = window.location.pathname;
 
+    // First, determine whether the path already contains the block, if so back up to it
+    var blockpos = reqpath.indexOf(block);
+    if(blockpos != -1) {
+        reqpath = reqpath.substring(0, blockpos + block.length);
+    }
+
     // Ensure the request path has a trailing slash
     if(reqpath.charAt(reqpath.length - 1) != '/') reqpath += '/';
 

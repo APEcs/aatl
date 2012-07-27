@@ -3,7 +3,7 @@
     <div class="stats">
         ***rateup***
         <div class="bigstat rating">
-            <div class="value">***rating***</div>
+            <div class="value" id="val-qid-***qid***">***rating***</div>
         </div>
         ***ratedown***
         ***locked***

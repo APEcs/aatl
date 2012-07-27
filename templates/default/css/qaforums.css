@@ -158,6 +158,7 @@ div.qblock div.rating {
 }
 
 div#answerform {
+    clear: both;
     margin-top: 5px;
     padding-top: 5px;
     border-top: 1px solid #bbb;
@@ -177,7 +178,7 @@ div.rateup {
 }
 
 div.rateup.rated {
-    background: url('../images/qaforums/rateup_on.png');
+    background-image: url('../images/qaforums/rateup_on.png');
 }
 
 div.ratedown {
@@ -188,5 +189,5 @@ div.ratedown {
 }
 
 div.ratedown.rated {
-    background: url('../images/qaforums/ratedown_on.png');
+    background-image: url('../images/qaforums/ratedown_on.png');
 }

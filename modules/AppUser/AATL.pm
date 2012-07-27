@@ -276,7 +276,7 @@ sub _make_user_extradata {
     $user -> {"fullname"} = $user -> {"username"} if($user -> {"fullname"} eq " ");
 
     # And their gravatar hash
-    $user -> {"gravatar_hash"} = md5_hex(lc(trimspace($user -> {"email"}))),
+    $user -> {"gravatar_hash"} = md5_hex(lc(trimspace($user -> {"email"} || ""))),
 
     return $user;
 }

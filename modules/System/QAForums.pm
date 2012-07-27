@@ -452,7 +452,7 @@ sub unrate_answer {
 #
 # @param answerid The ID of the answer to check the rating history on.
 # @param userid   The ID of the user to check for rating operations.
-# @return true if the user has rated the answer, false otherwise,
+# @return "up" or "down" if the user has rated the answer, "" otherwise,
 #         undef on error.
 sub user_has_rated_answer {
     my $self     = shift;
@@ -462,7 +462,7 @@ sub user_has_rated_answer {
     my $rating = $self -> _user_has_rated($answerid, "answer", $userid)
         or return undef;
 
-    return $rating -> {"rated"} || 0;
+    return $rating -> {"updown"} || "";
 }
 
 
@@ -657,6 +657,114 @@ sub user_marked_helpful {
 }
 
 
+## @method $ rate($id, $type, $userid, $mode)
+# Update the rating of a question or answer. This creates a new rating history entry
+# in the ratings table, and then attaches it to a question or answer according to the
+# specified type.
+#
+# @param id        The ID of the question or answer to change the rating of.
+# @param type      The type of entry to rate, must be "question" or "answer".
+# @param userid    The ID of the user performing the rating operation.
+# @param direction The rating change, must be "up" or "down".
+# @return true on success, undef on error.
+sub rate {
+    my $self       = shift;
+    my $id         = shift;
+    my $type       = shift;
+    my $userid     = shift;
+    my $direction  = shift;
+
+    return $self -> _rate_entry($id, $type, $userid, $direction);
+}
+
+
+## @method $ unrate($id, $type, $userid)
+# Cancel a user's rating on the specified question or answer. This is safe to call
+# even if the user has not rated the question or answer.
+#
+# @param id       The ID of the question or answer to change the rating of.
+# @param type     The type of entry to unrate, must be "question" or "answer".
+# @param userid   The user whose rating shold be cancelled.
+# @return true on success, undef on error.
+sub unrate {
+    my $self   = shift;
+    my $id     = shift;
+    my $type   = shift;
+    my $userid = shift;
+
+    return $self -> _unrate_entry($id, $type, $userid);
+}
+
+
+## @method $ user_has_rated($id, $type, $userid)
+# Determine whether the specified user has rated this question or answer.
+#
+# @param id     The ID of the question or answer to check the rating history on.
+# @param type   The type of entry to check, must be "question" or "answer".
+# @param userid The ID of the user to check for rating operations.
+# @return "up" or "down" if the user has rated the entry, "" otherwise,
+#         undef on error.
+sub user_has_rated {
+    my $self   = shift;
+    my $id     = shift;
+    my $type   = shift;
+    my $userid = shift;
+
+    my $rating = $self -> _user_has_rated($id, $type, $userid)
+        or return undef;
+
+    return $rating -> {"updown"} || "";
+}
+
+
+## @method get_rating($id, $type)
+# Obtain the rating set on the question or answer specified.
+#
+# @param id     The ID of the question or answer to check.
+# @param type   The type of entry to check, must be "question" or "answer".
+# @return The current rating on success, undef on error.
+sub get_rating {
+    my $self = shift;
+    my $id   = shift;
+    my $type = shift;
+
+    my $rateh =  $self -> {"dbh"} -> prepare("SELECT rating
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
+                                              WHERE id = ?");
+    $rateh -> execute($id)
+        or return $self -> self_error("Unable to execute rating lookup for $type $id: ".$self -> {"dbh"} -> errstr);
+
+    my $rated = $rateh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch rating for $type $id: entry does not exist");
+
+    return $rated -> [0];
+}
+
+
+## @method get_metadataid($id, $type)
+# Obtain the metadata context id set on the question or answer specified.
+#
+# @param id     The ID of the question or answer to check.
+# @param type   The type of entry to check, must be "question" or "answer".
+# @return The metadata context id, undef on error.
+sub get_metadataid {
+    my $self = shift;
+    my $id   = shift;
+    my $type = shift;
+
+    my $metah =  $self -> {"dbh"} -> prepare("SELECT metadata_id
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
+                                              WHERE id = ?");
+    $metah -> execute($id)
+        or return $self -> self_error("Unable to execute metadata id lookup for $type $id: ".$self -> {"dbh"} -> errstr);
+
+    my $context = $metah -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch metadata id for $type $id: entry does not exist");
+
+    return $context -> [0];
+}
+
+
 # ============================================================================
 #  Listing and extraction
 
@@ -678,7 +786,7 @@ sub get_question_count {
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
                                               WHERE course_id = ?
                                               AND deleted IS NULL".
-                                             ($noanswer ? "AND answers = 0 " : ""));
+                                             ($noanswer ? " AND answers = 0" : ""));
     $counth -> execute($courseid)
         or return $self -> self_error("Unable to execute question count query: ".$self -> {"dbh"} -> errstr);
 
