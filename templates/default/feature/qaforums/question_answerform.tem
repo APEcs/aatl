@@ -1,14 +1,14 @@
 <div id="answerform">
     <h3>{L_FEATURE_QVIEW_ANSWER}</h3>
-    <form action="">
+    <form action="" onsubmit="return false;">
     <div class="contents">
-        <div class="textwrapper"><textarea name="message" id="new-message" rows="3" cols="80">***message***</textarea></div>
-        <div class="newpost formsubmit"><button id="newans" name="newans" class="button blue" onclick="add_answer('***qid***')">{L_FEATURE_QVIEW_ADDANSWER}</button></div>
+        <div class="textwrapper"><textarea name="message" id="new-answer" rows="3" cols="80">***message***</textarea></div>
+        <div class="newpost formsubmit"><img id="answerspin" src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="working" /><div id="newans" name="newans" class="button blue" onclick="add_answer('***qid***')">{L_FEATURE_QVIEW_ADDANSWER}</div></div>
     </div>
     </form>
 </div>
 <script type="text/javascript">
 window.addEvent('domready', function() {
-    CKEDITOR.replace('new-message', { customConfig: '{V_[commonpath]}cke_configs/basic_open.js' });
+    CKEDITOR.replace('new-answer', { customConfig: '{V_[commonpath]}cke_configs/basic_open.js' });
 });
 </script>

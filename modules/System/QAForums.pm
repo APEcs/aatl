@@ -283,7 +283,7 @@ sub user_has_rated_question {
 # @param questionid The ID of the question this is an answer to.
 # @param userid   The ID of the user creating the answer.
 # @param message  The message to show in the answer body.
-# @return True on success, undef on error.
+# @return The new answer id on success, undef on error.
 sub create_answer {
     my $self       = shift;
     my $questionid = shift;
@@ -310,7 +310,10 @@ sub create_answer {
     $self -> edit_answer($aid, $userid, $message, $now)
         or return undef;
 
-    return $self -> _sync_counts($questionid);
+    $self -> _sync_counts($questionid)
+        or return undef;
+
+    return $aid;
 }
 
 
@@ -717,7 +720,7 @@ sub user_has_rated {
 }
 
 
-## @method get_rating($id, $type)
+## @method $ get_rating($id, $type)
 # Obtain the rating set on the question or answer specified.
 #
 # @param id     The ID of the question or answer to check.
@@ -741,7 +744,7 @@ sub get_rating {
 }
 
 
-## @method get_metadataid($id, $type)
+## @method $ get_metadataid($id, $type)
 # Obtain the metadata context id set on the question or answer specified.
 #
 # @param id     The ID of the question or answer to check.
@@ -762,6 +765,77 @@ sub get_metadataid {
         or return $self -> self_error("Unable to fetch metadata id for $type $id: entry does not exist");
 
     return $context -> [0];
+}
+
+
+## @method $ user_is_owner($id, $type, $userid)
+# Determine whether the specified user is the owner of the question or answer
+# identified by the id and type.
+#
+# @param id     The ID of the question or answer to check.
+# @param type   The type of entry to check, must be "question" or "answer".
+# @param userid The ID of the user to check for ownership.
+# @return True if the user is the owner, false if not, undef on error.
+sub user_is_owner {
+    my $self   = shift;
+    my $id     = shift;
+    my $type   = shift;
+    my $userid = shift;
+
+    my $checkh = $self -> {"dbh"} -> prepare("SELECT creator_id
+                                              FROM  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
+                                              WHERE id = ?");
+    $checkh -> execute($id)
+        or return $self -> self_error("Unable to execute creator id lookup for $type $id: ".$self -> {"dbh"} -> errstr);
+
+    my $user = $checkh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch creator id for $type $id: entry does not exist");
+
+    return $user -> [0] == $userid;
+}
+
+
+## @method $ get_best_answer($questionid)
+# Obtain the ID of the best answer selected for the specified question, if any.
+#
+# @param questionid The ID of the question to fetch the best answer ID for
+# @return The ID of the best answer, 0 if none has been selected, undef on error.
+sub get_best_answer {
+    my $self       = shift;
+    my $questionid = shift;
+
+    my $besth = $self -> {"dbh"} -> prepare("SELECT best_answer_id
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                             WHERE id = ?");
+    $besth -> execute($questionid)
+        or return $self -> self_error("Unable to execute best answer id lookup for question $questionid: ".$self -> {"dbh"} -> errstr);
+
+    my $best = $besth -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch best answer id for $questionid: entry does not exist");
+
+    return $best -> [0] || 0;
+}
+
+
+## @method $ set_best_answer($questionid, answerid)
+# Set the ID of the best answer selected for the specified question, if any.
+#
+# @param questionid The ID of the question to set the best answer ID for
+# @param answerid   The ID of the best answer. If this is undef, the best answer is cleared.
+# @return true on success, undef on error.
+sub set_best_answer {
+    my $self       = shift;
+    my $questionid = shift;
+    my $answerid   = shift;
+
+    my $besth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                             SET best_answer_id = ?, best_answer_set = UNIX_TIMESTAMP(), updated = UNIX_TIMESTAMP()
+                                             WHERE id = ?");
+    my $result = $besth -> execute($answerid, $questionid);
+    return $self -> self_error("Unable to perform best answer update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Best answer update failed, no rows updated") if($result eq "0E0");
+
+    return 1;
 }
 
 
@@ -886,6 +960,61 @@ sub get_question {
         or return $self -> self_error("Unable to execute question query: ".$self -> {"dbh"} -> errstr);
 
     return $geth -> fetchrow_hashref();
+}
+
+
+## @method $ get_answer($questionid, $answerid)
+# Obtain the data for the specified answer. This returns the answer data, if avaulable,
+# including the latest revision text. Note that it does not include any comments
+# and those need to be fetched separately with get_comments().
+#
+# @param questionid The ID of the question this is an answer to.
+# @param answerid   The ID of the answer to get the data for.
+# @return A reference to a hash containing the answer data on success, undef on error.
+sub get_answer {
+    my $self       = shift;
+    my $questionid = shift;
+    my $answerid   = shift;
+
+    my $geth = $self -> {"dbh"} -> prepare("SELECT a.*, t.edited, t.editor_id, t.subject, t.message
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."` AS a,
+                                                 `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                            WHERE a.question_id = ?
+                                            AND a.id = ?
+                                            AND a.deleted IS NULL
+                                            AND t.id = a.text_id");
+    $geth -> execute($questionid, $answerid)
+        or return $self -> self_error("Unable to execute question query: ".$self -> {"dbh"} -> errstr);
+
+    return $geth -> fetchrow_hashref();
+}
+
+
+## @method $ get_answers($questionid, $sort)
+# Fetch a database handle through which answers may be fetched. This is rather messy,
+# exposing the database this way, but considerable amounts of data may be involved here...
+#
+# @param questionid The ID of the question to fetch answers for.
+# @param sort       The sort method to apply. Should be "created", "rating", or "updated".
+# @return A reference to a statement handle to fetch rows through, or undef on error.
+sub get_answers {
+    my $self       = shift;
+    my $questionid = shift;
+    my $sort       = shift;
+
+    my $dir = $sort eq "created" ? "ASC" : "DESC";
+
+    my $geth = $self -> {"dbh"} -> prepare("SELECT a.*, t.edited, t.editor_id, t.subject, t.message
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."` AS a,
+                                                 `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                            WHERE a.question_id = ?
+                                            AND a.deleted IS NULL
+                                            AND t.id = a.text_id
+                                            ORDER BY a.$sort $dir");
+    $geth -> execute($questionid)
+        or return $self -> self_error("Unable to execute question query: ".$self -> {"dbh"} -> errstr);
+
+    return $geth;
 }
 
 
@@ -1683,12 +1812,15 @@ sub _sync_counts {
 
     # Counters and stuff to store the stats in
     my $answers        = 0;
-    my $latest_answer  = undef;
+    my $latest_answer  = 0;
     my $comments       = 0;
-    my $latest_comment = undef;
+    my $latest_comment = 0;
 
     ($comments, $latest_comment) = $self -> _get_comment_stats($questionid, "question");
     return undef if(!defined($comments));
+
+    # Handle there being no comments sanely.
+    $latest_comment = 0 if(!defined($latest_comment));
 
     # Now fetch the answer headers, and calculate their comments too
     my $ansh = $self -> {"dbh"} -> prepare("SELECT id, updated
@@ -1708,7 +1840,7 @@ sub _sync_counts {
         return undef if(!defined($count));
 
         $comments += $count;
-        $latest_comment = $latest if($latest > $latest_comment);
+        $latest_comment = $latest if($latest && $latest > $latest_comment);
     }
 
     # When was the question itself updated?

@@ -1,0 +1,13 @@
+<div id="answerheader" class="***hasanswers***">
+    <h3><span id="anscount">***count***</span> {L_FEATURE_QVIEW_ANSWERCOUNT}</h3>
+    <div class="answersort">
+    ***sortmodes***
+    </div>
+</div>
+<script type="text/javascript">
+    sortmode = '***mode***';
+    bestans  = ***best***;
+</script>
+<ul id="answers">
+    ***answers***
+</ul>

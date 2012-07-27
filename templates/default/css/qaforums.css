@@ -41,7 +41,7 @@ ul.questionlist > li:first-child {
 }
 
 
-ul.questionlist div.editinfo, div.question div.editinfo {
+ul.questionlist div.editinfo, div.question div.editinfo, ul#answers div.editinfo {
     text-align: right;
 }
 
@@ -87,7 +87,7 @@ div.editinfo ul.boxmeta li a img {
     display: inline;
 }
 
-ul.questionlist div.stats, div.qblock div.stats {
+ul.questionlist div.stats, div.qblock div.stats, ul#answers li.ablock div.stats {
     float: left;
     width: 80px;
     margin-right: 10px;
@@ -130,14 +130,14 @@ div.qblock > h3 {
     border-bottom: 1px solid #bbb;
 }
 
-ul.questionlist div.stats div.value, div.qblock div.stats div.value {
+ul.questionlist div.stats div.value, div.qblock div.stats div.value, ul#answers li.ablock div.stats div.value {
     font-size: 20px;
     font-weight: bold;
     height: 25px;
     line-height: 25px;
 }
 
-ul.questionlist div.stats div.bigstat, div.qblock div.stats div.bigstat {
+ul.questionlist div.stats div.bigstat, div.qblock div.stats div.bigstat, ul#answers li.ablock div.stats div.bigstat {
     padding: 0px 0px 5px;
 }
 
@@ -149,11 +149,16 @@ ul.questionlist div.stats div.answered {
     color: #65ac6e;
 }
 
-div.qblock div.question {
+ul.questionlist div.stats div.chosen {
+    color: #518958;
+    background-color: #b4e1b9;
+}
+
+div.qblock div.question, li.ablock div.answer {
     margin-left: 90px;
 }
 
-div.qblock div.rating {
+div.qblock div.rating, li.block div.rating {
     margin-top: 10px;
 }
 
@@ -191,3 +196,81 @@ div.ratedown {
 div.ratedown.rated {
     background-image: url('../images/qaforums/ratedown_on.png');
 }
+
+div.best {
+    width: 80ox;
+    height: 32px;
+    background: url('../images/qaforums/best_off.png') center center no-repeat;
+    cursor: pointer;
+}
+
+div.best.chosen {
+    background-image: url('../images/qaforums/best_on.png');
+}
+
+div#answerheader {
+    border-bottom: 1px solid #bbb;
+    clear: both;
+    height: 26px;
+    margin-bottom: 8px;
+    margin-top: 5px;
+    padding: 0px;
+}
+
+div#answerheader.noanswers {
+    display: none;
+}
+
+div#answerheader > h3 {
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.3em;
+    float: left;
+}
+
+div#answerheader > div.answersort {
+    float: right;
+}
+
+div#answerheader > div.answersort > a {
+    color: #777777;
+    font-size: 12px;
+    line-height: 25px;
+    margin: 3px 3px 3px 0px;
+    padding: 0px 10px;
+    display: block;
+    float: left;
+    text-decoration: none;
+}
+
+div#answerheader > div.answersort > a.active {
+    font-weight: bold;
+    color: #000;
+}
+
+div#answerheader > div.answersort > a:hover {
+    text-decoration: none;
+    color: #06A;
+}
+
+img#answerspin {
+    opacity: 0;
+}
+
+ul#answers {
+    padding: 0px;
+    margin: 0px;
+}
+
+ul#answers > li {
+    list-style-type: none;
+    margin: 0px 0px 10px;
+    overflow: hidden;
+    padding: 8px 10px 0px;
+    border-top: 1px dotted #bbb;
+}
+
+ul#answers > li:first-child {
+    border-top: none;
+}
+

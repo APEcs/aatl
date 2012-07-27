@@ -43,13 +43,29 @@ FEATURE_QVIEW_COMMHELPSHOW = Help
 FEATURE_QVIEW_COMMHELPHIDE = Hide help
 
 FEATURE_QVIEW_ANSWER       = Your answer
+FEATURE_QVIEW_ANSWERED     = Answered
 FEATURE_QVIEW_ADDANSWER    = Post your answer
 
 FEATURE_QVIEW_QRUP         = This is a useful, clear, well stated and researched question (click again to undo)
 FEATURE_QVIEW_QRDOWN       = This question is unclear, is a duplicate, or shows no attempt at research (click again to undo)
+
+FEATURE_QVIEW_ARUP         = This is a useful, clear answer (click again to undo)
+FEATURE_QVIEW_ARDOWN       = This question is unclear, or is not useful (click again to undo)
+FEATURE_QVIEW_SETBEST      = Choose this to be the best answer (click again to undo)
+FEATURE_QVIEW_ISBEST       = The owner selected this as the best answer ***time***
 
 FEATURE_QVIEW_APIRATE_NOID  = No ID provided to rating API.
 FEATURE_QVIEW_APIRATE_BADID = The ID sent to the rating API is not valid.
 FEATURE_QVIEW_APIRATE_PERMS = You do not have permission to rate entries.
 
 FEATURE_QVIEW_APIANS_NOID   = No ID provided to answer API.
+FEATURE_QVIEW_APIANS_FAIL   = Answer addition failed
+
+FEATURE_QVIEW_APIBEST_NOID  = No ID profided to best answer API.
+FEATURE_QVIEW_APIBEST_BADID = Unable to parse question or answer IDs from provided ID.
+
+
+FEATURE_QVIEW_ASORT_CREATED = Created
+FEATURE_QVIEW_ASORT_RATING  = Rating
+FEATURE_QVIEW_ASORT_UPDATED = Active
+FEATURE_QVIEW_ANSWERCOUNT   = Answers

@@ -363,17 +363,19 @@ sub _show_question {
         "editown"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editown"),
         "editother"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editother"),
         "deleteown"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deleteown"),
-        "deleteother" => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deletether"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deleteother"),
+        "setbest"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.bestother") || ($userid == $question -> {"creator_id"}),
     };
 
     # Potentially disable delete anyway if the question has answers or comments.
-    $permissions -> {"deleteown"}   = $permissions -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
-    $permissions -> {"deleteother"} = $permissions -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+    my $deleteown   = $permissions -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+    my $deleteother = $permissions -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
 
     my $asker  = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($question -> {"creator_id"});
 
     my ($rateup, $ratedown) = ("", "");
-    if($permissions -> {"rate"}) {
+    # Note that users can not rate their own questions
+    if($permissions -> {"rate"}) {# && $userid != $question -> {"creator_id"}) {
         $rateup   = $self -> {"template"} -> load_template("feature/qaforums/rateup.tem");
         $ratedown = $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem");
     }
@@ -401,6 +403,52 @@ sub _show_question {
                                                              "***gravhash***"  => $asker -> {"gravatar_hash"},
                                                              "***comments***"  => $self -> _build_comments($question -> {"id"}, "question"),
                                                             });
+
+    # Sort for the answers
+    my @pathinfo = $self -> {"cgi"} -> param("pathinfo");
+    my $asort = "created";
+    if($pathinfo[2]) {
+        $asort = "rating"  if($pathinfo[2] eq "rating");
+        $asort = "updated" if($pathinfo[2] eq "updated");
+    }
+
+    # Get the answer list
+    my $answersh = $self -> {"qaforums"} -> get_answers($question -> {"id"}, $asort)
+        or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Fatal error: ".$self -> {"qaforums"} -> {"errstr"});
+
+    my $alist = "";
+    my $count = 0;
+    my $best = $question -> {"best_answer_id"} || 0;
+    if($answersh) {
+        my $atems = { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
+                      "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
+                      "ratedown" => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
+                      "bestest"  => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
+        };
+
+        while(my $answer = $answersh -> fetchrow_hashref()) {
+            ++$count;
+            $alist .= $self -> _build_answer($answer, $atems, $permissions, $answer -> {"id"} == $best, $question -> {"best_answer_set"});
+        }
+    }
+
+    my $sorttem = $self -> {"template"} -> load_template("feature/qaforums/answer_sorts.tem");
+    my $sortmodes = "";
+    foreach my $sort ("created", "rating", "updated") {
+        $sortmodes .= $self -> {"template"} -> process_template($sorttem, {"***url***"  => $self -> build_url(block => "qaforum",
+                                                                                                              pathinfo => ["question", $question -> {"id"}, $sort]),
+                                                                           "***sort***" => uc($sort),
+                                                                           "***here***" => $sort eq $asort ? "active" : "",
+                                                                           "***best***" => $best});
+    }
+
+    $answerblock = $self -> {"template"} -> load_template("feature/qaforums/question_answerlist.tem",
+                                                          {"***hasanswers***" => $count ? "" : "noanswers",
+                                                           "***count***"      => $count,
+                                                           "***mode***"       => $asort,
+                                                           "***sortmodes***"  => $sortmodes,
+                                                           "***answers***"    => $alist,
+                                                           "***best***"       => $best});
 
     # If the user can answer, add the form for that
     $answerform = $self -> {"template"} -> load_template("feature/qaforums/question_answerform.tem", {"***qid***" => $question -> {"id"},
@@ -553,7 +601,7 @@ sub _ask_question {
 # @return undef on success, otherwise an error string.
 sub _validate_answer_fields {
     my $self = shift;
-    my $args = shift;
+    my $args = {};
     my ($errors, $error) = ("", "");
 
     my $errtem = $self -> {"template"} -> load_template("error_item.tem");
@@ -562,7 +610,70 @@ sub _validate_answer_fields {
                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
-    return $errors ? $errors : undef;
+    return ($errors, $args);
+}
+
+
+## @method private $ _build_answer($answer, $temcache, $permcache, $best, $besttime)
+# Generate the HTML block required to show an answer.
+#
+# @param answer    A reference to a hash containing the answer data.
+# @param temcache  A reference to a hash containing template
+# @param permcache A reference to a hash containing the user's permissions.
+# @param best      True if this has been selected as the best answer, false otherwise.
+# @parma besttime  The time at which the best answer was selected.
+# @return A string containing the answer html block.
+sub _build_answer {
+    my $self      = shift;
+    my $answer    = shift;
+    my $temcache  = shift;
+    my $permcache = shift;
+    my $best      = shift || 0;
+    my $besttime  = shift || 0;
+    my $userid    = $self -> {"session"} -> get_session_userid(); # cache the user for permission checks
+
+    # Potentially disable delete anyway if the has comments.
+    my $deleteown   = $permcache -> {"deleteown"}; # && !answer_has_comments($answer -> {"id"});
+    my $deleteother = $permcache -> {"deleteother"}; # && !answer_has_comments($answer -> {"id"});
+
+    my ($rateup, $ratedown) = ("", "");
+    # Note that users can not rate their own answers
+    if($permcache -> {"rate"}){# && $userid != $answer -> {"creator_id"}) {
+        $rateup   = $temcache -> {"rateup"};
+        $ratedown = $temcache -> {"ratedown"};
+    }
+
+    my $rated = $self -> {"qaforums"} -> user_has_rated_answer($answer -> {"id"}, $userid);
+    my $answerer  = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($answer -> {"creator_id"});
+
+    my $bestblock = "";
+    $bestblock = $self -> {"template"} -> process_template($temcache -> {"bestest"},
+                                                           {"***id***"       => "best-".$answer -> {"question_id"}."-".$answer -> {"id"},
+                                                            "***title***"    => $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_".($permcache -> {"setbest"} ? "SETBEST" : "ISBEST"),
+                                                                                                                         {"***time***" => $self -> {"template"} -> format_time($besttime)}),
+                                                            "***active***"   => ($best ? "chosen" : ""),
+                                                            "***bestctrl***" => ($permcache -> {"setbest"} ? "bestctl" : "")})
+        if($permcache -> {"setbest"} || $best);
+
+    return $self -> {"template"} -> process_template($temcache -> {"answer"},
+                                                     {"***aid***"       => $answer -> {"id"},
+                                                      "***rating***"    => $answer -> {"rating"},
+                                                      "***rateup***"    => $self -> {"template"} -> process_template($rateup  , {"***active***" => ($rated eq "up" ? "rated" : ""),
+                                                                                                                                 "***id***"     => "rup-aid-".$answer -> {"id"},
+                                                                                                                                 "***title***"  => "{L_FEATURE_QVIEW_ARUP}"}),
+                                                      "***ratedown***"  => $self -> {"template"} -> process_template($ratedown, {"***active***" => ($rated eq "down" ? "rated" : ""),
+                                                                                                                                 "***id***"     => "rdn-aid-".$answer -> {"id"},
+                                                                                                                                 "***title***"  => "{L_FEATURE_QVIEW_ARDOWN}"}),
+                                                      "***best***"      => $bestblock,
+                                                      "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $answer -> {"question_id"}, "#aid-".$answer -> {"id"} ]),
+                                                      "***message***"   => $answer -> {"message"},
+                                                      "***extrainfo***" => "", # TODO
+                                                      "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $answerer -> {"username"} ]),
+                                                      "***asked***"     => $self -> {"template"} -> format_time($answer -> {"created"}),
+                                                      "***name***"      => $answerer -> {"fullname"},
+                                                      "***gravhash***"  => $answerer -> {"gravatar_hash"},
+                                                      "***comments***"  => $self -> _build_comments($answer -> {"id"}, "answer"),
+                                                     });
 }
 
 
@@ -599,7 +710,7 @@ sub _build_api_rating_response {
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRATE_PERMS"))
-        unless($self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"));
+        if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"));# || $self -> {"qaforums"} -> user_is_owner($id, $mode, $userid));
 
     # Determine whether the user has rated the question or answer
     my $rated = $self -> {"qaforums"} -> user_has_rated($id, $mode, $userid);
@@ -641,13 +752,90 @@ sub _build_api_answer_add_response {
         or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_NOID"));
 
     # Check that the user has permission to answer the question.
-    my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, "question")
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_PERMS"))
         unless($self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.answer"));
 
+    # Check that the user's message is valid
+    my ($errors, $args) = $self -> _validate_answer_fields();
+    return $self -> api_errorhash("internal_error",
+                                  $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR",
+                                                                           {"***error***" => $self -> {"template"} -> load_template("error_list.tem",
+                                                                                                                                    {"***message***" => "{L_FEATURE_QVIEW_APIANS_FAIL",
+                                                                                                                                     "***errors***"  => $errors})}))
+        if($errors);
 
+    # Message is valid, try to add it
+    my $aid = $self -> {"qaforums"} -> create_answer($qid, $userid, $args -> {"message"})
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    my $answerdata = $self -> {"qaforums"} -> get_answer($qid, $aid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    my $permissions = {
+        "rate"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"),
+        "flag"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag"),
+        "unflag"      => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.unflag"),
+        "comment"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.comment"),
+        "editown"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editown"),
+        "editother"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editother"),
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deletether"),
+        "setbest"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.bestother") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid)
+    };
+
+    # Convert the question to html to send back
+    return $self -> _build_answer($answerdata,
+                                  { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
+                                    "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
+                                    "ratedown" => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
+                                    "bestest"  => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
+                                  },
+                                  $permissions);
+}
+
+
+## @method private $ _build_api_best_response($op)
+# Update the best status for the
+#
+# @param op The operation to apply, must be "rup" or "rdn"
+# @return A hash containing the API response to return to the user. Should be
+#         passed to api_response().
+sub _build_api_best_response {
+    my $self   = shift;
+    my $op     = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $id = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIBEST_NOID"));
+
+    # Parse out the question and answer ids
+    my ($qid, $aid) = $id =~ /^(\d+)-(\d+)$/;
+    return $self -> api_errorhash("bad_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIBEST_BADID"))
+        unless($qid && $id);
+
+    # Check the user can change the best answer
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIBEST_PERMS"))
+        unless($self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.setbest") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid));
+
+    # Get the current best
+    my $current = $self -> {"qaforums"} -> get_best_answer($qid);
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+        if(!defined($current));
+
+    # If the current is set to the selected answer, clear it
+    $aid = undef if($current == $aid);
+
+    # And set it...
+    $self -> {"qaforums"} -> set_best_answer($qid, $aid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    return { "best" => { "set" => ($aid ? "best-$qid-$aid" : "") } };
 }
 
 
@@ -697,6 +885,10 @@ sub page_display {
     if(defined($apiop)) {
         if($apiop eq "rup" || $apiop eq "rdn") {
             return $self -> api_response($self -> _build_api_rating_response($apiop));
+        } elsif($apiop eq "best") {
+            return $self -> api_response($self -> _build_api_best_response());
+        } elsif($apiop eq "answer") {
+            return $self -> api_html_response($self -> _build_api_answer_add_response());
         } else {
             return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                      $self -> {"template"} -> replace_langvar("API_BAD_OP")))

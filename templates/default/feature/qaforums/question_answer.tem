@@ -1,0 +1,28 @@
+<li class="ablock" id="aid-***aid***">
+    <div class="stats">
+        ***rateup***
+        <div class="bigstat rating">
+            <div class="value" id="val-aid-***aid***">***rating***</div>
+        </div>
+        ***ratedown***
+        ***best***
+    </div>
+    <div class="answer">
+        <div class="message">***message***</div>
+        <!-- tags go here... -->
+        <div class="editinfo">
+            <ul class="boxmeta">
+                ***extrainfo***
+                <li><strong>{L_FEATURE_QVIEW_ANSWERED}</strong>: ***asked***</li>
+                <li class="iconlink">
+                    <a href="***profile***">***name***
+                        <img alt="" src="http://www.gravatar.com/avatar/***gravhash***?s=16&amp;d=mm&amp;r=g" class="avatar avatar-16" height="16" width="16" />
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="comments">
+            ***comments***
+        </div>
+    </div>
+</li>
