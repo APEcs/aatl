@@ -36,6 +36,17 @@ ul.questionlist > li {
     border-top: 1px solid #bbb;
 }
 
+ul.qlist {
+    padding: 0px;
+    margin: 0px;
+}
+
+ul.qlist > li {
+    list-style-type: none;
+    margin: 0px 0px 10px;
+    overflow: hidden;
+}
+
 ul.questionlist > li:first-child {
     border-top: none;
 }
@@ -87,7 +98,7 @@ div.editinfo ul.boxmeta li a img {
     display: inline;
 }
 
-ul.questionlist div.stats, div.qblock div.stats, ul#answers li.ablock div.stats {
+ul.questionlist div.stats, li.qblock div.stats, ul#answers li.ablock div.stats {
     float: left;
     width: 80px;
     margin-right: 10px;
@@ -100,7 +111,7 @@ ul.questionlist div.question {
     padding: 0px 0px 5px;
 }
 
-ul.questionlist li > div.question h3 a, div.qblock > h3 a {
+ul.questionlist li > div.question h3 a, li.qblock > h3 a {
     text-decoration: none;
     color: #d26911;
     font-size: 16px;
@@ -109,35 +120,35 @@ ul.questionlist li > div.question h3 a, div.qblock > h3 a {
     margin-bottom: 1.2em;
 }
 
-ul.questionlist li > div.question h3 a:hover, div.qblock > h3 a:hover {
+ul.questionlist li > div.question h3 a:hover, li.qblock > h3 a:hover {
     text-decoration: none;
     color: #06A;
 }
 
-ul.questionlist li > div.question h3 a:active, div.qblock > h3 a:active {
+ul.questionlist li > div.question h3 a:active, li.qblock > h3 a:active {
     text-decoration: none;
     color: #49F;
 }
 
-ul.questionlist li > div.question h3 a:visited, div.qblock > h3 a:visited {
+ul.questionlist li > div.question h3 a:visited, li.qblock > h3 a:visited {
     text-decoration: none;
     color: #d26911;
 }
 
-div.qblock > h3 {
+li.qblock > h3 {
     padding: 3px 0px;
     margin: 0px 0px 3px;
     border-bottom: 1px solid #bbb;
 }
 
-ul.questionlist div.stats div.value, div.qblock div.stats div.value, ul#answers li.ablock div.stats div.value {
+ul.questionlist div.stats div.value, li.qblock div.stats div.value, ul#answers li.ablock div.stats div.value {
     font-size: 20px;
     font-weight: bold;
     height: 25px;
     line-height: 25px;
 }
 
-ul.questionlist div.stats div.bigstat, div.qblock div.stats div.bigstat, ul#answers li.ablock div.stats div.bigstat {
+ul.questionlist div.stats div.bigstat, li.qblock div.stats div.bigstat, ul#answers li.ablock div.stats div.bigstat {
     padding: 0px 0px 5px;
 }
 
@@ -154,11 +165,11 @@ ul.questionlist div.stats div.chosen {
     background-color: #b4e1b9;
 }
 
-div.qblock div.question, li.ablock div.answer {
+li.qblock div.question, li.ablock div.answer {
     margin-left: 90px;
 }
 
-div.qblock div.rating, li.block div.rating {
+li.qblock div.rating, li.block div.rating {
     margin-top: 10px;
 }
 
@@ -210,7 +221,6 @@ div.best.chosen {
 
 div#answerheader {
     border-bottom: 1px solid #bbb;
-    clear: both;
     height: 26px;
     margin-bottom: 8px;
     margin-top: 5px;
