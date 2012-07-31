@@ -27,6 +27,28 @@ use Utils qw(is_defined_numeric path_join);
 use XML::Simple;
 
 # ============================================================================
+#  Constructor
+
+## @cmethod $ new(%args)
+# Overloaded constructor for Features.
+#
+# @param args A hash of values to initialise the object with. See the Block docs
+#             for more information.
+# @return A reference to a new Feature object on success, undef on error.
+sub new {
+    my $invocant = shift;
+    my $class    = ref($invocant) || $invocant;
+    my $self     = $class -> SUPER::new(@_)
+        or return undef;
+
+    # Cache the courseid for later
+    $self -> {"courseid"} = $self -> determine_courseid();
+
+    return $self;
+}
+
+
+# ============================================================================
 #  Permissions/Roles related.
 
 ## @method $ used_capabilities()
@@ -154,12 +176,14 @@ sub check_login_courseview {
     } else {
         my ($title, $message);
 
-        my $course = $self -> determine_courseid();
+        my $course = $self -> {"courseid"};
         if($course) {
             # If the user has permission to view the course, return the 'all is okay' result
             if($self -> {"system"} -> {"courses"} -> check_permission($course, $self -> {"session"} -> get_session_userid(), "course.view")) {
                 return undef;
             } else {
+                $self -> log("error:permission", "User does not have access to course");
+
                 # Logged in, but permission failed
                 $title   = $self -> {"template"} -> replace_langvar("FEATURE_ERR_COURSE_NOACCESS_TITLE");
                 $message = $self -> {"template"} -> message_box("{L_FEATURE_ERR_COURSE_NOACCESS_TITLE}",
@@ -179,6 +203,8 @@ sub check_login_courseview {
 
         # If no course is specified, and one is needed, complain
         } else {
+            $self -> log("error:noourse", "User has attempted to access a course with no id");
+
             $title   = $self -> {"template"} -> replace_langvar("FEATURE_ERR_NOCOURSE_TITLE");
             $message = $self -> {"template"} -> message_box("{L_FEATURE_ERR_NOCOURSE_TITLE}",
                                                             "error",
@@ -527,6 +553,23 @@ sub api_response {
 
 # ============================================================================
 #  General utility
+
+## @method void log($type, $message)
+# Log the current user's actions in the system. This is a convenience wrapper around the
+# Logger::log function.
+#
+# @param type     The type of log entry to make, may be up to 64 characters long.
+# @param message  The message to attach to the log entry, avoid messages over 128 characters.
+sub log {
+    my $self     = shift;
+    my $type     = shift;
+    my $courseid = shift;
+    my $message  = shift;
+
+    $message = "[Course:".($self -> {"courseid"} ? $courseid -> {"courseid"} : "none")."] $message";
+    $self -> {"logger"} -> log($type, $self -> {"session"} -> get_session_userid(), $self -> {"cgi"} -> remote_host(), $message);
+}
+
 
 ## @method $ get_saved_state()
 # A convenience wrapper around Session::get_variable() for fetching the state saved in
