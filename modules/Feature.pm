@@ -204,7 +204,7 @@ sub check_login_courseview {
         # If no course is specified, and one is needed, complain
         } else {
             $self -> log("error:noourse", "User has attempted to access a course with no id");
-5
+
             $title   = $self -> {"template"} -> replace_langvar("FEATURE_ERR_NOCOURSE_TITLE");
             $message = $self -> {"template"} -> message_box("{L_FEATURE_ERR_NOCOURSE_TITLE}",
                                                             "error",
