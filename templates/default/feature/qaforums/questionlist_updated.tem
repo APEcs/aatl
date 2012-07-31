@@ -1,6 +1,6 @@
-                <li><strong>{L_FEATURE_QLIST_UPDATED}</strong>: ***updated***</li>
+                <li>{L_FEATURE_QLIST_UPDATED} ***updated***</li>
                 <li class="iconlink">
                     <a href="***profile***">***name***
-                        <img alt="" src="http://www.gravatar.com/avatar/***gravhash***?s=16&amp;d=mm&amp;r=g" class="avatar avatar-16" height="16" width="16" />
+                        <img alt="" src="https://www.gravatar.com/avatar/***gravhash***?s=16&amp;d=mm&amp;r=g" class="avatar avatar-16" height="16" width="16" />
                     </a>
                 </li>

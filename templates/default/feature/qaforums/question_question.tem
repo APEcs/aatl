@@ -1,6 +1,6 @@
 <ul class="qlist">
     <li class="qblock" id="qid-***qid***">
-    <h3><a href="***url***">***subject***</a></h3>
+    <h3><a id="subj-q***qid***" href="***url***">***subject***</a></h3>
     <div class="stats">
         ***rateup***
         <div class="bigstat rating">
@@ -10,15 +10,16 @@
         ***locked***
     </div>
     <div class="question">
-         <div class="message">***message***</div>
+        <div class="message" id="qmsg-q***qid***">***message***</div>
         <!-- tags go here... -->
+        ***controls***
         <div class="editinfo">
             <ul class="boxmeta">
                 ***extrainfo***
-                <li><strong>{L_FEATURE_QLIST_ASKED}</strong>: ***asked***</li>
+                <li>{L_FEATURE_QLIST_ASKED} ***asked***</li>
                 <li class="iconlink">
                     <a href="***profile***">***name***
-                        <img alt="" src="http://www.gravatar.com/avatar/***gravhash***?s=16&amp;d=mm&amp;r=g" class="avatar avatar-16" height="16" width="16" />
+                        <img alt="" src="https://www.gravatar.com/avatar/***gravhash***?s=16&amp;d=mm&amp;r=g" class="avatar avatar-16" height="16" width="16" />
                     </a>
                 </li>
             </ul>

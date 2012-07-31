@@ -47,6 +47,51 @@ function rate_toggle(element)
 }
 
 
+function make_editable(qid, config) 
+{
+    // Fix up the click action on the edit button before doing anything else
+    $('editbtn-'+qid).removeEvent('click');
+    $('editbtn-'+qid).addClass('ctrldisabled');
+
+    // Create the input elements needed to make the edit work
+    var subject = new Element('input', { type: 'text',
+                                         size: 70,
+                                         maxlength: 100,
+                                         value: $('subj-'+qid).text,
+                                         id: 'editsub-'+qid
+                                       });
+    var message = new Element('div', { 'class': 'textwrapper'
+                                     }).adopt(new Element('textarea', { rows: 5,
+                                                                        cols: 80,
+                                                                        html: $('qmsg-'+qid).innerHTML,
+                                                                        id: 'editmsg-'+qid
+                                                                      }));
+    var submit = new Element('div', 
+                             { 'class': 'newpost formsubmit' 
+                             }).adopt([new Element('img', { id: 'workspin-'+qid,
+                                                            style: 'opacity: 0',
+                                                            src: spinner_url,
+                                                            height: '16',
+                                                            width: '16',
+                                                            alt: 'working'}),
+                                       new Element('input', { type: 'button',
+                                                              id: 'edit-'+qid,
+                                                              name: 'edit-'+qid,
+                                                              'class': 'button blue',
+                                                              onclick: 'do_editable(\''+qid+'\')',
+                                                              value: editbtn_name })]);
+    
+    var container = new Element('div', {'class': 'editbox'}).adopt([message, submit]);
+    
+    // Attach them to the page in place of the original elements
+    subject.replaces($('subj-'+qid));
+    container.replaces($('qmsg-'+qid));
+    CKEDITOR.replace('editmsg-'+qid, { customConfig: config });
+    foo = 1;
+}
+
+
+
 /** Add an answer to the specified question
  * 
  * @param questionid The ID of the question to add the answer to.

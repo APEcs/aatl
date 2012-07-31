@@ -55,9 +55,6 @@ sub new {
     # FIXME: This will probably need to instantiate the tags feature to get at Feature::Tags::block_display().
     # $self -> {"tags"} = $self -> {"modules"} -> load_module("Feature::Tags");
 
-    # Cache the courseid for later
-    $self -> {"courseid"} = $self -> determine_courseid();
-
     # Precalculate the tab bar information for later
     $self -> {"tabbar"} = [ { "mode"    => "updated",
                               "url"     => $self -> build_url(block => "qaforum", pathinfo => ["updated"]),
@@ -215,6 +212,8 @@ sub _show_question_list {
     $page = 1 if($page < 1);
     $page = $maxpage if($page > $maxpage);
 
+    $self -> log("qaforum:viewlist", "User viewing question list, mode $mode page $page");
+
     my $pagination = $self -> build_pagination($maxpage, $page, $mode, $self -> {"settings"} -> {"config"} -> {"pagination_width"});
 
     # Work out what the list mode should be
@@ -258,7 +257,7 @@ sub _show_question_list {
                                                                            "***subject***"   => $question -> {"subject"},
                                                                            "***preview***"   => $preview,
                                                                            "***extrainfo***" => $extrainfo,
-                                                                           "***asked***"     => $self -> {"template"} -> format_time($question -> {"created"}),
+                                                                           "***asked***"     => $self -> {"template"} -> fancy_time($question -> {"created"}),
                                                                            "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $asker -> {"username"} ]),
                                                                            "***name***"      => $asker -> {"fullname"},
                                                                            "***gravhash***"  => $asker -> {"gravatar_hash"},
@@ -319,6 +318,36 @@ sub _build_comments {
 }
 
 
+## @method private $ _build_question_controls($question, $userid, $permcache)
+# Generate the controls the user may use to operate on the specified question, if any.
+#
+# @param post      A reference to a hash containing the question data.
+# @param userid    The ID of the user viewing the questions.
+# @param permcache The permissions cache for the user.
+# @return A string containing the controls block to show in the post html.
+sub _build_question_controls {
+    my $self      = shift;
+    my $question  = shift;
+    my $userid    = shift;
+    my $permcache = shift;
+
+    # Determine whether operations are permitted
+    my $canedit   = (($question -> {"creator_id"} == $userid && $permcache -> {"editown"}) ||
+                     ($question -> {"creator_id"} != $userid && $permcache -> {"editother"}));
+    my $candelete = (($question -> {"creator_id"} == $userid && $permcache -> {"qdeleteown"}) ||
+                     ($question -> {"creator_id"} != $userid && $permcache -> {"qdeleteother"}));
+
+    # And convert them to strings
+    $canedit   = $canedit   ? "enabled" : "disabled";
+    $candelete = $candelete ? "enabled" : "disabled";
+
+    my $options  = $self -> {"template"} -> load_template("feature/qaforums/controls/edit_question_${canedit}.tem", {"***id***" => $question -> {"id"}});
+       $options .= $self -> {"template"} -> load_template("feature/qaforums/controls/delete_question_${candelete}.tem", {"***id***" => $question -> {"id"}});
+
+    return $self -> {"template"} -> load_template("feature/qaforums/controls.tem", {"***controls***" => $options});
+}
+
+
 ## @method private @ _show_question($questionid)
 # Generate a page containing the specified question, its answers and comments.
 #
@@ -338,6 +367,8 @@ sub _show_question {
 
     # If there is no question here, return an error
     if(!defined($question)) {
+        $self -> log("error:qaforum:view", "No question id provided to _show_question");
+
         return ($self -> {"template"} -> replace_langvar("FEATURE_QVIEW_ERROR_TITLE"),
                 $self -> {"template"} -> message_box("{L_FEATURE_QVIEW_ERROR_TITLE}",
                                                      "error",
@@ -350,6 +381,8 @@ sub _show_question {
                                                         "action"  => "location.href='".$self -> build_url(block => "news")."'"} ]),
                 $self -> {"template"} -> load_template("feature/qaforums/extrahead.tem"))
     }
+
+    $self -> log("qaforum:view", "Viewing question $questionid");
 
     # Touch the question view
     $self -> {"qaforums"} -> _view_question($questionid)
@@ -372,14 +405,14 @@ sub _show_question {
     };
 
     # Potentially disable delete anyway if the question has answers or comments.
-    my $deleteown   = $permissions -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
-    my $deleteother = $permissions -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+    $permissions -> {"qdeleteown"}   = $permissions -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+    $permissions -> {"qdeleteother"} = $permissions -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
 
     my $asker  = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($question -> {"creator_id"});
 
     my ($rateup, $ratedown) = ("", "");
     # Note that users can not rate their own questions
-    if($permissions -> {"rate"} && $userid != $question -> {"creator_id"}) {
+    if($permissions -> {"rate"} && ($userid != $question -> {"creator_id"})) {
         $rateup   = $self -> {"template"} -> load_template("feature/qaforums/rateup.tem");
         $ratedown = $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem");
     }
@@ -401,8 +434,9 @@ sub _show_question {
                                                              "***subject***"   => $question -> {"subject"},
                                                              "***message***"   => $question -> {"message"},
                                                              "***extrainfo***" => "", # TODO
+                                                             "***controls***"  => $self -> _build_question_controls($question, $userid, $permissions),
                                                              "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $asker -> {"username"} ]),
-                                                             "***asked***"     => $self -> {"template"} -> format_time($question -> {"created"}),
+                                                             "***asked***"     => $self -> {"template"} -> fancy_time($question -> {"created"}),
                                                              "***name***"      => $asker -> {"fullname"},
                                                              "***gravhash***"  => $asker -> {"gravatar_hash"},
                                                              "***comments***"  => $self -> _build_comments($question -> {"id"}, "question"),
@@ -551,6 +585,8 @@ sub _validate_question {
             $args)
         unless($qid);
 
+    $self -> log("qaforum:add_question", "Added question $qid");
+
     print $self -> {"cgi"} -> redirect($self -> build_url(block => "qaforum", pathinfo => ["question", $qid]));
     exit;
 }
@@ -642,7 +678,7 @@ sub _build_answer {
 
     my ($rateup, $ratedown) = ("", "");
     # Note that users can not rate their own answers
-    if($permcache -> {"rate"}){# && $userid != $answer -> {"creator_id"}) {
+    if($permcache -> {"rate"} && ($userid != $answer -> {"creator_id"})) {
         $rateup   = $temcache -> {"rateup"};
         $ratedown = $temcache -> {"ratedown"};
     }
@@ -654,7 +690,7 @@ sub _build_answer {
     $bestblock = $self -> {"template"} -> process_template($temcache -> {"bestest"},
                                                            {"***id***"       => "best-".$answer -> {"question_id"}."-".$answer -> {"id"},
                                                             "***title***"    => $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_".($permcache -> {"setbest"} ? "SETBEST" : "ISBEST"),
-                                                                                                                         {"***time***" => $self -> {"template"} -> format_time($besttime)}),
+                                                                                                                         {"***time***" => $self -> {"template"} -> fancy_time($besttime, 1)}),
                                                             "***active***"   => ($best ? "chosen" : ""),
                                                             "***bestctrl***" => ($permcache -> {"setbest"} ? "bestctl" : "")})
         if($permcache -> {"setbest"} || $best);
@@ -673,7 +709,7 @@ sub _build_answer {
                                                       "***message***"   => $answer -> {"message"},
                                                       "***extrainfo***" => "", # TODO
                                                       "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $answerer -> {"username"} ]),
-                                                      "***asked***"     => $self -> {"template"} -> format_time($answer -> {"created"}),
+                                                      "***asked***"     => $self -> {"template"} -> fancy_time($answer -> {"created"}),
                                                       "***name***"      => $answerer -> {"fullname"},
                                                       "***gravhash***"  => $answerer -> {"gravatar_hash"},
                                                       "***comments***"  => $self -> _build_comments($answer -> {"id"}, "answer"),
@@ -709,6 +745,7 @@ sub _build_api_rating_response {
 
     $mode = ($mode eq "qid" ? "question" : "answer");
 
+
     # Check the user can rate
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
@@ -735,6 +772,8 @@ sub _build_api_rating_response {
     return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($rating));
 
+    $self -> log("qaforum:api_rating", "Rated $mode $id ".($rated ? $rated : "cancelled"));
+
     return { 'rated' => { "up"     => ($rated eq "up" ? "set" : ""),
                           "down"   => ($rated eq "down" ? "set" : ""),
                           "rating" => $rating} };
@@ -759,8 +798,10 @@ sub _build_api_answer_add_response {
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
-    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_PERMS"))
-        unless($self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.answer"));
+    if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.answer")) {
+        $self -> log("qaforum:api_answer", "No permission to answer question $qid");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_PERMS"));
+    }
 
     # Check that the user's message is valid
     my ($errors, $args) = $self -> _validate_answer_fields();
@@ -777,6 +818,8 @@ sub _build_api_answer_add_response {
 
     my $answerdata = $self -> {"qaforums"} -> get_answer($qid, $aid)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    $self -> log("qaforum:api_answer", "Answered question $qid with answer $aid");
 
     my $permissions = {
         "rate"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"),
@@ -824,8 +867,10 @@ sub _build_api_best_response {
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
-    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIBEST_PERMS"))
-        unless($self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.setbest") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid));
+    if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.setbest") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid)) {
+        $self -> log("qaforum:api_best", "No permission to choose best answer to question $qid");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIBEST_PERMS"));
+    }
 
     # Get the current best
     my $current = $self -> {"qaforums"} -> get_best_answer($qid);
@@ -838,6 +883,8 @@ sub _build_api_best_response {
     # And set it...
     $self -> {"qaforums"} -> set_best_answer($qid, $aid)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    $self -> log("qaforum:api_best", "Best answer to question $qid set to ".($aid ? $aid : "none"));
 
     return { "best" => { "set" => ($aid ? "best-$qid-$aid" : "") } };
 }
@@ -865,6 +912,8 @@ sub page_display {
                                                             $self -> {"session"} -> get_session_userid(),
                                                             "qaforums.read");
     if(!$canread) {
+        $self -> log("error:qaforum:permission", "User does not have permission to read QAForum in course");
+
         my $userbar = $self -> {"module"} -> load_module("Feature::Userbar");
         my $message = $self -> {"template"} -> message_box("{L_FEATURE_QAFORUM_VIEWPERM_TITLE}",
                                                            "error",

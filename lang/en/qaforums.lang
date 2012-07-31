@@ -64,6 +64,8 @@ FEATURE_QVIEW_APIANS_FAIL   = Answer addition failed
 FEATURE_QVIEW_APIBEST_NOID  = No ID profided to best answer API.
 FEATURE_QVIEW_APIBEST_BADID = Unable to parse question or answer IDs from provided ID.
 
+FEATURE_QVIEW_QDEL          = Delete this question
+FEATURE_QVIEW_QEDIT         = Edit this question
 
 FEATURE_QVIEW_ASORT_CREATED = Created
 FEATURE_QVIEW_ASORT_RATING  = Rating

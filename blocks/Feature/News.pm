@@ -236,7 +236,7 @@ sub _build_post {
     # Determine whether the post has been edited
     my $editby = $self -> {"template"} -> process_template($temcache -> {"edittem"} -> [(($post -> {"creator_id"} != $post -> {"editor_id"}) ||
                                                                                          ($post -> {"created"} != $post -> {"edited"}))],
-                                                           {"***edited***"   => $self -> {"template"} -> format_time($post -> {"edited"}),
+                                                           {"***edited***"   => $self -> {"template"} -> fancy_time($post -> {"edited"}),
                                                             "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"}, "showhist" => "t" }),
                                                             "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $editor -> {"username"} ]),
                                                             "***name***"     => $editor -> {"fullname"},
@@ -245,7 +245,7 @@ sub _build_post {
     # And return the fillled-in post.
     return $self -> {"template"} -> process_template($temcache -> {"entrytem"},
                                                      {"***postid***"   => $post -> {"id"},
-                                                      "***posted***"   => $self -> {"template"} -> format_time($post -> {"created"}),
+                                                      "***posted***"   => $self -> {"template"} -> fancy_time($post -> {"created"}),
                                                       "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
                                                       "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
                                                       "***name***"     => $poster -> {"fullname"},
