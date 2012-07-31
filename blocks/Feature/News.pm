@@ -53,9 +53,6 @@ sub new {
     # FIXME: This will probably need to instantiate the tags feature to get at Feature::Tags::block_display().
     # $self -> {"tags"} = $self -> {"modules"} -> load_module("Feature::Tags");
 
-    # Cache the courseid for later
-    $self -> {"courseid"} = $self -> determine_courseid();
-
     return $self;
 }
 
@@ -152,6 +149,8 @@ sub validate_news_post {
                                                     "***errors***"  => $self -> {"template"} -> process_template($errtem,
                                                                                                                  {"***error***" => $self -> {"news"} -> {"errstr"}})}),
                    $args);
+
+    $self -> log("news:add", "Added news post ".$post -> {"id"});
 
     return ($post, $args);
 }
@@ -333,6 +332,8 @@ sub build_news_list {
     my $returntem  = $postid ? "returnlink.tem" : "noreturnlink.tem";
     my $returnlink = $self -> {"template"} -> load_template("feature/news/$returntem", {"***url***" => $self -> build_url(block => "news")});
 
+    $self -> log("news:view", "Viewing $count posts from ".($postid ? "post $postid" : "latest"));
+
     return ($self -> {"template"} -> load_template("feature/news/postlist.tem",
                                                    {"***returnlink***" => $returnlink,
                                                     "***error***"      => $error,
@@ -361,6 +362,8 @@ sub build_api_more_response {
     # Has the user requested a specific post id to show?
     my $postid = is_defined_numeric($self -> {"cgi"}, "postid");
 
+    $self -> log("news:more", "Requested more from ".($postid ? "post $postid" : "latest"));
+
     # Try to build the post list, give up with an error if it doesn't work
     eval { $posts = $self -> build_post_list($postid, $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"}, 1) };
     return $self -> api_errorhash("list_failed", $@)
@@ -384,18 +387,24 @@ sub build_api_delete_response {
     my $postid = is_defined_numeric($self -> {"cgi"}, "postid")
         or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_NOPOST"));
 
+    $self -> log("news:delete", "Requested delete of post $postid");
+
     # Get the post so it can be checked for access
     my $post = $self -> {"news"} -> get_post($postid)
         or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
     # Does the user have permission to delete it?
     my $ownership = ($post -> {"creator_id"} == $userid ? "own" : "other");
-    return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_PERM"))
-        unless($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.delete$ownership"));
+    if(!$self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.delete$ownership")) {
+        $self -> log("error:news:delete", "Permission denied");
+        return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_PERM"))
+    }
 
     # Get here and the post id is valid and the user can delete it, try it
     $self -> {"news"} -> delete_post($postid, $userid)
         or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    $self -> log("news:delete", "Post $postid deleted");
 
     return { 'response' => { 'status' => 'ok' } };
 }
@@ -416,14 +425,18 @@ sub build_api_edit_response {
     my $postid = is_defined_numeric($self -> {"cgi"}, "postid")
         or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_NOPOST"));
 
+    $self -> log("news:edit", "Requested edit of post $postid");
+
     # Get the post so it can be checked for access
     my $post = $self -> {"news"} -> get_post($postid)
         or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
     # Does the user have permission to edit it?
     my $ownership = ($post -> {"creator_id"} == $userid ? "own" : "other");
-    return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_PERM"))
-        unless($self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.edit$ownership"));
+    if(!$self -> {"news"} -> check_permission($post -> {"metadata_id"}, $userid, "news.edit$ownership")) {
+        $self -> log("error:news:edit", "Permission denied");
+        return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_PERM"))
+    }
 
     # User has permission, check the fields
     my $errors = $self -> _validate_fields($args);
@@ -435,7 +448,10 @@ sub build_api_edit_response {
 
     # Edit the post...
     if($self -> {"news"} -> edit_post($postid, $userid, $args -> {"subject"}, $args -> {"message"})) {
-        $post = $self -> {"news"} -> get_post($postid);
+        $post = $self -> {"news"} -> get_post($postid)
+            or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+        $self -> log("news:edit", "Post $postid edited");
 
         return $self -> _build_post($post, { "entrytem"   => $self -> {"template"} -> load_template("feature/news/post.tem"),
                                              "contenttem" => $self -> {"template"} -> load_template("feature/news/post_content.tem"),
@@ -484,6 +500,7 @@ sub page_display {
                                                                      $self -> {"template"} -> replace_langvar("API_BAD_OP")))
         }
     } else {
+
         # Is the user attempting to post a new news post? If so, they need permission
         # and validation. Of the form submission, the user probably doesn't need validation.
         if(defined($self -> {"cgi"} -> param("newpost"))) {
