@@ -68,6 +68,14 @@ var LightFace = new Class({
 			styles: {
 				"z-index": this.options.zIndex,
 				width: this.options.width
+			},
+			tween: {
+				duration: this.options.fadeDuration,
+				onComplete: function() {
+					if(this.box.getStyle("opacity") < 0.2) {
+						this.box.setStyles({ top: -9000, left: -9000 });
+					}
+				}.bind(this)
 			}
 		}).inject(document.body, "bottom");
 		
