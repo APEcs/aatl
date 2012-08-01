@@ -1201,12 +1201,13 @@ sub _delete {
 }
 
 
-## @method private $ _new_text($userid, $subject, $message, $timestamp, $previd)
+## @method private $ _new_text($userid, $subject, $reason, $message, $timestamp, $previd)
 # Create a new text entry, recording whether it is an edit of a previous entry
 # or a new one.
 #
 # @param userid    The ID of the user posting the text.
 # @param subject   The text subject (may be undef)
+# @param reason    Optional reason for the text creation.
 # @param message   The message to show in the text body.
 # @param timestamp Optional unix typestamp to set for the text. If not provided,
 #                  the current time is used.
@@ -1217,6 +1218,7 @@ sub _new_text {
     my $self      = shift;
     my $userid    = shift;
     my $subject   = shift;
+    my $reason    = shift;
     my $message   = shift;
     my $timestamp = shift || time();
     my $previd    = shift;
@@ -1227,9 +1229,9 @@ sub _new_text {
     undef $previd if(!$previd);
 
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."`
-                                            (edited, editor_id, previous_id, subject, message)
-                                            VALUES(?, ?, ?, ?, ?)");
-    my $result = $newh -> execute($timestamp, $userid, $previd, $subject, $message);
+                                            (edited, editor_id, previous_id, subject, reason, message)
+                                            VALUES(?, ?, ?, ?, ?, ?)");
+    my $result = $newh -> execute($timestamp, $userid, $previd, $subject, $reason, $message);
     return $self -> self_error("Unable to perform text insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Text insert failed, no rows inserted") if($result eq "0E0");
 

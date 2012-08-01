@@ -284,3 +284,6 @@ ul#answers > li:first-child {
     border-top: none;
 }
 
+div.formsubmit input.whybox {
+    float: left;
+}

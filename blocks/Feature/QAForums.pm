@@ -22,6 +22,7 @@ package Feature::QAForums;
 
 use strict;
 use base qw(Feature);
+use Utils qw(is_defined_numeric);
 use System::QAForums;
 use POSIX qw(ceil);
 use HTML::Scrubber;
@@ -348,6 +349,59 @@ sub _build_question_controls {
 }
 
 
+## @method private @ _build_question($question, $userid, $permcache)
+# Generate the question block. This generates the HTML required to show the question
+# in the question page.
+#
+# @param question  A reference to a hash containing the question data.
+# @param userid    The ID of the user currently logged in
+# @param permcache A reference to a hash of permissions
+# @return A string containing the question html.
+sub _build_question {
+    my $self      = shift;
+    my $question  = shift;
+    my $userid    = shift;
+    my $permcache = shift;
+
+    # Potentially disable delete anyway if the question has answers or comments.
+    $permcache -> {"qdeleteown"}   = $permcache -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+    $permcache -> {"qdeleteother"} = $permcache -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+
+    my $asker  = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($question -> {"creator_id"});
+
+    my ($rateup, $ratedown) = ("", "");
+    # Note that users can not rate their own questions
+    if($permcache -> {"rate"} && ($userid != $question -> {"creator_id"})) {
+        $rateup   = $self -> {"template"} -> load_template("feature/qaforums/rateup.tem");
+        $ratedown = $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem");
+    }
+
+    my $rated = $self -> {"qaforums"} -> user_has_rated_question($question -> {"id"}, $userid);
+
+    return $self -> {"template"} -> load_template("feature/qaforums/question_question.tem",
+                                                  {"***qid***"       => $question -> {"id"},
+                                                   "***rating***"    => $question -> {"rating"},
+                                                   "***rateup***"    => $self -> {"template"} -> process_template($rateup  , {"***active***" => ($rated eq "up" ? "rated" : ""),
+                                                                                                                              "***id***"     => "rup-qid-".$question -> {"id"},
+                                                                                                                              "***title***"  => "{L_FEATURE_QVIEW_QRUP}"}),
+                                                   "***ratedown***"  => $self -> {"template"} -> process_template($ratedown, {"***active***" => ($rated eq "down" ? "rated" : ""),
+                                                                                                                              "***id***"     => "rdn-qid-".$question -> {"id"},
+                                                                                                                              "***title***"  => "{L_FEATURE_QVIEW_QRDOWN}"}),
+                                                   "***locked***"    => "", # TODO
+                                                   "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $question -> {"id"} ]),
+                                                   "***subject***"   => $question -> {"subject"},
+                                                   "***message***"   => $question -> {"message"},
+                                                   "***extrainfo***" => "", # TODO
+                                                   "***controls***"  => $self -> _build_question_controls($question, $userid, $permcache),
+                                                   "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $asker -> {"username"} ]),
+                                                   "***asked***"     => $self -> {"template"} -> fancy_time($question -> {"created"}),
+                                                   "***name***"      => $asker -> {"fullname"},
+                                                   "***gravhash***"  => $asker -> {"gravatar_hash"},
+                                                   "***comments***"  => $self -> _build_comments($question -> {"id"}, "question"),
+                                                  });
+}
+
+
 ## @method private @ _show_question($questionid)
 # Generate a page containing the specified question, its answers and comments.
 #
@@ -404,43 +458,8 @@ sub _show_question {
         "setbest"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.bestother") || ($userid == $question -> {"creator_id"}),
     };
 
-    # Potentially disable delete anyway if the question has answers or comments.
-    $permissions -> {"qdeleteown"}   = $permissions -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
-    $permissions -> {"qdeleteother"} = $permissions -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
-
-    my $asker  = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($question -> {"creator_id"});
-
-    my ($rateup, $ratedown) = ("", "");
-    # Note that users can not rate their own questions
-    if($permissions -> {"rate"} && ($userid != $question -> {"creator_id"})) {
-        $rateup   = $self -> {"template"} -> load_template("feature/qaforums/rateup.tem");
-        $ratedown = $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem");
-    }
-
-    my $rated = $self -> {"qaforums"} -> user_has_rated_question($questionid, $userid);
-
     # Generate the question block
-    $questionblock = $self -> {"template"} -> load_template("feature/qaforums/question_question.tem",
-                                                            {"***qid***"       => $question -> {"id"},
-                                                             "***rating***"    => $question -> {"rating"},
-                                                             "***rateup***"    => $self -> {"template"} -> process_template($rateup  , {"***active***" => ($rated eq "up" ? "rated" : ""),
-                                                                                                                                        "***id***"     => "rup-qid-".$question -> {"id"},
-                                                                                                                                        "***title***"  => "{L_FEATURE_QVIEW_QRUP}"}),
-                                                             "***ratedown***"  => $self -> {"template"} -> process_template($ratedown, {"***active***" => ($rated eq "down" ? "rated" : ""),
-                                                                                                                                        "***id***"     => "rdn-qid-".$question -> {"id"},
-                                                                                                                                        "***title***"  => "{L_FEATURE_QVIEW_QRDOWN}"}),
-                                                             "***locked***"    => "", # TODO
-                                                             "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $question -> {"id"} ]),
-                                                             "***subject***"   => $question -> {"subject"},
-                                                             "***message***"   => $question -> {"message"},
-                                                             "***extrainfo***" => "", # TODO
-                                                             "***controls***"  => $self -> _build_question_controls($question, $userid, $permissions),
-                                                             "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $asker -> {"username"} ]),
-                                                             "***asked***"     => $self -> {"template"} -> fancy_time($question -> {"created"}),
-                                                             "***name***"      => $asker -> {"fullname"},
-                                                             "***gravhash***"  => $asker -> {"gravatar_hash"},
-                                                             "***comments***"  => $self -> _build_comments($question -> {"id"}, "question"),
-                                                            });
+    $questionblock = $self -> _build_question($question, $userid, $permissions);
 
     # Sort for the answers
     my @pathinfo = $self -> {"cgi"} -> param("pathinfo");
@@ -519,19 +538,28 @@ sub _show_question {
 # @param args A reference to a hash to store validated data in.
 # @return undef on success, otherwise an error string.
 sub _validate_question_fields {
-    my $self = shift;
-    my $args = shift;
+    my $self        = shift;
+    my $args        = shift;
+    my $need_reason = shift || 0;
     my ($errors, $error) = ("", "");
 
     my $errtem = $self -> {"template"} -> load_template("error_item.tem");
 
     ($args -> {"subject"}, $error) = $self -> validate_string("subject", {"required" => 1,
-                                                                          "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_SUBJECT"),
-                                                                          "minlen"   => 1,
+                                                                          "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_SUBJECT"),
+                                                                          "minlen"   => 8,
                                                                           "maxlen"   => 255});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
+    ($args -> {"reason"}, $error) = $self -> validate_string("reason", {"required" => $need_reason,
+                                                                        "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_EDITWHY"),
+                                                                        "minlen"   => 8,
+                                                                        "maxlen"   => 255});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
     ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "minlen"   => 8,
+                                                                            "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_MESSAGE"),
                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
@@ -563,7 +591,7 @@ sub _validate_question {
             $args) unless($canpost);
 
     $error = $self -> _validate_question_fields($args);
-    $errors += $error if($error);
+    $errors .= $error if($error);
 
     # Give up here if there are any errors
     return ($self -> {"template"} -> load_template("error_list.tem",
@@ -808,7 +836,7 @@ sub _build_api_answer_add_response {
     return $self -> api_errorhash("internal_error",
                                   $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR",
                                                                            {"***error***" => $self -> {"template"} -> load_template("error_list.tem",
-                                                                                                                                    {"***message***" => "{L_FEATURE_QVIEW_APIANS_FAIL",
+                                                                                                                                    {"***message***" => "{L_FEATURE_QVIEW_APIANS_FAILED}",
                                                                                                                                      "***errors***"  => $errors})}))
         if($errors);
 
@@ -890,6 +918,117 @@ sub _build_api_best_response {
 }
 
 
+## @method $ build_api_edit_question_response()
+# Generate a string or hash to return to the caller in response to an API edit
+# request. This will edit the question, if the user has permission to do so, and
+# it will send back the edited question text in the response.
+#
+# @return A string or hash containing the API response.
+sub _build_api_edit_question_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+    my $args   = {};
+
+    # Has a post been selected for editing?
+    my $qid = is_defined_numeric($self -> {"cgi"}, "qid")
+        or return $self -> api_errorhash("no_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_NOQID"));
+
+    $self -> log("qaforum:question_edit", "Requested edit of question $qid");
+
+    # Get the post so it can be checked for access
+    my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $qid)
+        or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    # Check some permissions
+    my $permcache = {
+        "rate"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.rate"),
+        "flag"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.flag"),
+        "unflag"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.unflag"),
+        "answer"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.answer"),
+        "comment"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.comment"),
+        "editown"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editown"),
+        "editother"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editother"),
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deleteother"),
+        "setbest"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.bestother") || ($userid == $question -> {"creator_id"}),
+    };
+
+    # Does the user have permission to edit it?
+    my $ownership = ($question -> {"creator_id"} == $userid ? "own" : "other");
+    if(!$permcache -> {"edit$ownership"}) {
+        $self -> log("error:qaforum:question_edit", "Permission denied");
+        return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QPERM"));
+    }
+
+    # User has permission, check the fields (with reason required)
+    my $errors = $self -> _validate_question_fields($args, 1);
+
+    return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                       {"***message***" => "{L_FEATURE_QVIEW_APIEDIT_QFAIL}",
+                                                                                        "***errors***"  => $errors}))
+        if($errors);
+
+    # Edit the post...
+    if($self -> {"qaforums"} -> edit_question($qid, $userid, $args -> {"subject"}, $args -> {"reason"}, $args -> {"message"})) {
+        my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $qid)
+            or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+        $self -> log("qaforum:edit_question", "Question $qid edited");
+
+        return $self -> _build_question($question, $userid, $permcache);
+    } else {
+        return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                           {"***message***" => "{L_FEATURE_QVIEW_APIEDIT_QFAIL}",
+                                                                                            "***errors***"  => $self -> {"news"} -> {"errstr"}}));
+    }
+
+}
+
+
+## @method $ build_api_delete_question_response()
+# Attempt to 'delete' (actually, mark as deleted) the question requested by the
+# client. This will perform all normal permission checks and generate an XML
+# API response hash to send to the client.
+#
+# @return A reference to a hash containing the API response data.
+sub _build_api_delete_question_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Has a post been selected for deletion?
+    my $qid = is_defined_numeric($self -> {"cgi"}, "qid")
+        or return $self -> api_errorhash("no_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_NOQID"));
+
+    $self -> log("qaforum:delete_question", "Requested delete of question $qid");
+
+    my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $qid)
+        or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    # Check some permissions
+    my $permcache = {
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.deleteother"),
+    };
+    $permcache -> {"qdeleteown"}   = $permcache -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+    $permcache -> {"qdeleteother"} = $permcache -> {"deleteother"} && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
+
+    # Does the user have permission to edit it?
+    my $ownership = ($question -> {"creator_id"} == $userid ? "own" : "other");
+    if(!$permcache -> {"qdelete$ownership"}) {
+        $self -> log("error:qaforum:delete_question", "Permission denied");
+        return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QPERM"));
+    }
+
+    # Get here and the post id is valid and the user can delete it, try it
+    $self -> {"qaforums"} -> delete_question($qid, $userid)
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    $self -> log("qaforum:delete_question", "Question $qid deleted");
+
+    return { 'response' => { 'status' => 'ok' } };
+}
+
+
 # ============================================================================
 #  Interface
 
@@ -940,6 +1079,10 @@ sub page_display {
             return $self -> api_response($self -> _build_api_rating_response($apiop));
         } elsif($apiop eq "best") {
             return $self -> api_response($self -> _build_api_best_response());
+        } elsif($apiop eq "editq") {
+            return $self -> api_html_response($self -> _build_api_edit_question_response());
+        } elsif($apiop eq "deleteq") {
+            return $self -> api_response($self -> _build_api_delete_question_response());
         } elsif($apiop eq "answer") {
             return $self -> api_html_response($self -> _build_api_answer_add_response());
         } else {

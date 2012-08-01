@@ -3,6 +3,7 @@
     <script type="text/javascript" src="{V_[templatepath]}js/qaforums.js"></script>
 
     <script type="text/javascript">
-        editbtn_name = "{L_FEATURE_QAFORUM_DOEDIT}";
-        spinner_url  = "{V_[templatepath]}images/spinner.gif";
+        editbtn_name  = "{L_FEATURE_QAFORUM_DOEDIT}";
+        whyfield_name = "{L_FEATURE_QAFORUM_EDITWHY}";
+        spinner_url   = "{V_[templatepath]}images/spinner.gif";
     </script>

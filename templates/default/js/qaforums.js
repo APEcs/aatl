@@ -47,50 +47,187 @@ function rate_toggle(element)
 }
 
 
-function make_editable(qid, config) 
+/** Allow the user to set or clear the best answer for a question.
+ * 
+ * @param element The element that triggered the best answer selection change.
+ */
+function best_toggle(element)
+{
+    var full_id = element.get('id');
+    var core_id = full_id.substr(5);
+    var base_id = full_id.substring(0, full_id.lastIndexOf('-') + 1);
+
+    var req = new Request({ url: api_request_path("qaforum", "best"),
+                            onSuccess: function(respText, respXML) {
+                                var err = respXML.getElementsByTagName("error")[0];
+
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+                                } else {
+                                    var res = respXML.getElementsByTagName("best")[0];
+
+                                    var set = res.getAttribute("set");
+                                    $$('div.bestctl').each(function(element) {
+                                                               var eid = element.get('id');
+
+                                                               if(eid == set) {
+                                                                   element.addClass('chosen');
+                                                               } else {
+                                                                   element.removeClass('chosen');
+                                                               }                                        
+                                                           });
+                                }
+                            }
+                          });
+    req.send("id="+core_id);      
+}
+
+
+/** Convert a question subject and body to a form suitable for editing. This
+ *  replaces the question subject with an input box, the body with a ckeditor 
+ *  text area, and adds a 'reason' box and an 'edit' button.
+ * 
+ * @param qid    The ID of the question to convert to edit mode.
+ * @param config The ckeditor configuration to use.
+ */
+function make_question_editable(qid, config) 
 {
     // Fix up the click action on the edit button before doing anything else
-    $('editbtn-'+qid).removeEvent('click');
-    $('editbtn-'+qid).addClass('ctrldisabled');
+    $('editbtn-q'+qid).removeEvent('click');
+    $('editbtn-q'+qid).addClass('ctrldisabled');
 
     // Create the input elements needed to make the edit work
     var subject = new Element('input', { type: 'text',
                                          size: 70,
                                          maxlength: 100,
-                                         value: $('subj-'+qid).text,
-                                         id: 'editsub-'+qid
+                                         value: $('subj-q'+qid).text,
+                                         id: 'editsub-q'+qid
                                        });
     var message = new Element('div', { 'class': 'textwrapper'
                                      }).adopt(new Element('textarea', { rows: 5,
                                                                         cols: 80,
-                                                                        html: $('qmsg-'+qid).innerHTML,
-                                                                        id: 'editmsg-'+qid
+                                                                        html: $('qmsg-q'+qid).innerHTML,
+                                                                        id: 'editmsg-q'+qid
                                                                       }));
     var submit = new Element('div', 
                              { 'class': 'newpost formsubmit' 
-                             }).adopt([new Element('img', { id: 'workspin-'+qid,
+                             }).adopt([new Element('input', { type: 'text',
+                                         size: 70,
+                                         maxlength: 128,
+                                         id: 'editwhy-q'+qid,
+                                         title: whyfield_name,
+                                         'class': 'whybox'
+                                       }),
+                                       new Element('img', { id: 'workspin-q'+qid,
                                                             style: 'opacity: 0',
                                                             src: spinner_url,
                                                             height: '16',
                                                             width: '16',
                                                             alt: 'working'}),
                                        new Element('input', { type: 'button',
-                                                              id: 'edit-'+qid,
-                                                              name: 'edit-'+qid,
+                                                              id: 'edit-q'+qid,
+                                                              name: 'edit-q'+qid,
                                                               'class': 'button blue',
-                                                              onclick: 'do_editable(\''+qid+'\')',
+                                                              onclick: 'edit_question(\''+qid+'\')',
                                                               value: editbtn_name })]);
-    
     var container = new Element('div', {'class': 'editbox'}).adopt([message, submit]);
+   
     
     // Attach them to the page in place of the original elements
-    subject.replaces($('subj-'+qid));
-    container.replaces($('qmsg-'+qid));
-    CKEDITOR.replace('editmsg-'+qid, { customConfig: config });
+    subject.replaces($('subj-q'+qid));
+    container.replaces($('qmsg-q'+qid));
+    CKEDITOR.replace('editmsg-q'+qid, { customConfig: config });
+    new OverText($('editwhy-q'+qid));
     foo = 1;
 }
 
 
+/** AJAX function to take the contents of the editor fields for a question and ask
+ *  the server to update the question. If the update succeeds, this replaces the edit
+ *  fields with the returned content.
+ * 
+ * @param qid The ID of the question being updated.
+ */
+function edit_question(qid)
+{
+    if(postlock) return false;
+    postlock = true;
+
+    var req = new Request.HTML({ url: api_request_path("qaforum", "editq"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('workspin-q'+qid).fade('in');
+                                     $('edit-q'+qid).removeEvents('click');
+                                     $('edit-q'+qid).addClass('disabled');
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     var err = respHTML.match(/^<div id="apierror"/);
+                                     
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+
+                                         $('workspin-q'+qid).fade('out');
+                                         $('edit-q'+qid).removeClass('disabled');
+                                         $('edit-q'+qid).addEvent('click', function() { edit_question(qid); });
+
+                                     // No error, post was edited, the element provided should
+                                     // be the updated <li>...
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+
+                                         var oldElem = $('qid-'+qid);
+                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-q'+qid].destroy(); 
+                                                                                             tmp.replaces(oldElem).reveal(); 
+                                                                                             oldElem.destroy(); });
+                                         
+                                     }
+                                     postlock = false;
+                                 }
+                               });
+    req.post({qid: qid,
+              subject: $('editsub-q'+qid).get('value'),
+              reason: $('editwhy-q'+qid).get('value'),
+              message: CKEDITOR.instances['editmsg-q'+qid].getData()
+             });  
+}
+
+
+/** Attempt to delete a question. This will ask the server to delete the specified 
+ *  question and if the entry is deleted the user is redirected to the question list.
+ * 
+ * @param qid The ID of the question to attempt to delete.
+ */
+function delete_question(qid)
+{
+    var req = new Request({ url: api_request_path("qaforum", "deleteq"),
+                            onRequest: function() {
+                                $('delbtn-q'+qid).addClass('working');
+                                $('delbtn-q'+qid).getChildren('img')[0].fade('in');
+                            },
+                            onSuccess: function(respText, respXML) {
+                                $('delbtn-q'+qid).getChildren('img')[0].fade('out').removeClass('working');
+                                
+                                var err = respXML.getElementsByTagName("error")[0];
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+
+                                // No error, post was deleted
+                                } else {
+                                    var reqpath = window.location.href;
+                                    var blockpos = reqpath.indexOf('qaforum');
+                                    if(blockpos != -1) {
+                                        reqpath = reqpath.substring(0, blockpos + 7);
+                                    }
+                                    location.href = reqpath;
+                                }
+                            }
+                          });
+    req.send("qid="+qid);  
+}
 
 /** Add an answer to the specified question
  * 
@@ -148,38 +285,6 @@ function add_answer(questionid)
     return false;
 }
 
-
-function best_toggle(element)
-{
-    var full_id = element.get('id');
-    var core_id = full_id.substr(5);
-    var base_id = full_id.substring(0, full_id.lastIndexOf('-') + 1);
-
-    var req = new Request({ url: api_request_path("qaforum", "best"),
-                            onSuccess: function(respText, respXML) {
-                                var err = respXML.getElementsByTagName("error")[0];
-
-                                if(err) {
-                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
-                                    errbox.open();
-                                } else {
-                                    var res = respXML.getElementsByTagName("best")[0];
-
-                                    var set = res.getAttribute("set");
-                                    $$('div.bestctl').each(function(element) {
-                                                               var eid = element.get('id');
-
-                                                               if(eid == set) {
-                                                                   element.addClass('chosen');
-                                                               } else {
-                                                                   element.removeClass('chosen');
-                                                               }                                        
-                                                           });
-                                }
-                            }
-                          });
-    req.send("id="+core_id);      
-}
 
 window.addEvent('domready', function() {
     $$('div.ratectl').each(
