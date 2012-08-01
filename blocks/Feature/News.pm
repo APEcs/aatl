@@ -100,6 +100,8 @@ sub _validate_fields {
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
     ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "minlen"   => 8,
+                                                                            "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_MESSAGE"),
                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
@@ -111,9 +113,9 @@ sub _validate_fields {
 # Determine whether the user has permission to post news posts, and if they do
 # validate the data they have submitted.
 #
-# @return An array of two values: a reference to the new post data on success,
-#         an error message on failure; and a reference to a hash containing any
-#         submitted values that passed validation.
+# @return An array of two values: an error message on failure and a reference to
+#         a hash containing any submitted values that passed validation. Does not
+#         return on successful news posting.
 sub validate_news_post {
     my $self = shift;
     my ($args, $errors, $error) = ({}, "", "");
@@ -131,7 +133,7 @@ sub validate_news_post {
             $args) unless($canpost);
 
     $error = $self -> _validate_fields($args);
-    $errors += $error if($error);
+    $errors .= $error if($error);
 
     # Give up here if there are any errors
     return ($self -> {"template"} -> load_template("error_list.tem",
@@ -152,7 +154,8 @@ sub validate_news_post {
 
     $self -> log("news:add", "Added news post ".$post -> {"id"});
 
-    return ($post, $args);
+    print $self -> {"cgi"} -> redirect($self -> build_url(block => "news"));
+    exit;
 }
 
 
@@ -505,16 +508,8 @@ sub page_display {
         # and validation. Of the form submission, the user probably doesn't need validation.
         if(defined($self -> {"cgi"} -> param("newpost"))) {
             my ($error, $args) = $self -> validate_news_post();
+            ($content, $extrahead) = $self -> build_news_list($error, $args);
 
-            # Has an error been encountered while generating the news post? If so,
-            # send everything back with the error message...
-            if(!ref($error)) {
-                ($content, $extrahead) = $self -> build_news_list($error, $args);
-
-            # Otherwise, send back the new page.
-            } else {
-                ($content, $extrahead) = $self -> build_news_list();
-            }
         } else {
             # Generate the news list
             ($content, $extrahead) = $self -> build_news_list();

@@ -6,6 +6,7 @@ FEATURE_NEWS_TITLE    = News
 FEATURE_NEWS_POSTED   = Posted
 FEATURE_NEWS_EDITED   = Edited
 FEATURE_NEWS_SUBJECT  = News post subject
+FEATURE_NEWS_MESSAGE  = News post message
 FEATURE_NEWS_MSG      = Enter your news message here
 FEATURE_NEWS_POST     = Post news entry
 FEATURE_NEWS_BACKLINK = Show all news posts
