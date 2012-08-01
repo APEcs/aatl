@@ -124,7 +124,7 @@ sub create_question {
         or return undef;
 
     # Set the queston text.
-    $self -> edit_question($qid, $userid, $subject, $message, $now)
+    $self -> edit_question($qid, $userid, $subject, undef, $message, $now)
         or return undef;
 
     # DO TAGS HERE
@@ -133,27 +133,31 @@ sub create_question {
 }
 
 
-## @method $ edit_question($questionid, $userid, $subject, $message)
+## @method $ edit_question($questionid, $userid, $subject, $reason, $message, $timestamp)
 # Create a new text and attach it to an existing question, replacing the old
 # text for that entry.
 #
 # @param questionid The ID of the question to attach a new text to.
 # @param userid     The ID of the user creating the new text.
 # @param subject    The text subject.
+# @param reason     The edit reason.
 # @param message    The message to show in the text body.
+# @param timestamp  Optional timestamp to set for the edit.
 # @return True on success, undef on error.
 sub edit_question {
     my $self       = shift;
     my $questionid = shift;
     my $userid     = shift;
     my $subject    = shift;
+    my $reason     = shift;
     my $message    = shift;
+    my $timestamp  = shift;
 
     my $previd = $self -> _get_current_textid($questionid, "question");
     return undef unless(defined($previd));
 
     # Make a new text entry
-    my $textid = $self -> _new_text($userid, $subject, $message, $previd)
+    my $textid = $self -> _new_text($userid, $subject, $reason, $message, $timestamp, $previd)
         or return undef;
 
     # Update the question textid
@@ -307,7 +311,7 @@ sub create_answer {
         or return undef;
 
     # Set the answer text.
-    $self -> edit_answer($aid, $userid, $message, $now)
+    $self -> edit_answer($aid, $userid, undef, $message, $now)
         or return undef;
 
     $self -> _sync_counts($questionid)
@@ -317,19 +321,23 @@ sub create_answer {
 }
 
 
-## @method $ edit_answer($questionid, $userid, $message)
+## @method $ edit_answer($questionid, $userid, $reason, $message, $timestamp)
 # Create a new text and attach it to an existing answer, replacing the old
 # text for that entry.
 #
-# @param answerid The ID of the question to attach a new text to.
-# @param userid   The ID of the user creating the new text.
-# @param message  The message to show in the text body.
+# @param answerid  The ID of the question to attach a new text to.
+# @param userid    The ID of the user creating the new text.
+# @param reason    The reason for the edit.
+# @param message   The message to show in the text body.
+# @param timestamp Optional timestamp to set for the edit.
 # @return True on success, undef on error.
 sub edit_answer {
-    my $self     = shift;
-    my $answerid = shift;
-    my $userid   = shift;
-    my $message  = shift;
+    my $self      = shift;
+    my $answerid  = shift;
+    my $userid    = shift;
+    my $reason    = shift;
+    my $message   = shift;
+    my $timestamp = shift;
 
     $self -> clear_error();
 
@@ -337,7 +345,7 @@ sub edit_answer {
     return undef unless(defined($previd));
 
     # Make a new text entry
-    my $textid = $self -> _new_text($userid, "", $message, $previd)
+    my $textid = $self -> _new_text($userid, "", $reason, $message, $timestamp, $previd)
         or return undef;
 
     # Update the answer text id
@@ -494,7 +502,7 @@ sub create_comment {
         or return undef;
 
     # Set the answer text.
-    $self -> edit_comment($cid, $userid, $message, $now)
+    $self -> edit_comment($cid, $userid, undef, $message, $now)
         or return undef;
 
     # Attach it
@@ -508,25 +516,29 @@ sub create_comment {
 }
 
 
-## @method $ edit_comment($commentid, $userid, $message)
+## @method $ edit_comment($commentid, $userid, $reason, $message, $timestamp)
 # Create a new text and attach it to an existing comment, replacing the old
 # text for that entry.
 #
 # @param commentid The ID of the comment to attach a new text to.
 # @param userid    The ID of the user creating the new text.
+# @param reason    The reason for the edit.
 # @param message   The message to show in the text body.
+# @param timestamp Optional timestamp to set for the edit.
 # @return True on success, undef on error.
 sub edit_comment {
     my $self      = shift;
     my $commentid = shift;
     my $userid    = shift;
+    my $reason    = shift;
     my $message   = shift;
+    my $timestamp = shift;
 
     my $previd = $self -> _get_current_textid($commentid, "comment");
     return undef unless(defined($previd));
 
     # Make a new text entry
-    my $textid = $self -> _new_text($userid, "", $message, $previd)
+    my $textid = $self -> _new_text($userid, "", $reason, $message, $timestamp, $previd)
         or return undef;
 
     # Update the comment text id
