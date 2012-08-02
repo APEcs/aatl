@@ -532,10 +532,11 @@ sub _show_question {
 # ============================================================================
 #  Question validation and addition
 
-## @method private $ _validate_question_fields($args)
+## @method private $ _validate_question_fields($args, $need_reason)
 # Validate the subject and message fields submitted by the user.
 #
-# @param args A reference to a hash to store validated data in.
+# @param args        A reference to a hash to store validated data in.
+# @param need_reason If true, the user must provide a value in the 'reason' field
 # @return undef on success, otherwise an error string.
 sub _validate_question_fields {
     my $self        = shift;
@@ -554,7 +555,7 @@ sub _validate_question_fields {
     ($args -> {"reason"}, $error) = $self -> validate_string("reason", {"required" => $need_reason,
                                                                         "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_EDITWHY"),
                                                                         "minlen"   => 8,
-                                                                        "maxlen"   => 255});
+                                                                        "maxlen"   => 128});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
     ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
@@ -764,20 +765,30 @@ sub _build_answer {
 # ============================================================================
 #  Answer validation and addition
 
-## @method private $ _validate_answer_fields($args)
+## @method private @ _validate_answer_fields($need_reason)
 # Validate the message field submitted by the user.
 #
-# @param args A reference to a hash to store validated data in.
-# @return undef on success, otherwise an error string.
+# @param need_reason If true, the user must provide a value in the 'reason' field
+# @return Two vaules: undef on success, otherwise an error string, and a reference
+#         to a hash containing fields that passed validation.
 sub _validate_answer_fields {
-    my $self = shift;
-    my $args = {};
+    my $self        = shift;
+    my $need_reason = shift;
+    my $args        = {};
     my ($errors, $error) = ("", "");
 
     my $errtem = $self -> {"template"} -> load_template("error_item.tem");
 
     ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "minlen"   => 8,
+                                                                            "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_AMESSAGE"),
                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    ($args -> {"reason"}, $error) = $self -> validate_string("reason", {"required" => $need_reason,
+                                                                        "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_EDITWHY"),
+                                                                        "minlen"   => 8,
+                                                                        "maxlen"   => 128});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
     return ($errors, $args);
@@ -847,70 +858,6 @@ sub _build_api_rating_response {
 }
 
 
-## @method $ _build_api_answer_add_response()
-# Attempt to add and answer to a question. This will validate that the data submitted by
-# the user is valid, and if so it will add the answer and send back the answer fragment to
-# embed in the page.
-#
-# @return
-sub _build_api_answer_add_response {
-    my $self   = shift;
-    my $userid = $self -> {"session"} -> get_session_userid();
-
-    # The question ID should be provided by the query
-    my $qid = $self -> {"cgi"} -> param("id")
-        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_NOID"));
-
-    # Check that the user has permission to answer the question.
-    my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
-
-    if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.answer")) {
-        $self -> log("qaforum:api_answer", "No permission to answer question $qid");
-        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_PERMS"));
-    }
-
-    # Check that the user's message is valid
-    my ($errors, $args) = $self -> _validate_answer_fields();
-    return $self -> api_errorhash("internal_error",
-                                  $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR",
-                                                                           {"***error***" => $self -> {"template"} -> load_template("error_list.tem",
-                                                                                                                                    {"***message***" => "{L_FEATURE_QVIEW_APIANS_FAILED}",
-                                                                                                                                     "***errors***"  => $errors})}))
-        if($errors);
-
-    # Message is valid, try to add it
-    my $aid = $self -> {"qaforums"} -> create_answer($qid, $userid, $args -> {"message"})
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
-
-    my $answerdata = $self -> {"qaforums"} -> get_answer($qid, $aid)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
-
-    $self -> log("qaforum:api_answer", "Answered question $qid with answer $aid");
-
-    my $permissions = {
-        "rate"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"),
-        "flag"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag"),
-        "unflag"      => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.unflag"),
-        "comment"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.comment"),
-        "editown"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editown"),
-        "editother"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editother"),
-        "deleteown"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteown"),
-        "deleteother" => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deletether"),
-        "setbest"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.bestother") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid)
-    };
-
-    # Convert the question to html to send back
-    return $self -> _build_answer($answerdata,
-                                  { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
-                                    "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
-                                    "ratedown" => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
-                                    "bestest"  => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
-                                  },
-                                  $permissions);
-}
-
-
 ## @method private $ _build_api_best_response($op)
 # Update the best status for the
 #
@@ -940,7 +887,7 @@ sub _build_api_best_response {
     }
 
     # Get the current best
-    my $current = $self -> {"qaforums"} -> get_best_answer($qid);
+    my ($current, $set_time) = $self -> {"qaforums"} -> get_best_answer($qid);
     return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($current));
 
@@ -968,13 +915,13 @@ sub _build_api_edit_question_response {
     my $userid = $self -> {"session"} -> get_session_userid();
     my $args   = {};
 
-    # Has a post been selected for editing?
+    # Has a question been selected for editing?
     my $qid = is_defined_numeric($self -> {"cgi"}, "qid")
         or return $self -> api_errorhash("no_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_NOQID"));
 
     $self -> log("qaforum:question_edit", "Requested edit of question $qid");
 
-    # Get the post so it can be checked for access
+    # Get the question so it can be checked for access
     my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $qid)
         or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
@@ -1068,6 +1015,148 @@ sub _build_api_delete_question_response {
 }
 
 
+## @method $ _build_api_answer_add_response()
+# Attempt to add and answer to a question. This will validate that the data submitted by
+# the user is valid, and if so it will add the answer and send back the answer fragment to
+# embed in the page.
+#
+# @return
+sub _build_api_answer_add_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # The question ID should be provided by the query
+    my $qid = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_NOID"));
+
+    # Check that the user has permission to answer the question.
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.answer")) {
+        $self -> log("qaforum:api_answer", "No permission to answer question $qid");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIANS_PERMS"));
+    }
+
+    # Check that the user's message is valid
+    my ($errors, $args) = $self -> _validate_answer_fields();
+    return $self -> api_errorhash("internal_error",
+                                  $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR",
+                                                                           {"***error***" => $self -> {"template"} -> load_template("error_list.tem",
+                                                                                                                                    {"***message***" => "{L_FEATURE_QVIEW_APIANS_FAILED}",
+                                                                                                                                     "***errors***"  => $errors})}))
+        if($errors);
+
+    # Message is valid, try to add it
+    my $aid = $self -> {"qaforums"} -> create_answer($qid, $userid, $args -> {"message"})
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    my $answerdata = $self -> {"qaforums"} -> get_answer($qid, $aid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    $self -> log("qaforum:api_answer", "Answered question $qid with answer $aid");
+
+    my $permissions = {
+        "rate"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"),
+        "flag"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag"),
+        "unflag"      => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.unflag"),
+        "comment"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.comment"),
+        "editown"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editown"),
+        "editother"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editother"),
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deletether"),
+        "setbest"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.bestother") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid)
+    };
+
+    # Convert the question to html to send back
+    return $self -> _build_answer($answerdata,
+                                  { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
+                                    "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
+                                    "ratedown" => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
+                                    "bestest"  => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
+                                  },
+                                  $permissions);
+}
+
+
+## @method $ build_api_edit_answer_response()
+# Generate a string or hash to return to the caller in response to an API edit
+# request. This will edit the answer, if the user has permission to do so, and
+# it will send back the edited answer text in the response.
+#
+# @return A string or hash containing the API response.
+sub _build_api_edit_answer_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+    my $args   = {};
+
+    # Has an answer been selected for edited?
+    my $aid = is_defined_numeric($self -> {"cgi"}, "aid")
+        or return $self -> api_errorhash("no_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_NOAID"));
+
+    # Need the question id for some level of checking
+    my $qid = is_defined_numeric($self -> {"cgi"}, "qid")
+        or return $self -> api_errorhash("no_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_NOQID"));
+
+    $self -> log("qaforum:answer_edit", "Requested edit of answer $aid to question $qid");
+
+    # Get the answer so it can be checked for access
+    my $answer = $self -> {"qaforums"} -> get_answer($qid, $aid)
+        or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    # Check some permissions
+    my $permcache = {
+        "rate"        => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.rate"),
+        "flag"        => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.flag"),
+        "unflag"      => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.unflag"),
+        "comment"     => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.comment"),
+        "editown"     => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.editown"),
+        "editother"   => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.editother"),
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.deleteother"),
+        "setbest"     => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.bestother") || ($userid == $answer -> {"creator_id"}),
+    };
+
+    # Does the user have permission to edit it?
+    my $ownership = ($answer -> {"creator_id"} == $userid ? "own" : "other");
+    if(!$permcache -> {"edit$ownership"}) {
+        $self -> log("error:qaforum:answer_edit", "Permission denied");
+        return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_APERM"));
+    }
+
+    # User has permission, check the fields (with reason required)
+    my ($errors, $args) = $self -> _validate_answer_fields(1);
+    return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                       {"***message***" => "{L_FEATURE_QVIEW_APIEDIT_AFAIL}",
+                                                                                        "***errors***"  => $errors}))
+        if($errors);
+
+    # Edit the post...
+    if($self -> {"qaforums"} -> edit_answer($aid, $userid, $args -> {"reason"}, $args -> {"message"})) {
+        my $answer = $self -> {"qaforums"} -> get_answer($qid, $aid)
+            or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+        $self -> log("qaforum:edit_answer", "Answer $aid to question $qid edited");
+
+        my ($best, $set_time) = $self -> {"qaforums"} -> get_best_answer($qid);
+
+        return $self -> _build_answer($answer,
+                                      { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
+                                        "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
+                                        "ratedown" => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
+                                        "bestest"  => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
+                                      },
+                                      $permcache,
+                                      $best == $answer -> {"id"}, $set_time);
+    } else {
+        return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                           {"***message***" => "{L_FEATURE_QVIEW_APIEDIT_AFAIL}",
+                                                                                            "***errors***"  => $self -> {"news"} -> {"errstr"}}));
+    }
+
+}
+
+
 ## @method $ build_api_delete_answer_response()
 # Attempt to 'delete' (actually, mark as deleted) the answer requested by the
 # client. This will perform all normal permission checks and generate an XML
@@ -1084,7 +1173,7 @@ sub _build_api_delete_answer_response {
 
     # Need the question id for some level of checking
     my $qid = is_defined_numeric($self -> {"cgi"}, "qid")
-        or return $self -> api_errorhash("no_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_NOQID"));
+        or return $self -> api_errorhash("no_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_NOQID"));
 
     $self -> log("qaforum:delete_answer", "Requested delete of answer $aid to question $qid");
 
@@ -1111,7 +1200,7 @@ sub _build_api_delete_answer_response {
         or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
     # If this was the best answer for the question, it isn't anymore!
-    my $best = $self -> {"qaforums"} -> get_best_answer($qid)
+    my ($best, $set_time) = $self -> {"qaforums"} -> get_best_answer($qid)
         or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
     if($best == $aid) {
@@ -1182,6 +1271,8 @@ sub page_display {
             return $self -> api_response($self -> _build_api_delete_question_response());
         } elsif($apiop eq "answer") {
             return $self -> api_html_response($self -> _build_api_answer_add_response());
+        } elsif($apiop eq "edita") {
+            return $self -> api_html_response($self -> _build_api_edit_answer_response());
         } elsif($apiop eq "deletea") {
             return $self -> api_response($self -> _build_api_delete_answer_response());
         } else {

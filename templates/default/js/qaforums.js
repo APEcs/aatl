@@ -1,4 +1,5 @@
 var postlock = false;
+var apostlock = false;
 
 /** Attempt to change the rating on a question or answer.
  *  This will contact the qaforum api and attempt to change the rating on the question
@@ -244,8 +245,8 @@ function delete_question(qid)
  */
 function add_answer(questionid)
 {
-    if(postlock) return false;
-    postlock = true;
+    if(apostlock) return false;
+    apostlock = true;
 
     var req = new Request.HTML({ url: api_request_path("qaforum", "answer"),
                                  method: 'post',
@@ -284,7 +285,7 @@ function add_answer(questionid)
                                      $('answerspin').fade('out');
                                      $('newans').removeClass('disabled');
                                      $('newans').addEvent('click', function() { add_answer(questionid); });
-                                     postlock = false;
+                                     apostlock = false;
                                  }
                                });
     req.post({id: questionid,
@@ -372,7 +373,7 @@ function make_answer_editable(qid, aid, config)
                                                               id: 'edit-a'+aid,
                                                               name: 'edit-a'+aid,
                                                               'class': 'button blue',
-                                                              onclick: 'edit_question(\''+aid+'\')',
+                                                              onclick: 'edit_answer(\''+qid+'\', \''+aid+'\')',
                                                               value: editbtn_name })]);
     var container = new Element('div', {'class': 'editbox', style: 'display: none'}).adopt([message, submit]);
    
@@ -388,6 +389,58 @@ function make_answer_editable(qid, aid, config)
                                            });
 }
 
+
+/** AJAX function to take the contents of the editor fields for an answer and ask
+ *  the server to update the answer. If the update succeeds, this replaces the edit
+ *  fields with the returned content.
+ * 
+ * @param qid The ID of the question containing the answer being updated.
+ * @param aid The ID of the answer being edited.
+ */
+function edit_answer(qid, aid)
+{
+    if(apostlock) return false;
+    apostlock = true;
+
+    var req = new Request.HTML({ url: api_request_path("qaforum", "edita"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('workspin-a'+aid).fade('in');
+                                     $('edit-a'+aid).removeEvents('click');
+                                     $('edit-a'+aid).addClass('disabled');
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     var err = respHTML.match(/^<div id="apierror"/);
+                                     
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+
+                                         $('workspin-a'+aid).fade('out');
+                                         $('edit-a'+aid).removeClass('disabled');
+                                         $('edit-a'+aid).addEvent('click', function() { edit_answer(qid, aid); });
+
+                                     // No error, post was edited, the element provided should
+                                     // be the updated <li>...
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+
+                                         var oldElem = $('aid-'+aid);
+                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-a'+aid].destroy(); 
+                                                                                             tmp.replaces(oldElem).reveal(); 
+                                                                                             oldElem.destroy(); });
+                                         
+                                     }
+                                     apostlock = false;
+                                 }
+                               });
+    req.post({qid: qid,
+              aid: aid,
+              reason: $('editwhy-a'+aid).get('value'),
+              message: CKEDITOR.instances['editmsg-a'+aid].getData()
+             });
+}
 
 window.addEvent('domready', function() {
     $$('div.ratectl').each(

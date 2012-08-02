@@ -282,11 +282,13 @@ sub user_has_rated_question {
 
 
 
-## @method $ get_best_answer($questionid)
+## @method @ get_best_answer($questionid)
 # Obtain the ID of the best answer selected for the specified question, if any.
 #
 # @param questionid The ID of the question to fetch the best answer ID for
-# @return The ID of the best answer, 0 if none has been selected, undef on error.
+# @return Two values; the first is the ID of the best answer, 0 if none has
+#         been selected, undef on error. The second is the time the best answer
+#         was modified (set or cleared).
 sub get_best_answer {
     my $self       = shift;
     my $questionid = shift;

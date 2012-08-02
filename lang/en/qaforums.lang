@@ -15,6 +15,7 @@ FEATURE_QAFORUM_QLIST_TITLE  = QA Forum: ***title***
 FEATURE_QAFORUM_ASK_TITLE    = Ask a question
 FEATURE_QAFORUM_SUBJECT      = Enter a brief description of your question here
 FEATURE_QAFORUM_MESSAGE      = Question message
+FEATURE_QAFORUM_AMESSAGE     = Answer message
 FEATURE_QAFORUM_ASK          = Post your question
 FEATURE_QAFORUM_DOEDIT       = Edit
 FEATURE_QAFORUM_EDITWHY      = Enter a short explanation for the edit here.
@@ -85,6 +86,11 @@ FEATURE_QVIEW_APIDEL_NOQID   = No question ID has been passed to the API.
 FEATURE_QVIEW_APIDEL_QFAILED = Question deletion failed: ***error***
 FEATURE_QVIEW_APIDEL_QFAIL   = Question deletion failed
 FEATURE_QVIEW_APIDEL_QPERM   = You do not have permission to delete this question.
+
+FEATURE_QVIEW_APIEDIT_NOAID   = No answer ID has been passed to the API.
+FEATURE_QVIEW_APIEDIT_AFAILED = Answer editing failed: ***error***
+FEATURE_QVIEW_APIEDIT_AFAIL   = Answer editing failed
+FEATURE_QVIEW_APIEDIT_APERM   = You do not have permission to edit this answer.
 
 FEATURE_QVIEW_APIDEL_NOAID   = No answer ID has been passed to the API.
 FEATURE_QVIEW_APIDEL_AFAILED = Answer deletion failed: ***error***
