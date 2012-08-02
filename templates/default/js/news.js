@@ -138,7 +138,6 @@ function do_editable(postid)
                                                                                              oldElem.destroy(); });
                                          
                                      }
-                                     foo = 1;
                                  }
                                });
     req.post({postid: postid,

@@ -8,8 +8,9 @@
         ***best***
     </div>
     <div class="answer">
-        <div class="message">***message***</div>
+        <div class="message" id="amsg-a***aid***">***message***</div>
         <!-- tags go here... -->
+        ***controls***
         <div class="editinfo">
             <ul class="boxmeta">
                 ***extrainfo***

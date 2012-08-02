@@ -135,11 +135,19 @@ function make_question_editable(qid, config)
    
     
     // Attach them to the page in place of the original elements
+    var oldElem = $('qmsg-q'+qid);
     subject.replaces($('subj-q'+qid));
+    oldElem.dissolve().get('reveal').chain(function() { 
+                                               container.replaces($('qmsg-q'+qid));
+                                               CKEDITOR.replace('editmsg-q'+qid, { customConfig: config });
+                                               container.reveal();
+                                               oldElem.destroy();
+                                               new OverText($('editwhy-q'+qid));
+                                           });
+/*    subject.replaces($('subj-q'+qid));
     container.replaces($('qmsg-q'+qid));
     CKEDITOR.replace('editmsg-q'+qid, { customConfig: config });
-    new OverText($('editwhy-q'+qid));
-    foo = 1;
+    new OverText($('editwhy-q'+qid));*/
 }
 
 
@@ -229,6 +237,7 @@ function delete_question(qid)
     req.send("qid="+qid);  
 }
 
+
 /** Add an answer to the specified question
  * 
  * @param questionid The ID of the question to add the answer to.
@@ -283,6 +292,100 @@ function add_answer(questionid)
              }); 
 
     return false;
+}
+
+
+/** Attempt to delete an answer from the answer list. This askes the 
+ *  server to delete the specified answer and if the entry is deleted
+ *  it removes it from the page.
+ * 
+ * @param qid    The ID of the question this is an answer to.
+ * @param aid  The ID of the answer to attempt to delete.
+ */
+function delete_answer(qid, aid)
+{
+    var req = new Request({ url: api_request_path("qaforum", "deletea"),
+                            onRequest: function() {
+                                $('delbtn-a'+aid).addClass('working');
+                                $('delbtn-a'+aid).getChildren('img')[0].fade('in');
+                            },
+                            onSuccess: function(respText, respXML) {
+                                $('delbtn-a'+aid).getChildren('img')[0].fade('out').removeClass('working');
+                                
+                                var err = respXML.getElementsByTagName("error")[0];
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+
+                                // No error, answer was deleted
+                                } else {
+                                    $('aid-'+aid).dissolve().get('reveal').chain(function() {
+                                                                                     $('aid-'+aid).destroy();
+                                                                                     var list = $('answers').getChildren();
+                                                                                     $('anscount').set('html', list.length);
+                                                                                 });
+                                }
+                            }
+                          });
+    req.post({ qid: qid,
+               aid: aid
+             });  
+}
+
+
+/** Convert an answer to a form suitable for editing. This replaces the answer with a ckeditor 
+ *  text area, and adds a 'reason' box and an 'edit' button.
+ * 
+ * @param qid    The ID of the question this is an answer to.
+ * @param aid    The ID of the answer to convert to edit mode.
+ * @param config The ckeditor configuration to use.
+ */
+function make_answer_editable(qid, aid, config) 
+{
+    // Fix up the click action on the edit button before doing anything else
+    $('editbtn-a'+aid).removeEvent('click');
+    $('editbtn-a'+aid).addClass('ctrldisabled');
+
+    // Create the input elements needed to make the edit work
+    var message = new Element('div', { 'class': 'textwrapper'
+                                     }).adopt(new Element('textarea', { rows: 5,
+                                                                        cols: 80,
+                                                                        html: $('amsg-a'+aid).innerHTML,
+                                                                        id: 'editmsg-a'+aid
+                                                                      }));
+    var submit = new Element('div', 
+                             { 'class': 'newpost formsubmit' 
+                             }).adopt([new Element('input', { type: 'text',
+                                         size: 70,
+                                         maxlength: 128,
+                                         id: 'editwhy-a'+aid,
+                                         title: whyfield_name,
+                                         'class': 'whybox'
+                                       }),
+                                       new Element('img', { id: 'workspin-a'+aid,
+                                                            style: 'opacity: 0',
+                                                            src: spinner_url,
+                                                            height: '16',
+                                                            width: '16',
+                                                            alt: 'working'}),
+                                       new Element('input', { type: 'button',
+                                                              id: 'edit-a'+aid,
+                                                              name: 'edit-a'+aid,
+                                                              'class': 'button blue',
+                                                              onclick: 'edit_question(\''+aid+'\')',
+                                                              value: editbtn_name })]);
+    var container = new Element('div', {'class': 'editbox', style: 'display: none'}).adopt([message, submit]);
+   
+    
+    // Attach them to the page in place of the original elements
+    var oldElem = $('amsg-a'+aid);
+    oldElem.dissolve().get('reveal').chain(function() { 
+                                               container.replaces($('amsg-a'+aid));
+                                               CKEDITOR.replace('editmsg-a'+aid, { customConfig: config });
+                                               container.reveal();
+                                               oldElem.destroy();
+                                               new OverText($('editwhy-a'+aid));
+                                           });
 }
 
 

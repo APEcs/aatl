@@ -322,8 +322,8 @@ sub _build_comments {
 ## @method private $ _build_question_controls($question, $userid, $permcache)
 # Generate the controls the user may use to operate on the specified question, if any.
 #
-# @param post      A reference to a hash containing the question data.
-# @param userid    The ID of the user viewing the questions.
+# @param question  A reference to a hash containing the question data.
+# @param userid    The ID of the user viewing the question.
 # @param permcache The permissions cache for the user.
 # @return A string containing the controls block to show in the post html.
 sub _build_question_controls {
@@ -658,27 +658,41 @@ sub _ask_question {
 }
 
 
-
 # ============================================================================
-#  Answer validation and addition
+#  Answer viewing
 
-## @method private $ _validate_answer_fields($args)
-# Validate the message field submitted by the user.
+## @method private $ _build_answer_controls($answer, $userid, $permcache)
+# Generate the controls the user may use to operate on the specified answer, if any.
 #
-# @param args A reference to a hash to store validated data in.
-# @return undef on success, otherwise an error string.
-sub _validate_answer_fields {
-    my $self = shift;
-    my $args = {};
-    my ($errors, $error) = ("", "");
+# @param answer    A reference to a hash containing the answer data.
+# @param userid    The ID of the user viewing the answer.
+# @param permcache The permissions cache for the user.
+# @return A string containing the controls block to show in the post html.
+sub _build_answer_controls {
+    my $self      = shift;
+    my $answer    = shift;
+    my $userid    = shift;
+    my $permcache = shift;
 
-    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+    # Determine whether operations are permitted
+    my $canedit   = (($answer -> {"creator_id"} == $userid && $permcache -> {"editown"}) ||
+                     ($answer -> {"creator_id"} != $userid && $permcache -> {"editother"}));
+    my $candelete = (($answer -> {"creator_id"} == $userid && $permcache -> {"deleteown"}) ||
+                     ($answer -> {"creator_id"} != $userid && $permcache -> {"deleteother"}));
 
-    ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
-                                                                            "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+    # turn off delete if there are any comments
+    $candelete = $candelete && !$self -> {"qaforums"} -> has_comments($answer -> {"id"}, 'answer');
 
-    return ($errors, $args);
+    # And convert them to strings
+    $canedit   = $canedit   ? "enabled" : "disabled";
+    $candelete = $candelete ? "enabled" : "disabled";
+
+    my $options  = $self -> {"template"} -> load_template("feature/qaforums/controls/edit_answer_${canedit}.tem"    , {"***aid***" => $answer -> {"id"},
+                                                                                                                       "***qid***" => $answer -> {"question_id"}});
+       $options .= $self -> {"template"} -> load_template("feature/qaforums/controls/delete_answer_${candelete}.tem", {"***aid***" => $answer -> {"id"},
+                                                                                                                       "***qid***" => $answer -> {"question_id"}});
+
+    return $self -> {"template"} -> load_template("feature/qaforums/controls.tem", {"***controls***" => $options});
 }
 
 
@@ -725,6 +739,7 @@ sub _build_answer {
 
     return $self -> {"template"} -> process_template($temcache -> {"answer"},
                                                      {"***aid***"       => $answer -> {"id"},
+                                                      "***qid***"       => $answer -> {"question_id"},
                                                       "***rating***"    => $answer -> {"rating"},
                                                       "***rateup***"    => $self -> {"template"} -> process_template($rateup  , {"***active***" => ($rated eq "up" ? "rated" : ""),
                                                                                                                                  "***id***"     => "rup-aid-".$answer -> {"id"},
@@ -735,6 +750,7 @@ sub _build_answer {
                                                       "***best***"      => $bestblock,
                                                       "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $answer -> {"question_id"}, "#aid-".$answer -> {"id"} ]),
                                                       "***message***"   => $answer -> {"message"},
+                                                      "***controls***"  => $self -> _build_answer_controls($answer, $userid, $permcache),
                                                       "***extrainfo***" => "", # TODO
                                                       "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $answerer -> {"username"} ]),
                                                       "***asked***"     => $self -> {"template"} -> fancy_time($answer -> {"created"}),
@@ -742,6 +758,29 @@ sub _build_answer {
                                                       "***gravhash***"  => $answerer -> {"gravatar_hash"},
                                                       "***comments***"  => $self -> _build_comments($answer -> {"id"}, "answer"),
                                                      });
+}
+
+
+# ============================================================================
+#  Answer validation and addition
+
+## @method private $ _validate_answer_fields($args)
+# Validate the message field submitted by the user.
+#
+# @param args A reference to a hash to store validated data in.
+# @return undef on success, otherwise an error string.
+sub _validate_answer_fields {
+    my $self = shift;
+    my $args = {};
+    my ($errors, $error) = ("", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
+                                                                            "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    return ($errors, $args);
 }
 
 
@@ -995,7 +1034,7 @@ sub _build_api_delete_question_response {
     my $self   = shift;
     my $userid = $self -> {"session"} -> get_session_userid();
 
-    # Has a post been selected for deletion?
+    # Has a question been selected for deletion?
     my $qid = is_defined_numeric($self -> {"cgi"}, "qid")
         or return $self -> api_errorhash("no_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_NOQID"));
 
@@ -1021,9 +1060,67 @@ sub _build_api_delete_question_response {
 
     # Get here and the post id is valid and the user can delete it, try it
     $self -> {"qaforums"} -> delete_question($qid, $userid)
-        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIDEL_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 
     $self -> log("qaforum:delete_question", "Question $qid deleted");
+
+    return { 'response' => { 'status' => 'ok' } };
+}
+
+
+## @method $ build_api_delete_answer_response()
+# Attempt to 'delete' (actually, mark as deleted) the answer requested by the
+# client. This will perform all normal permission checks and generate an XML
+# API response hash to send to the client.
+#
+# @return A reference to a hash containing the API response data.
+sub _build_api_delete_answer_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Has an answer been selected for deletion?
+    my $aid = is_defined_numeric($self -> {"cgi"}, "aid")
+        or return $self -> api_errorhash("no_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_NOAID"));
+
+    # Need the question id for some level of checking
+    my $qid = is_defined_numeric($self -> {"cgi"}, "qid")
+        or return $self -> api_errorhash("no_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_NOQID"));
+
+    $self -> log("qaforum:delete_answer", "Requested delete of answer $aid to question $qid");
+
+    my $answer = $self -> {"qaforums"} -> get_answer($qid, $aid)
+        or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    # Check some permissions
+    my $permcache = {
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.deleteother"),
+    };
+    $permcache -> {"adeleteown"}   = $permcache -> {"deleteown"}   && !$self -> {"qaforums"} -> has_comments($aid, "answer");
+    $permcache -> {"adeleteother"} = $permcache -> {"deleteother"} && !$self -> {"qaforums"} -> has_comments($aid, "answer");
+
+    # Does the user have permission to delete it?
+    my $ownership = ($answer -> {"creator_id"} == $userid ? "own" : "other");
+    if(!$permcache -> {"adelete$ownership"}) {
+        $self -> log("error:qaforum:delete_answer", "Permission denied");
+        return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_APERM"));
+    }
+
+    # Get here and the post id is valid and the user can delete it, try it
+    $self -> {"qaforums"} -> delete_answer($aid, $userid)
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    # If this was the best answer for the question, it isn't anymore!
+    my $best = $self -> {"qaforums"} -> get_best_answer($qid)
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    if($best == $aid) {
+        $self -> log("qaforum:delete_answer", "Delete of answer $aid to question $qid causing implicit best reset");
+        $self -> {"qaforums"} -> set_best_answer($qid, undef)
+            or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+    }
+
+    $self -> log("qaforum:delete_answer", "Answer $aid to question $qid deleted");
 
     return { 'response' => { 'status' => 'ok' } };
 }
@@ -1085,6 +1182,8 @@ sub page_display {
             return $self -> api_response($self -> _build_api_delete_question_response());
         } elsif($apiop eq "answer") {
             return $self -> api_html_response($self -> _build_api_answer_add_response());
+        } elsif($apiop eq "deletea") {
+            return $self -> api_response($self -> _build_api_delete_answer_response());
         } else {
             return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                      $self -> {"template"} -> replace_langvar("API_BAD_OP")))

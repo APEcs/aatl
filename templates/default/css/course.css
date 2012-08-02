@@ -186,3 +186,7 @@ textarea.flext {
 a {
     text-decoration: none;
 }
+
+div.editbox {
+    padding-bottom: 5px;
+}

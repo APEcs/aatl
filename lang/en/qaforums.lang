@@ -68,6 +68,8 @@ FEATURE_QVIEW_APIBEST_BADID = Unable to parse question or answer IDs from provid
 
 FEATURE_QVIEW_QDEL          = Delete this question
 FEATURE_QVIEW_QEDIT         = Edit this question
+FEATURE_QVIEW_ADEL          = Delete this answer
+FEATURE_QVIEW_AEDIT         = Edit this answer
 
 FEATURE_QVIEW_ASORT_CREATED = Created
 FEATURE_QVIEW_ASORT_RATING  = Rating
@@ -83,3 +85,8 @@ FEATURE_QVIEW_APIDEL_NOQID   = No question ID has been passed to the API.
 FEATURE_QVIEW_APIDEL_QFAILED = Question deletion failed: ***error***
 FEATURE_QVIEW_APIDEL_QFAIL   = Question deletion failed
 FEATURE_QVIEW_APIDEL_QPERM   = You do not have permission to delete this question.
+
+FEATURE_QVIEW_APIDEL_NOAID   = No answer ID has been passed to the API.
+FEATURE_QVIEW_APIDEL_AFAILED = Answer deletion failed: ***error***
+FEATURE_QVIEW_APIDEL_AFAIL   = Answer deletion failed
+FEATURE_QVIEW_APIDEL_APERM   = You do not have permission to delete this answer.

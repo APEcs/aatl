@@ -1,0 +1,1 @@
+<li><div class="control delete" id="delbtn-a***aid***" onclick="delete_answer('***qid***', '***aid***')" title="{L_FEATURE_QVIEW_ADEL}" /><img src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="spinner" /></div></li>

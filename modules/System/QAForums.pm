@@ -88,7 +88,7 @@ sub check_permission {
 
 
 # ============================================================================
-#  Creation and editing
+#  Question related
 
 ## @method $ create_question($courseid, $userid, $subject, $message, $tags)
 # Create a new question using the values provided. This will create a new question
@@ -279,6 +279,59 @@ sub user_has_rated_question {
     return $rating -> {"updown"} || "";
 }
 
+
+
+
+## @method $ get_best_answer($questionid)
+# Obtain the ID of the best answer selected for the specified question, if any.
+#
+# @param questionid The ID of the question to fetch the best answer ID for
+# @return The ID of the best answer, 0 if none has been selected, undef on error.
+sub get_best_answer {
+    my $self       = shift;
+    my $questionid = shift;
+
+    $self -> clear_error();
+
+    my $besth = $self -> {"dbh"} -> prepare("SELECT best_answer_id
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                             WHERE id = ?");
+    $besth -> execute($questionid)
+        or return $self -> self_error("Unable to execute best answer id lookup for question $questionid: ".$self -> {"dbh"} -> errstr);
+
+    my $best = $besth -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch best answer id for $questionid: entry does not exist");
+
+    return $best -> [0] || 0;
+}
+
+
+## @method $ set_best_answer($questionid, answerid)
+# Set the ID of the best answer selected for the specified question, if any.
+#
+# @param questionid The ID of the question to set the best answer ID for
+# @param answerid   The ID of the best answer. If this is undef, the best answer is cleared.
+# @return true on success, undef on error.
+sub set_best_answer {
+    my $self       = shift;
+    my $questionid = shift;
+    my $answerid   = shift;
+
+    $self -> clear_error();
+
+    my $besth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
+                                             SET best_answer_id = ?, best_answer_set = UNIX_TIMESTAMP(), updated = UNIX_TIMESTAMP()
+                                             WHERE id = ?");
+    my $result = $besth -> execute($answerid, $questionid);
+    return $self -> self_error("Unable to perform best answer update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Best answer update failed, no rows updated") if($result eq "0E0");
+
+    return 1;
+}
+
+
+# ============================================================================
+#  Answer related
 
 ## @method $ create_answer($questionid, $userid, $message)
 # Create a new answer using the values provided. This will create a new answer
@@ -477,6 +530,9 @@ sub user_has_rated_answer {
 }
 
 
+# ============================================================================
+#  Comment related
+
 ## @method $ create_comment($id, $type, $userid, $message)
 # Create a new comment using the values provided. This will create a new comment
 # and attach it to either a question or an answer.
@@ -672,6 +728,9 @@ sub user_marked_helpful {
 }
 
 
+# ============================================================================
+#  Common (Question or Answer)
+
 ## @method $ rate($id, $type, $userid, $mode)
 # Update the rating of a question or answer. This creates a new rating history entry
 # in the ratings table, and then attaches it to a question or answer according to the
@@ -743,6 +802,8 @@ sub get_rating {
     my $id   = shift;
     my $type = shift;
 
+    $self -> clear_error();
+
     my $rateh =  $self -> {"dbh"} -> prepare("SELECT rating
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
                                               WHERE id = ?");
@@ -766,6 +827,8 @@ sub get_metadataid {
     my $self = shift;
     my $id   = shift;
     my $type = shift;
+
+    $self -> clear_error();
 
     my $metah =  $self -> {"dbh"} -> prepare("SELECT metadata_id
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
@@ -794,6 +857,8 @@ sub user_is_owner {
     my $type   = shift;
     my $userid = shift;
 
+    $self -> clear_error();
+
     my $checkh = $self -> {"dbh"} -> prepare("SELECT creator_id
                                               FROM  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
                                               WHERE id = ?");
@@ -806,48 +871,36 @@ sub user_is_owner {
     return $user -> [0] == $userid;
 }
 
-
-## @method $ get_best_answer($questionid)
-# Obtain the ID of the best answer selected for the specified question, if any.
+## @method $ has_comments($id, $type)
+# Determine whether the specified question or answer has comments set.
 #
-# @param questionid The ID of the question to fetch the best answer ID for
-# @return The ID of the best answer, 0 if none has been selected, undef on error.
-sub get_best_answer {
-    my $self       = shift;
-    my $questionid = shift;
+# @param id   The ID of the question or answer to check.
+# @param type The type of entry to check, should be 'question' or 'answer'
+# @return The number of comments set on the question or answer on success
+#         (which may be zero). Undef on error.
+sub has_comments {
+    my $self = shift;
+    my $id   = shift;
+    my $type = shift;
 
-    my $besth = $self -> {"dbh"} -> prepare("SELECT best_answer_id
-                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
-                                             WHERE id = ?");
-    $besth -> execute($questionid)
-        or return $self -> self_error("Unable to execute best answer id lookup for question $questionid: ".$self -> {"dbh"} -> errstr);
+    $self -> clear_error();
 
-    my $best = $besth -> fetchrow_arrayref()
-        or return $self -> self_error("Unable to fetch best answer id for $questionid: entry does not exist");
+    # Force a legal type
+    $type = "question" unless(defined($type) && $type eq "answer");
 
-    return $best -> [0] || 0;
-}
+    my $commh = $self -> {"dbh"} -> prepare("SELECT COUNT(*)
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."` AS r,
+                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."` AS c
+                                             WHERE r.${type}_id = ?
+                                             AND c.id = r.comment_id
+                                             AND c.deleted IS NULL");
+    $commh -> execute($id)
+        or return $self -> self_error("Unable to execute comment count query: ".$self -> {"dbh"} -> errstr);
 
+    my $count = $commh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to obtain comment count, $type $id does not exist?");
 
-## @method $ set_best_answer($questionid, answerid)
-# Set the ID of the best answer selected for the specified question, if any.
-#
-# @param questionid The ID of the question to set the best answer ID for
-# @param answerid   The ID of the best answer. If this is undef, the best answer is cleared.
-# @return true on success, undef on error.
-sub set_best_answer {
-    my $self       = shift;
-    my $questionid = shift;
-    my $answerid   = shift;
-
-    my $besth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
-                                             SET best_answer_id = ?, best_answer_set = UNIX_TIMESTAMP(), updated = UNIX_TIMESTAMP()
-                                             WHERE id = ?");
-    my $result = $besth -> execute($answerid, $questionid);
-    return $self -> self_error("Unable to perform best answer update: ". $self -> {"dbh"} -> errstr) if(!$result);
-    return $self -> self_error("Best answer update failed, no rows updated") if($result eq "0E0");
-
-    return 1;
+    return $count -> [0];
 }
 
 
@@ -867,6 +920,8 @@ sub get_question_count {
     my $self     = shift;
     my $courseid = shift;
     my $noanswer = shift;
+
+    $self -> clear_error();
 
     my $counth = $self -> {"dbh"} -> prepare("SELECT COUNT(*)
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
@@ -906,6 +961,8 @@ sub get_question_list {
     my $self     = shift;
     my $courseid = shift;
     my $settings = shift || {};
+
+    $self -> clear_error();
 
     # Check the configuration values are sane
     $settings -> {"mode"} = "created"
@@ -961,6 +1018,8 @@ sub get_question {
     my $courseid   = shift;
     my $questionid = shift;
 
+    $self -> clear_error();
+
     my $geth = $self -> {"dbh"} -> prepare("SELECT q.*, t.edited, t.editor_id, t.subject, t.message
                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."` AS q,
                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
@@ -988,6 +1047,8 @@ sub get_answer {
     my $questionid = shift;
     my $answerid   = shift;
 
+    $self -> clear_error();
+
     my $geth = $self -> {"dbh"} -> prepare("SELECT a.*, t.edited, t.editor_id, t.subject, t.message
                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."` AS a,
                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
@@ -1013,6 +1074,8 @@ sub get_answers {
     my $self       = shift;
     my $questionid = shift;
     my $sort       = shift;
+
+    $self -> clear_error();
 
     my $dir = $sort eq "created" ? "ASC" : "DESC";
 
@@ -1041,6 +1104,8 @@ sub get_comments {
     my $self = shift;
     my $id   = shift;
     my $type = shift;
+
+    $self -> clear_error();
 
     my $commh = $self -> {"dbh"} -> prepare("SELECT c.*, t.message, t.editor_id, t.edited
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."` AS r,
