@@ -1096,7 +1096,7 @@ sub get_answers {
 
 
 ## @method $ get_comments($id, $type)
-# FEtch all the comments attached to the specified answer or question.
+# Fetch all the comments attached to the specified answer or question.
 #
 # @param id   The ID of the question or answer to fetch the comments for.
 # @param type The type of entry to fetch the comments for, must be "question" or "answer".
@@ -1122,6 +1122,37 @@ sub get_comments {
         or return $self -> self_error("Unable to execute comment query: ".$self -> {"dbh"} -> errstr);
 
     return $commh -> fetchall_arrayref({});
+}
+
+
+## @method $ get_comment($id, $type, $cid)
+# Fetch a comment attached to the specified answer or question.
+#
+# @param id   The ID of the question or answer to fetch the comment for.
+# @param type The type of entry to fetch the comment for, must be "question" or "answer".
+# @param cid  The id of the comment to fetch.
+# @return A reference to hashref containing the comment data on success, undef on error.
+sub get_comment {
+    my $self = shift;
+    my $id   = shift;
+    my $type = shift;
+    my $cid  = shift;
+
+    $self -> clear_error();
+
+    my $commh = $self -> {"dbh"} -> prepare("SELECT c.*, t.message, t.editor_id, t.edited
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."` AS r,
+                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."` AS c,
+                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_texts"}."` AS t
+                                             WHERE r.${type}_id = ?
+                                             AND c.id = r.comment_id
+                                             AND c.id = ?
+                                             AND c.deleted IS NULL
+                                             AND t.id = c.text_id");
+    $commh -> execute($id, $cid)
+        or return $self -> self_error("Unable to execute comment query: ".$self -> {"dbh"} -> errstr);
+
+    return $commh -> fetchrow_hashref();
 }
 
 
