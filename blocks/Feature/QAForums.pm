@@ -26,6 +26,7 @@ use Utils qw(is_defined_numeric);
 use System::QAForums;
 use POSIX qw(ceil);
 use HTML::Scrubber;
+use Text::Markdown 'markdown';
 use Data::Dumper;
 
 # ============================================================================
@@ -277,6 +278,36 @@ sub _show_question_list {
 }
 
 
+## @method private $ _build_comment($comment, $temcache, $permcache)
+# Generate the contents of a question to show in the question block.
+#
+# @param comment   A reference to a hash containing the comment data.
+# @param temcache  A reference to a hash containing the template data.
+# @param permcache A reference to a hash containing the user's permissions.
+# @return A string containing the comment html code.
+sub _build_comment {
+    my $self      = shift;
+    my $comment   = shift;
+    my $temcache  = shift;
+    my $permcache = shift;
+
+    my $commenter = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($comment -> {"creator_id"});
+
+    return $self -> {"template"} -> process_template($temcache -> {"comment"},
+                                                     {"***cid***"       => $comment -> {"id"},
+                                                      "***helpfuls***"  => $comment -> {"helpful"},
+                                                      "***helpop***"    => "",
+                                                      "***flagop***"    => "",
+                                                      "***deleteop***"  => "",
+                                                      "***message***"   => markdown($comment -> {"message"}),
+                                                      "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $commenter -> {"username"} ]),
+                                                      "***commented***" => $self -> {"template"} -> fancy_time($comment -> {"created"}),
+                                                      "***name***"      => $commenter -> {"fullname"},
+                                                      "***gravhash***"  => $commenter -> {"gravatar_hash"},
+                                                     });
+}
+
+
 ## @method private @ _build_comments($id, $type, $permissions)
 # Generate the block of questions currently set for the specified question
 # or answer.
@@ -293,29 +324,25 @@ sub _build_comments {
 
     my $comments = $self -> {"qaforums"} -> get_comments($id, $type);
 
-    my $commtem = $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem");
+    my $temcache = {
+        "comment" => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
+     };
 
     my $qlist = "";
     foreach my $comment (@$comments) {
-        my $commenter = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($comment -> {"creator_id"});
-
-        $qlist .= $self -> {"template"} -> process_template($commtem, {"***cid***"      => $comment -> {"id"},
-                                                                       "***helpfuls***" => $comment -> {"helpful"},
-                                                                       "***helpop***"   => "",
-                                                                       "***flagop***"   => "",
-                                                                       "***deleteop***" => "",
-                                                                       "***message***"  => $comment -> {"message"},
-                                                                       "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $commenter -> {"username"} ]),
-                                                                       "***name***"     => $commenter -> {"fullname"},
-                                                            });
+        $qlist .= $self -> _build_comment($comment, $temcache, $permissions);
     }
+
+    $type = ($type eq "question" ? "qid" : "aid");
 
     my $qform = "";
     $qform = $self -> {"template"} -> load_template("feature/qaforums/comment_form.tem", {"***id***"   => $id,
                                                                                           "***mode***" => $type});
 
     return $self -> {"template"} -> load_template("feature/qaforums/question_comments.tem", {"***comments***"    => $qlist,
-                                                                                             "***commentform***" => $qform});
+                                                                                             "***commentform***" => $qform,
+                                                                                             "***id***"          => $id,
+                                                                                             "***mode***"        => $type});
 }
 
 
@@ -754,7 +781,7 @@ sub _build_answer {
                                                       "***controls***"  => $self -> _build_answer_controls($answer, $userid, $permcache),
                                                       "***extrainfo***" => "", # TODO
                                                       "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $answerer -> {"username"} ]),
-                                                      "***asked***"     => $self -> {"template"} -> fancy_time($answer -> {"created"}),
+                                                      "***answered***"  => $self -> {"template"} -> fancy_time($answer -> {"created"}),
                                                       "***name***"      => $answerer -> {"fullname"},
                                                       "***gravhash***"  => $answerer -> {"gravatar_hash"},
                                                       "***comments***"  => $self -> _build_comments($answer -> {"id"}, "answer"),
@@ -796,6 +823,30 @@ sub _validate_answer_fields {
 
 
 # ============================================================================
+#  Comment validation and addition
+
+## @method private @ _validate_comment_fields()
+# Validate the message field submitted by the user.
+#
+# @return Two vaules: undef on success, otherwise an error string, and a reference
+#         to a hash containing fields that passed validation.
+sub _validate_comment_fields {
+    my $self        = shift;
+    my $args        = {};
+    my ($errors, $error) = ("", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    ($args -> {"message"}, $error) = $self -> validate_string("message", {"required" => 1,
+                                                                          "minlen"   => 8,
+                                                                          "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_CMESSAGE")});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    return ($errors, $args);
+}
+
+
+# ============================================================================
 #  API implementation
 
 ## @method private $ _build_api_rating_response($op)
@@ -822,7 +873,6 @@ sub _build_api_rating_response {
         unless($mode && $id);
 
     $mode = ($mode eq "qid" ? "question" : "answer");
-
 
     # Check the user can rate
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
@@ -1020,7 +1070,7 @@ sub _build_api_delete_question_response {
 # the user is valid, and if so it will add the answer and send back the answer fragment to
 # embed in the page.
 #
-# @return
+# @return  A string or hash containing the API response.
 sub _build_api_answer_add_response {
     my $self   = shift;
     my $userid = $self -> {"session"} -> get_session_userid();
@@ -1068,7 +1118,7 @@ sub _build_api_answer_add_response {
         "setbest"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.bestother") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid)
     };
 
-    # Convert the question to html to send back
+    # Convert the answer to html to send back
     return $self -> _build_answer($answerdata,
                                   { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
                                     "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
@@ -1088,7 +1138,6 @@ sub _build_api_answer_add_response {
 sub _build_api_edit_answer_response {
     my $self   = shift;
     my $userid = $self -> {"session"} -> get_session_userid();
-    my $args   = {};
 
     # Has an answer been selected for edited?
     my $aid = is_defined_numeric($self -> {"cgi"}, "aid")
@@ -1215,6 +1264,73 @@ sub _build_api_delete_answer_response {
 }
 
 
+## @method $ _build_api_comment_add_response()
+# Attempt to add a comment to an answer or question. This will validate that the data
+# submitted by the user is valid, and if so it will add the comment to the answer or
+# question and send back the comment fragment to embed in the page.
+#
+# @return  A string or hash containing the API response.
+sub _build_api_comment_add_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # The ID (which includes the mode and id) should be provided by the query
+    my $fullid = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APICOM_NOID"));
+
+    # Parse out the mode and id
+    my ($mode, $id) = $fullid =~ /^(aid|qid)-(\d+)$/;
+    return $self -> api_errorhash("bad_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APICOM_BADID"))
+        unless($mode && $id);
+
+    $mode = ($mode eq "qid" ? "question" : "answer");
+
+    $self -> log("qaforum:api_comment", "User attempting to comment on $mode $id");
+
+    # Check the user can comment
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.comment")) {
+        $self -> log("qaforum:api_comment", "Permission denied when attempting to comment on $mode $id");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APICOM_PERMS"));
+    }
+
+    # Check that the user's comment is valid
+    my ($errors, $args) = $self -> _validate_comment_fields();
+    return $self -> api_errorhash("internal_error",
+                                  $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR",
+                                                                           {"***error***" => $self -> {"template"} -> load_template("error_list.tem",
+                                                                                                                                    {"***message***" => "{L_FEATURE_QVIEW_APICOM_FAILED}",
+                                                                                                                                     "***errors***"  => $errors})}))
+        if($errors);
+
+    # Comment is valid, try to add it
+    my $cid = $self -> {"qaforums"} -> create_comment($id, $mode, $userid, $args -> {"message"})
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    my $commentdata = $self -> {"qaforums"} -> get_comment($id, $mode, $cid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    $self -> log("qaforum:api_comment", "User commented on $mode $id with comment $cid");
+
+    my $permissions = {
+        "rate"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"),
+        "flag"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag"),
+        "unflag"      => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.unflag"),
+        "editown"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editown"),
+        "editother"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editother"),
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deletether"),
+    };
+
+    # Convert the comment to html to send back
+    return $self -> _build_comment($commentdata,
+                                  { "comment" => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
+                                  },
+                                  $permissions);
+}
+
 # ============================================================================
 #  Interface
 
@@ -1275,6 +1391,8 @@ sub page_display {
             return $self -> api_html_response($self -> _build_api_edit_answer_response());
         } elsif($apiop eq "deletea") {
             return $self -> api_response($self -> _build_api_delete_answer_response());
+        } elsif($apiop eq "comment") {
+            return $self -> api_html_response($self -> _build_api_comment_add_response());
         } else {
             return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                      $self -> {"template"} -> replace_langvar("API_BAD_OP")))

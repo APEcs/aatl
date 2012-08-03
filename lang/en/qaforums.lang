@@ -96,3 +96,9 @@ FEATURE_QVIEW_APIDEL_NOAID   = No answer ID has been passed to the API.
 FEATURE_QVIEW_APIDEL_AFAILED = Answer deletion failed: ***error***
 FEATURE_QVIEW_APIDEL_AFAIL   = Answer deletion failed
 FEATURE_QVIEW_APIDEL_APERM   = You do not have permission to delete this answer.
+
+FEATURE_QVIEW_APICOM_NOID    = No question or answer ID has been passed to the API.
+FEATURE_QVIEW_APICOM_BADID   = The ID passed to the API is not valid.
+FEATURE_QVIEW_APICOM_FAILED  = Commenting failed: ***error***
+FEATURE_QVIEW_APICOM_FAIL    = Commenting failed
+FEATURE_QVIEW_APICOM_PERMS   = You do not have permission to post comments here.

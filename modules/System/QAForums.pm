@@ -559,18 +559,21 @@ sub create_comment {
     my $cid = $self -> _new_comment($userid, $now)
         or return undef;
 
-    # Set the answer text.
-    $self -> edit_comment($cid, $userid, undef, $message, $now)
-        or return undef;
-
     # Attach it
     $self -> _attach_comment($id, $type, $cid)
+        or return undef;
+
+    # Set the answer text.
+    $self -> edit_comment($cid, $userid, undef, $message, $now)
         or return undef;
 
     my $qid = $self -> _get_comment_questionid($cid)
         or return undef;
 
-    return $self -> _sync_counts($qid);
+    $self -> _sync_counts($qid)
+        or return undef;
+
+    return $cid;
 }
 
 

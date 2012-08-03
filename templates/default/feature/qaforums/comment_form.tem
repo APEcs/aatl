@@ -1,11 +1,19 @@
 <div class="commentform">
-    <div class="show" id="cshow-***mode***-***id***" onclick="show_commform('***mode***-***id***')">{L_FEATURE_QVIEW_ADDCOMMENT}</div>
-    <div class="body" style="display: none"><form id="form-***mode***-***id***" action="">
-        <div class="textentry"><textarea name="msg-***mode***-***id***" id="msg-***mode***-***id***" cols="70" rows="3"></textarea></div>
-        <div class="controls" >
-            <div><button id="newquest" name="newquest" class="button blue" >{L_FEATURE_QVIEW_DOADDCOMM}</button></div>
+    <div class="show" id="cshow-***mode***-***id***"><span>{L_FEATURE_QVIEW_ADDCOMMENT}</span></div>
+    <div class="body" style="display: none">
+        <form id="form-***mode***-***id***" action="">
+        <table>
+        <tr>
+        <td class="textentry"><textarea name="msg-***mode***-***id***" id="msg-***mode***-***id***" cols="64" rows="3"></textarea></td>
+        <td class="controls">
+            <div class="newpost formsubmit"><div id="addcomm-***mode***-***id***" class="comment button blue" >{L_FEATURE_QVIEW_DOADDCOMM}</div>
+                                            <img class="commentspin" id="spin-***mode***-***id***" src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="working" />
+            </div>
             <div><a href="">{L_FEATURE_QVIEW_COMMHELPSHOW}</a></div>
-        </div>
+        </td>
+        </tr>
+        </table>
+        </form>
     </div>
     <!-- help here -->
 </div>

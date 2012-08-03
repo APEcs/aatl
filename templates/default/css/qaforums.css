@@ -267,6 +267,10 @@ img#answerspin {
     opacity: 0;
 }
 
+img.commentspin {
+    opacity: 0;
+}
+
 ul#answers {
     padding: 0px;
     margin: 0px;
@@ -286,4 +290,51 @@ ul#answers > li:first-child {
 
 div.formsubmit input.whybox {
     float: left;
+}
+
+div.commentform div.show span {
+    color: #777777;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+div.commentform div.show span:hover {
+    text-decoration: none;
+    color: #06A;
+}
+
+div.commentform div.show span:active {
+    text-decoration: none;
+    color: #49F;
+}
+
+
+ul.comments {
+    padding: 0px;
+    margin: 0px;
+}
+
+ul.comments li.comment {
+    list-style-type: none;
+    margin: 0px 0px 10px;
+    overflow: hidden;
+    padding: 8px 10px 0px;
+    border-bottom: 1px dotted #bbb;
+}
+
+ul.comments li.comment div.ops {
+    float: left;
+    width: 16px;
+    margin-right: 4px;
+    font-size: 80%;
+    text-align: center;
+}
+
+ul.comments li.comment div.message {
+    margin-left: 20px;
+}
+
+ul.comments li.comment div.message > div > p {
+    margin: 0px;
+    padding: 0px;
 }

@@ -1,8 +1,18 @@
 <li class="comment">
-<div class="ops">
-     <div title="{L_FEATURE_QVIEW_HELPFULS}" class="helpfuls" id="helpful-***cid***">***helpfuls***</div>
-     ***helpop***
-     ***flagop***
-</div>
-<div class="message">***message*** - <a href="***profile***">***name***</a> ***posted*** ***deleteop***</div>
+    <div class="ops">
+        <div title="{L_FEATURE_QVIEW_HELPFULS}" class="helpfuls" id="helpful-***cid***">***helpfuls***</div>
+        ***helpop***
+        ***flagop***
+        ***deleteop***
+    </div>
+    <div class="message">
+        <div id="cmsg-***cid***">***message***</div>
+        <div class="editinfo">
+            <ul class="boxmeta">
+                <li class="iconlink">
+                    <a href="***profile***">***name***</a> ***commented***
+                </li>
+            </ul>
+        </div>
+    </div>
 </li>

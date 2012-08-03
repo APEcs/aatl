@@ -1,5 +1,6 @@
 var postlock = false;
 var apostlock = false;
+var cpostlock = false;
 
 /** Attempt to change the rating on a question or answer.
  *  This will contact the qaforum api and attempt to change the rating on the question
@@ -442,6 +443,55 @@ function edit_answer(qid, aid)
              });
 }
 
+
+/** Add an comment to the specified question or answer
+ * 
+ * @param id The mode and ID of the question/answer to add the comment to
+ */
+function add_comment(id)
+{
+    if(cpostlock) return false;
+    cpostlock = true;
+
+    var req = new Request.HTML({ url: api_request_path("qaforum", "comment"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('spin-'+id).fade('in');
+                                     $('addcomm-'+id).removeEvents('click');
+                                     $('addcomm-'+id).addClass('disabled');
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     var err = respHTML.match(/^<div id="apierror"/);
+                                     
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+
+                                     // No error, post was edited, the element provided should
+                                     // be the new <li>...
+                                     } else {
+
+                                         var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+                                         tmp.setStyle("display", "none");
+                                         tmp.inject($('comms-'+id), 'bottom');
+                                         tmp.reveal();
+                                     }
+
+                                     $('spin-'+id).fade('out');
+                                     $('addcomm-'+id).removeClass('disabled');
+                                     $('addcomm-'+id).addEvent('click', function() { add_answer(questionid); });
+                                     cpostlock = false;
+                                 }
+                               });
+    req.post({id: id,
+              message: $('msg-'+id).get('value')
+             }); 
+
+    return false;
+}
+
+
 window.addEvent('domready', function() {
     $$('div.ratectl').each(
         function(element) {
@@ -451,6 +501,25 @@ window.addEvent('domready', function() {
     $$('div.bestctl').each(
         function(element) {
             element.addEvent('click', function() { best_toggle(element) });
+        }
+    );
+    $$('div.commentform').each(
+        function(element) {
+            var showbar  = element.getElement('div.show');
+            var formbody = element.getElement('div.body');
+
+            showbar.addEvent('click', function() {
+                                 showbar.dissolve({duration: 'long'});
+                                 formbody.reveal({duration: 'long'});
+                             });
+        }
+    );
+    $$('div.comment.button').each(
+        function(element) {
+            var fullid = element.get('id');
+            var id = fullid.substr(8);
+
+            element.addEvent('click', function() { add_comment(id); });
         }
     );
 });
