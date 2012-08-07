@@ -1,0 +1,1 @@
+<div class="control helpful ***state***" id="helpbtn-c***cid***" onclick="helpful_comment('***mode***-***id***-***cid***')" title="{L_FEATURE_QVIEW_MARKHELPFUL}"><img src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="spinner" /></div>

@@ -82,6 +82,12 @@ sub new {
                               "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_NOANS"),
                               "reqperm" => "qaforums.read",
                             },
+                            { "mode"    => "flagged",
+                              "url"     => $self -> build_url(block => "qaforum", pathinfo => ["flagged"]),
+                              "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_FLAGGED"),
+                              "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_FLAGGED"),
+                              "reqperm" => "qaforums.showflagged",
+                            },
                             { "mode"    => "faq",
                               "url"     => $self -> build_url(block => "qaforum", pathinfo => ["faq"]),
                               "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_FAQS"),
@@ -278,27 +284,54 @@ sub _show_question_list {
 }
 
 
-## @method private $ _build_comment($comment, $temcache, $permcache)
+## @method private $ _build_comment($comment, $userid, $temcache, $permcache, $id, $type)
 # Generate the contents of a question to show in the question block.
 #
 # @param comment   A reference to a hash containing the comment data.
+# @param userid    The ID of the current user.
 # @param temcache  A reference to a hash containing the template data.
 # @param permcache A reference to a hash containing the user's permissions.
+# @param id        The ID of the question or answer to build the comment for.
+# @param type      The type of entry the ID refers to, must be "question" or "answer".
 # @return A string containing the comment html code.
 sub _build_comment {
     my $self      = shift;
     my $comment   = shift;
+    my $userid    = shift;
     my $temcache  = shift;
     my $permcache = shift;
+    my $id        = shift;
+    my $type      = shift;
+
+    $type = ($type eq "question" ? "qid" : "aid");
 
     my $commenter = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($comment -> {"creator_id"});
+
+    # Work out the initial state
+    my $state = $self -> {"qaforums"} -> user_marked_helpful($comment -> {"id"}, $userid) ? "set" : "";
+
+    # Determine whether the user has the ability to mark as helpful (has the ability to rate, and this is not their comment)
+    my $helpmark = (($permcache -> {"rate"}  ? "enabled" : "disabled"));#&& ($comment -> {"creator_id"} != $userid)) ? "enabled" : "disabled");
+    my $helpful = $self -> {"template"} -> process_template($temcache -> {"helpful_$helpmark"},
+                                                            {"***cid***"   => $comment -> {"id"},
+                                                             "***id***"    => $id,
+                                                             "***mode***"  => $type,
+                                                             "***state***" => $state});
+    # Can the user delete?
+    my $isowner = ($comment -> {"creator_id"} == $userid ? "own" : "other");
+    my $cannuke = $permcache -> {"delete$isowner"} ? "enabled" : "disabled";
+    my $nukeit  = $self -> {"template"} -> process_template($temcache -> {"delete_$cannuke"},
+                                                            {"***cid***"   => $comment -> {"id"},
+                                                             "***id***"    => $id,
+                                                             "***mode***"  => $type,
+                                                             "***state***" => $state});
 
     return $self -> {"template"} -> process_template($temcache -> {"comment"},
                                                      {"***cid***"       => $comment -> {"id"},
                                                       "***helpfuls***"  => $comment -> {"helpful"},
-                                                      "***helpop***"    => "",
+                                                      "***helpop***"    => $helpful,
                                                       "***flagop***"    => "",
-                                                      "***deleteop***"  => "",
+                                                      "***deleteop***"  => $nukeit,
                                                       "***message***"   => markdown($comment -> {"message"}),
                                                       "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $commenter -> {"username"} ]),
                                                       "***commented***" => $self -> {"template"} -> fancy_time($comment -> {"created"}),
@@ -308,29 +341,35 @@ sub _build_comment {
 }
 
 
-## @method private @ _build_comments($id, $type, $permissions)
+## @method private @ _build_comments($id, $type, $permissions, $userid)
 # Generate the block of questions currently set for the specified question
 # or answer.
 #
 # @param id          The ID of the question or answer to build the comment block for.
 # @param type        The type of entry the ID refers to, must be "question" or "answer".
 # @param permissions A hash containing the user's permissions.
+# @param userid    The ID of the current user.
 # @return A block of html containing the comment list and controls.
 sub _build_comments {
     my $self        = shift;
     my $id          = shift;
     my $type        = shift;
     my $permissions = shift;
+    my $userid      = shift;
 
     my $comments = $self -> {"qaforums"} -> get_comments($id, $type);
 
     my $temcache = {
-        "comment" => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
+        "comment"          => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
+        "helpful_enabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_enabled.tem"),
+        "helpful_disabled" => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_disabled.tem"),
+        "delete_enabled"   => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_enabled.tem"),
+        "delete_disabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_disabled.tem"),
      };
 
     my $qlist = "";
     foreach my $comment (@$comments) {
-        $qlist .= $self -> _build_comment($comment, $temcache, $permissions);
+        $qlist .= $self -> _build_comment($comment, $userid, $temcache, $permissions, $id, $type);
     }
 
     $type = ($type eq "question" ? "qid" : "aid");
@@ -424,7 +463,7 @@ sub _build_question {
                                                    "***asked***"     => $self -> {"template"} -> fancy_time($question -> {"created"}),
                                                    "***name***"      => $asker -> {"fullname"},
                                                    "***gravhash***"  => $asker -> {"gravatar_hash"},
-                                                   "***comments***"  => $self -> _build_comments($question -> {"id"}, "question"),
+                                                   "***comments***"  => $self -> _build_comments($question -> {"id"}, "question", $permcache, $userid),
                                                   });
 }
 
@@ -784,7 +823,7 @@ sub _build_answer {
                                                       "***answered***"  => $self -> {"template"} -> fancy_time($answer -> {"created"}),
                                                       "***name***"      => $answerer -> {"fullname"},
                                                       "***gravhash***"  => $answerer -> {"gravatar_hash"},
-                                                      "***comments***"  => $self -> _build_comments($answer -> {"id"}, "answer"),
+                                                      "***comments***"  => $self -> _build_comments($answer -> {"id"}, "answer", $permcache, $userid),
                                                      });
 }
 
@@ -905,6 +944,61 @@ sub _build_api_rating_response {
     return { 'rated' => { "up"     => ($rated eq "up" ? "set" : ""),
                           "down"   => ($rated eq "down" ? "set" : ""),
                           "rating" => $rating} };
+}
+
+
+## @method private $ _build_api_helpful_comment_response()
+# Update the helpful rating attached the comment selected by the user.
+#
+# @return A hash containing the API response to return to the user. Should be
+#         passed to api_response().
+sub _build_api_helpful_comment_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Get the ID and parse out the mode and id
+    my $fullid = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_postid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRCOM_NOID"));
+
+    my ($mode, $id, $cid) = $fullid =~ /^(aid|qid)-(\d+)-(\d+)$/;
+    return $self -> api_errorhash("bad_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRCOM_BADID"))
+        unless($mode && $id && $cid);
+
+    $mode = ($mode eq "qid" ? "question" : "answer");
+
+    # Check the user can rate
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRCOM_PERMS"))
+        if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"));# || $self -> {"qaforums"} -> user_is_owner($cid, "comment", $userid));
+
+    # Determine whether the user has rated the comment
+    my $rated = $self -> {"qaforums"} -> user_marked_helpful($cid, $userid);
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+        if(!defined($rated));
+
+    # if the user has rated the comment, cancel it
+    if($rated) {
+        $self -> {"qaforums"} -> cancel_is_helpful($cid, $userid)
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    # Otherwise, mark it
+    } else {
+        $self -> {"qaforums"} -> comment_is_helpful($cid, $userid)
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+    }
+
+    # Get the comment
+    my $comment = $self -> {"qaforums"} -> get_comment($id, $mode, $cid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    $self -> log("qaforum:api_helpful", "Marked comment $cid on $mode $id - ".($rated ? "as helpful" : "cancelled"));
+
+    return { "helpful" => { "set" => !$rated,
+                            "rating" => $comment -> {"helpful"}
+                          }
+           };
 }
 
 
@@ -1326,10 +1420,69 @@ sub _build_api_comment_add_response {
 
     # Convert the comment to html to send back
     return $self -> _build_comment($commentdata,
+                                   $userid,
                                   { "comment" => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
+                                    "helpful_enabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_enabled.tem"),
+                                    "helpful_disabled" => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_disabled.tem"),
+                                    "delete_enabled"   => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_enabled.tem"),
+                                    "delete_disabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_disabled.tem"),
                                   },
-                                  $permissions);
+                                  $permissions,
+                                   $id, $mode);
 }
+
+
+## @method $ build_api_delete_comment_response()
+# Attempt to 'delete' (actually, mark as deleted) the comment requested by the
+# client. This will perform all normal permission checks and generate an XML
+# API response hash to send to the client.
+#
+# @return A reference to a hash containing the API response data.
+sub _build_api_delete_comment_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Has an answer been selected for deletion?
+    my $fullid = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APICOM_NOID"));
+
+    my ($mode, $id, $cid) = $fullid =~ /^(aid|qid)-(\d+)-(\d+)$/;
+    return $self -> api_errorhash("bad_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APICOM_BADID"))
+        unless($mode && $id && $cid);
+
+    $mode = ($mode eq "qid" ? "question" : "answer");
+
+    $self -> log("qaforum:delete_comment", "User attempting to delete comment $cid on $mode $id");
+
+    # Work out permissions
+    my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    my $permcache = {
+        "deleteown"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteown"),
+        "deleteother" => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteother"),
+    };
+
+    # Get the comment for ownership checks
+    my $commentdata = $self -> {"qaforums"} -> get_comment($id, $mode, $cid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+    # Does the user have permission to delete it?
+    my $ownership = ($commentdata -> {"creator_id"} == $userid ? "own" : "other");
+    if(!$permcache -> {"delete$ownership"}) {
+        $self -> log("error:qaforum:delete_comment", "Permission denied");
+        return $self -> api_errorhash("perm_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_CPERM"));
+    }
+
+    # Get here and the comment id is valid and the user can delete it, try it
+    $self -> {"qaforums"} -> delete_comment($cid, $userid)
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+
+    $self -> log("qaforum:delete_comment", "Comment $cid on $mode $id deleted");
+
+    return { 'response' => { 'status' => 'ok' } };
+}
+
 
 # ============================================================================
 #  Interface
@@ -1393,6 +1546,10 @@ sub page_display {
             return $self -> api_response($self -> _build_api_delete_answer_response());
         } elsif($apiop eq "comment") {
             return $self -> api_html_response($self -> _build_api_comment_add_response());
+        } elsif($apiop eq "chelpful") {
+            return $self -> api_response($self -> _build_api_helpful_comment_response());
+        } elsif($apiop eq "deletec") {
+            return $self -> api_response($self -> _build_api_delete_comment_response());
         } else {
             return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                      $self -> {"template"} -> replace_langvar("API_BAD_OP")))

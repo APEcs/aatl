@@ -280,8 +280,6 @@ sub user_has_rated_question {
 }
 
 
-
-
 ## @method @ get_best_answer($questionid)
 # Obtain the ID of the best answer selected for the specified question, if any.
 #
@@ -729,7 +727,7 @@ sub user_marked_helpful {
     my $rating = $self -> _user_recorded_helpful($commentid, $userid)
         or return undef;
 
-    return $rating -> {"marked"} || 0;
+    return defined($rating) && defined($rating -> {"marked"});
 }
 
 
@@ -853,7 +851,7 @@ sub get_metadataid {
 # identified by the id and type.
 #
 # @param id     The ID of the question or answer to check.
-# @param type   The type of entry to check, must be "question" or "answer".
+# @param type   The type of entry to check, must be "question", "answer", or "comment".
 # @param userid The ID of the user to check for ownership.
 # @return True if the user is the owner, false if not, undef on error.
 sub user_is_owner {
@@ -875,6 +873,7 @@ sub user_is_owner {
 
     return $user -> [0] == $userid;
 }
+
 
 ## @method $ has_comments($id, $type)
 # Determine whether the specified question or answer has comments set.
@@ -1866,7 +1865,7 @@ sub _user_recorded_helpful {
     $self -> clear_error();
 
     my $checkh = $self -> {"dbh"} -> prepare("SELECT *
-                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."`
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_helpfuls"}."`
                                               WHERE comment_id = ?
                                               AND marked_id = ?
                                               AND cancelled IS NULL");

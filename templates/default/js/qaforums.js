@@ -85,6 +85,47 @@ function best_toggle(element)
     req.send("id="+core_id);      
 }
 
+/** Allow the user to set or clear their 'helpful' status for a comment.
+ * 
+ * @param full_id A string containing the mode (qid, aid), the id of the
+ *                question or answer the comment is attached to, and the
+ *                id of the comment itself.
+ */
+function helpful_comment(full_id)
+{
+    var comm_id = full_id.substr(full_id.lastIndexOf("-") + 1);
+
+    var req = new Request({ url: api_request_path("qaforum", "chelpful"),
+                            onSuccess: function(respText, respXML) {
+                                var err = respXML.getElementsByTagName("error")[0];
+
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+                                } else {
+                                    var res = respXML.getElementsByTagName("helpful")[0];
+
+                                    var set = res.getAttribute("set");
+                                    var rating = res.getAttribute('rating');
+
+                                    $('helpful-'+comm_id).set('html', rating);
+                                    if(rating != '0') {
+                                        $('helpful-'+comm_id).fade('in');
+                                    } else {
+                                        $('helpful-'+comm_id).fade('out');
+                                    }
+
+                                    if(set == '1') {
+                                        $('helpbtn-c'+comm_id).addClass('set');
+                                    } else {
+                                        $('helpbtn-c'+comm_id).removeClass('set');
+                                    }
+                                }
+                            }
+                          });
+    req.send("id="+full_id);      
+}
+
 
 /** Convert a question subject and body to a form suitable for editing. This
  *  replaces the question subject with an input box, the body with a ckeditor 
@@ -476,8 +517,12 @@ function add_comment(id)
                                          tmp.setStyle("display", "none");
                                          tmp.inject($('comms-'+id), 'bottom');
                                          tmp.reveal();
+                                         
+                                         var count = tmp.getElement('div.helpfuls');
+                                         if(count) count.fade('out');
                                      }
 
+                                     $('msg-'+id).set('value', '');
                                      $('spin-'+id).fade('out');
                                      $('addcomm-'+id).removeClass('disabled');
                                      $('addcomm-'+id).addEvent('click', function() { add_answer(questionid); });
@@ -492,7 +537,42 @@ function add_comment(id)
 }
 
 
+/** Attempt to delete a comment from the comment list. This askes the 
+ *  server to delete the specified comment and if the entry is deleted
+ *  it removes it from the page.
+ * 
+ * @param full_id A string containing the mode (qid, aid), the id of the
+ *                question or answer the comment is attached to, and the
+ *                id of the comment itself.
+ */
+function delete_comment(full_id)
+{
+    var comm_id = full_id.substr(full_id.lastIndexOf("-") + 1);
+    
+    var req = new Request({ url: api_request_path("qaforum", "deletec"),
+                            onRequest: function() {
+                                $('delbtn-c'+comm_id).addClass('working');
+                                $('delbtn-c'+comm_id).getChildren('img')[0].fade('in');
+                            },
+                            onSuccess: function(respText, respXML) {
+                                $('delbtn-c'+comm_id).getChildren('img')[0].fade('out').removeClass('working');
+                                
+                                var err = respXML.getElementsByTagName("error")[0];
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+
+                                // No error, comment was deleted
+                                } else {
+                                    $('cid-'+comm_id).nix();
+                                }
+                            }
+                          });
+    req.send("id="+full_id);
+}
+
 window.addEvent('domready', function() {
+    // Rating and 'best answer' controls for questions and answers.
     $$('div.ratectl').each(
         function(element) {
             element.addEvent('click', function() { rate_toggle(element) });
@@ -503,17 +583,30 @@ window.addEvent('domready', function() {
             element.addEvent('click', function() { best_toggle(element) });
         }
     );
+
+    // allow the comment form to be toggled visible
     $$('div.commentform').each(
         function(element) {
             var showbar  = element.getElement('div.show');
             var formbody = element.getElement('div.body');
+            formbody.dissolve({duration: 0});
 
             showbar.addEvent('click', function() {
-                                 showbar.dissolve({duration: 'long'});
-                                 formbody.reveal({duration: 'long'});
+                                 showbar.dissolve({duration: 500});
+                                 formbody.reveal({duration: 500});
                              });
         }
     );
+
+    // Hide zero helpful counters on comments
+    $$('li.comment div.ops div.helpfuls').each(
+        function(element) { 
+            if(element.get('html') == '0') 
+                element.fade('out');
+        }
+    );
+
+    // Enable comment addition
     $$('div.comment.button').each(
         function(element) {
             var fullid = element.get('id');

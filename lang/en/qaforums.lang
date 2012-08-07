@@ -1,15 +1,17 @@
-FEATURE_QAFORUM_TAB_ACTIVE   = Active
-FEATURE_QAFORUM_TITLE_ACTIVE = Questions with recent activity
-FEATURE_QAFORUM_TAB_LATEST   = Newest
-FEATURE_QAFORUM_TITLE_LATEST = Recently asked questions
-FEATURE_QAFORUM_TAB_RATED    = Votes
-FEATURE_QAFORUM_TITLE_RATED  = Questions with the most votes
-FEATURE_QAFORUM_TAB_NOANS    = Unanswered
-FEATURE_QAFORUM_TITLE_NOANS  = Questions with no answers
-FEATURE_QAFORUM_TAB_FAQS     = FAQs
-FEATURE_QAFORUM_TITLE_FAQS   = Commonly asked questions with the best answers
-FEATURE_QAFORUM_TAB_ASK      = Ask Question
-FEATURE_QAFORUM_TITLE_ASK    = Add a question to the forum
+FEATURE_QAFORUM_TAB_ACTIVE    = Active
+FEATURE_QAFORUM_TITLE_ACTIVE  = Questions with recent activity
+FEATURE_QAFORUM_TAB_LATEST    = Newest
+FEATURE_QAFORUM_TITLE_LATEST  = Recently asked questions
+FEATURE_QAFORUM_TAB_RATED     = Votes
+FEATURE_QAFORUM_TITLE_RATED   = Questions with the most votes
+FEATURE_QAFORUM_TAB_NOANS     = Unanswered
+FEATURE_QAFORUM_TITLE_NOANS   = Questions with no answers
+FEATURE_QAFORUM_TAB_FLAGGED   = Flagged
+FEATURE_QAFORUM_TITLE_FLAGGED = Show questions containing flagged content.
+FEATURE_QAFORUM_TAB_FAQS      = FAQs
+FEATURE_QAFORUM_TITLE_FAQS    = Commonly asked questions with the best answers
+FEATURE_QAFORUM_TAB_ASK       = Ask Question
+FEATURE_QAFORUM_TITLE_ASK     = Add a question to the forum
 
 FEATURE_QAFORUM_QLIST_TITLE  = QA Forum: ***title***
 FEATURE_QAFORUM_ASK_TITLE    = Ask a question
@@ -61,6 +63,10 @@ FEATURE_QVIEW_APIRATE_NOID  = No ID provided to rating API.
 FEATURE_QVIEW_APIRATE_BADID = The ID sent to the rating API is not valid.
 FEATURE_QVIEW_APIRATE_PERMS = You do not have permission to rate entries.
 
+FEATURE_QVIEW_APIRCOM_NOID  = No ID provided to helpful comment API.
+FEATURE_QVIEW_APIRCOM_BADID = The ID sent to the helpful comment API is not valid.
+FEATURE_QVIEW_APIRCOM_PERMS = You do not have permission to mark comments as helpful.
+
 FEATURE_QVIEW_APIANS_NOID   = No ID provided to answer API.
 FEATURE_QVIEW_APIANS_FAIL   = Answer addition failed
 
@@ -71,6 +77,7 @@ FEATURE_QVIEW_QDEL          = Delete this question
 FEATURE_QVIEW_QEDIT         = Edit this question
 FEATURE_QVIEW_ADEL          = Delete this answer
 FEATURE_QVIEW_AEDIT         = Edit this answer
+FEATURE_QVIEW_CDEL          = Delete this comment
 
 FEATURE_QVIEW_ASORT_CREATED = Created
 FEATURE_QVIEW_ASORT_RATING  = Rating
@@ -102,3 +109,8 @@ FEATURE_QVIEW_APICOM_BADID   = The ID passed to the API is not valid.
 FEATURE_QVIEW_APICOM_FAILED  = Commenting failed: ***error***
 FEATURE_QVIEW_APICOM_FAIL    = Commenting failed
 FEATURE_QVIEW_APICOM_PERMS   = You do not have permission to post comments here.
+FEATURE_QVIEW_APIDEL_CPERMS  = You do not have permission to delete this comment.
+
+FEATURE_QVIEW_QFLAG          = Flag this question as inappropriate, offensive, or spam (click again to undo).
+FEATURE_QVIEW_AFLAG          = Flag this answer as inappropriate, offensive, or spam (click again to undo).
+FEATURE_QVIEW_CFLAG          = Flag this comment as inappropriate, offensive, or spam (click again to undo).

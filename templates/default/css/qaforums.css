@@ -316,10 +316,10 @@ ul.comments {
 
 ul.comments li.comment {
     list-style-type: none;
-    margin: 0px 0px 10px;
     overflow: hidden;
-    padding: 8px 10px 0px;
+    padding: 8px 10px 5px;
     border-bottom: 1px dotted #bbb;
+    margin-left: 30px;
 }
 
 ul.comments li.comment div.ops {
@@ -331,10 +331,48 @@ ul.comments li.comment div.ops {
 }
 
 ul.comments li.comment div.message {
-    margin-left: 20px;
+    margin-left: 30px;
 }
 
 ul.comments li.comment div.message > div > p {
     margin: 0px;
     padding: 0px;
+}
+
+
+ul.comments li.comment .control.helpful {
+    background-position: -48px -48px;
+}
+
+ul.comments li.comment:hover .control.helpful {
+    background-position: -48px -16px;
+}
+
+ul.comments li.comment:hover .control.helpful:hover {
+    background-position: -48px 0px;
+}
+
+ul.comments li.comment .control.helpful.set {
+    background-position: -48px 0px;
+}
+
+ul.comments li.comment .control.helpful.working {
+    background-position: -48px -48px;
+}
+
+
+ul.comments li.comment .control.delete {
+    background-position: -16px -48px;
+}
+
+ul.comments li.comment:hover .control.delete {
+    background-position: -16px -16px;
+}
+
+ul.comments li.comment:hover .control.delete:hover {
+    background-position: -16px 0px;
+}
+
+ul.comments li.comment .control.delete.working {
+    background-position: -16px -48px;
 }

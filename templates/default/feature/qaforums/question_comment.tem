@@ -1,4 +1,4 @@
-<li class="comment">
+<li class="comment" id="cid-***cid***">
     <div class="ops">
         <div title="{L_FEATURE_QVIEW_HELPFULS}" class="helpfuls" id="helpful-***cid***">***helpfuls***</div>
         ***helpop***
