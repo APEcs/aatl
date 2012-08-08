@@ -1,1 +1,0 @@
-<div class="control flag ***state***" id="flagbtn-c***id***" onclick="flag_question('***id***')" title="{L_FEATURE_QVIEW_CFLAG}"><img src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="spinner" /></div>

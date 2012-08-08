@@ -109,8 +109,23 @@ FEATURE_QVIEW_APICOM_BADID   = The ID passed to the API is not valid.
 FEATURE_QVIEW_APICOM_FAILED  = Commenting failed: ***error***
 FEATURE_QVIEW_APICOM_FAIL    = Commenting failed
 FEATURE_QVIEW_APICOM_PERMS   = You do not have permission to post comments here.
+FEATURE_QVIEW_APIDEL_CFAILED = Comment deletion failed: ***error***
+FEATURE_QVIEW_APIDEL_CFAIL   = Comment deletion failed
 FEATURE_QVIEW_APIDEL_CPERMS  = You do not have permission to delete this comment.
+
+FEATURE_QVIEW_APIFLAG_NOID   = No ID has been passed to the API.
+FEATURE_QVIEW_APIFLAG_BADID  = The ID passed to the API is not valid.
+FEATURE_QVIEW_APIFLAG_PERMS  = You do not have permission to flag this entry.
+FEATURE_QVIEW_APIFLAG_UPERMS = You do not have permission to unflag this entry.
 
 FEATURE_QVIEW_QFLAG          = Flag this question as inappropriate, offensive, or spam (click again to undo).
 FEATURE_QVIEW_AFLAG          = Flag this answer as inappropriate, offensive, or spam (click again to undo).
 FEATURE_QVIEW_CFLAG          = Flag this comment as inappropriate, offensive, or spam (click again to undo).
+
+FEATURE_QVIEW_QFLAGGED       = This question was flagged at ***time***
+FEATURE_QVIEW_AFLAGGED       = This answer was flagged at ***time***
+FEATURE_QVIEW_CFLAGGED       = This comment was flagged at ***time***
+
+FEATURE_QVIEW_QFLAGADMIN     = This question was flagged by ***user*** at ***time***
+FEATURE_QVIEW_AFLAGADMIN     = This answer was flagged by ***user*** at ***time***
+FEATURE_QVIEW_CFLAGADMIN     = This comment was flagged by ***user*** at ***time***

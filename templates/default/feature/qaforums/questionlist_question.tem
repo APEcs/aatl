@@ -1,4 +1,4 @@
-<li class="question" id="qid-***qid***">
+<li class="question ***flagged***" id="qid-***qid***">
     <div class="stats">
         <div class="bigstat rating"><div class="value">***rating***</div>
             <div class="title">{L_FEATURE_QLIST_RATING}</div>

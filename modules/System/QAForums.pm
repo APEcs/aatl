@@ -820,6 +820,93 @@ sub get_rating {
 }
 
 
+## @method $ flag($qid, $id, $type, $userid)
+# Set the flagged status on the specified question, answer, or comment. Note
+# that this will check that the flag has not already been set before setting it.
+#
+# @param qid    The ID of the question the flagging is happening within.
+# @param id     The ID of the question, answer, or comment to flag.
+# @param type   The tupe of entry to flag, must be "question", "answer", or "comment".
+# @param userid The ID of the user setting the flag.
+# @return true on success, undef on error.
+sub flag {
+    my $self   = shift;
+    my $qid    = shift;
+    my $id     = shift;
+    my $type   = shift;
+    my $userid = shift;
+
+    $self -> clear_error();
+
+    return $self -> self_error(ucfirst($type)." is already flagged")
+        if($self -> _is_flagged($id, $type));
+
+    $self -> _set_flagged($id, $type, $userid)
+        or return undef;
+
+    return $self -> _sync_counts($qid);
+}
+
+
+## @method $ unflag($qid, $id, $type)
+# Clear the flagged status on the specified question, answer, or comment. Note
+# that this will check that the flag has been set before clearing it.
+#
+# @param qid    The ID of the question the unflagging is happening within.
+# @param id     The ID of the question, answer, or comment to unflag.
+# @param type   The tupe of entry to unflag, must be "question", "answer", or "comment".
+# @return true on success, undef on error.
+sub unflag {
+    my $self = shift;
+    my $qid  = shift;
+    my $id   = shift;
+    my $type = shift;
+
+    $self -> clear_error();
+
+    return $self -> self_error(ucfirst($type)." is not flagged")
+        unless($self -> _is_flagged($id, $type));
+
+    $self -> _set_flagged($id, $type, undef)
+        or return undef;
+
+    return $self -> _sync_counts($qid);
+}
+
+
+## @method @ is_flagged($id, $type)
+# Determine whether the specified question, answer, or comment has been flagged,
+# and if it has return the ID of the user who flagged it.
+#
+# @param id   The ID of the question, answer, or comment to check
+# @param type The type of entry to check, must be "question", "answer", or "comment"
+# @return The ID of the user who flagged the entry if it is flagged, 0 if it is not,
+#         and the time at which the flagging occurred, undef on error.
+sub is_flagged {
+    my $self = shift;
+    my $id   = shift;
+    my $type = shift;
+
+    $self -> clear_error();
+
+    # Force a legal type
+    $type = "question" unless(defined($type) && ($type eq "answer" || $type eq "comment"));
+
+    # Check the entry
+    my $checkh = $self -> {"dbh"} -> prepare("SELECT flagged, flagged_id
+                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s"}."`
+                                              WHERE id = ?");
+    $checkh -> execute($id)
+        or return $self -> self_error("Unable to execute $type flagged query: ".$self -> {"dbh"} -> {"errstr"});
+
+    my $row = $checkh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch flagged status $type $id: entry does not exist");
+
+    # Make sure the returned values are not undef, so they can be distinguished from errors.
+    return ($row -> [0] || 0, $row -> [1] || 0);
+}
+
+
 ## @method $ get_metadataid($id, $type)
 # Obtain the metadata context id set on the question or answer specified.
 #
@@ -919,11 +1006,13 @@ sub has_comments {
 # @param courseid The ID of the course to check for qaforum questions
 # @param noanswer If true, this will only count questions with no answers, otherwise
 #                 all questions (with or without answers) are counted.
+# @param flagged  If true, this will only count questions with 1 or more flags.
 # @return The number of questions on success (*which may be zero*), or undef on error.
 sub get_question_count {
     my $self     = shift;
     my $courseid = shift;
     my $noanswer = shift;
+    my $flagged  = shift;
 
     $self -> clear_error();
 
@@ -931,7 +1020,8 @@ sub get_question_count {
                                               FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
                                               WHERE course_id = ?
                                               AND deleted IS NULL".
-                                             ($noanswer ? " AND answers = 0" : ""));
+                                             ($noanswer ? " AND answers = 0" : "").
+                                             ($flagged  ? " AND flagged_count > 0" : ""));
     $counth -> execute($courseid)
         or return $self -> self_error("Unable to execute question count query: ".$self -> {"dbh"} -> errstr);
 
@@ -970,7 +1060,7 @@ sub get_question_list {
 
     # Check the configuration values are sane
     $settings -> {"mode"} = "created"
-        unless(defined($settings -> {"mode"}) && ($settings -> {"mode"} eq "updated" || $settings -> {"mode"} eq "rating"));
+        unless(defined($settings -> {"mode"}) && ($settings -> {"mode"} eq "updated" || $settings -> {"mode"} eq "rating" || $settings -> {"mode"} eq "flagged_count"));
 
     $settings -> {"ordering"} = "highfirst"
         unless(defined($settings -> {"ordering"}) && $settings -> {"ordering"} eq "lowfirst");
@@ -993,10 +1083,12 @@ sub get_question_list {
                  AND q.deleted IS NULL
                  AND t.id = q.text_id ".
                 ($settings -> {"noanswer"} ? "AND q.answers = 0 " : "").
-                "ORDER BY ".$settings -> {"mode"}." ".
+                ($settings -> {"mode"} eq "flagged_count" ? "AND q.flagged_count > 0 " : "").
+                "ORDER BY q.".$settings -> {"mode"}." ".
                ($settings -> {"ordering"} eq "highfirst" ? "DESC " : "ASC ");
 
     $query .= "LIMIT ".join(",", @limit) if(scalar(@limit));
+    print STDERR "running: $query";
 
     my $qlisth = $self -> {"dbh"} -> prepare($query);
 
@@ -1559,7 +1651,7 @@ sub _is_flagged {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless(defined($type) && $type eq "answer");
+    $type = "question" unless(defined($type) && ($type eq "answer" || $type eq "comment"));
 
     # Check the entry
     my $checkh = $self -> {"dbh"} -> prepare("SELECT flagged_id
@@ -1593,7 +1685,7 @@ sub _set_flagged {
     $self -> clear_error();
 
     # Force a legal type
-    $type = "question" unless(defined($type) && $type eq "answer");
+    $type = "question" unless(defined($type) && ($type eq "answer" || $type eq "comment"));
 
     $now = time() if($user);
 
@@ -1908,7 +2000,20 @@ sub _get_comment_stats {
     my $stats = $comstath -> fetchrow_arrayref()
         or return ($self -> self_error("Stats query did not return sane values."), undef);
 
-    return (@{$stats});
+    my $comflagh = $self -> {"dbh"} -> prepare("SELECT COUNT(r.comment_id), MAX(c.flagged)
+                                                FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_${type}s_comments"}."` AS r,
+                                                     `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_comments"}."` AS c
+                                                WHERE r.${type}_id = ?
+                                                AND c.id = r.comment_id
+                                                AND c.flagged IS NOT NULL
+                                                AND c.deleted IS NULL");
+    $comflagh -> execute($id)
+        or return ($self -> self_error("Unable to execute comment flagged query: ".$self -> {"dbh"} -> errstr), undef);
+
+    my $flagged = $comflagh -> fetchrow_arrayref()
+        or return ($self -> self_error("Flagged query did not return sane values."), undef);
+
+    return ($stats -> [0], $stats -> [1], $flagged -> [0], $flagged -> [1]);
 }
 
 
@@ -1929,15 +2034,17 @@ sub _sync_counts {
     my $latest_answer  = 0;
     my $comments       = 0;
     my $latest_comment = 0;
+    my $flagged        = 0;
+    my $latest_flagged = 0;
 
-    ($comments, $latest_comment) = $self -> _get_comment_stats($questionid, "question");
+    ($comments, $latest_comment, $flagged, $latest_flagged) = $self -> _get_comment_stats($questionid, "question");
     return undef if(!defined($comments));
 
     # Handle there being no comments sanely.
     $latest_comment = 0 if(!defined($latest_comment));
 
     # Now fetch the answer headers, and calculate their comments too
-    my $ansh = $self -> {"dbh"} -> prepare("SELECT id, updated
+    my $ansh = $self -> {"dbh"} -> prepare("SELECT id, updated, flagged
                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_answers"}."`
                                             WHERE question_id = ?
                                             AND deleted IS NULL");
@@ -1949,16 +2056,23 @@ sub _sync_counts {
         ++$answers;
         $latest_answer = $answer -> {"updated"} if($answer -> {"updated"} > $latest_answer);
 
+        # If the answer has been flagged, count it
+        ++$flagged if($answer -> {"flagged"});
+        $latest_flagged = $answer -> {"flagged"} if($answer -> {"flagged"} && $answer -> {"flagged"} > $latest_flagged);
+
         # And fetch the stats for the answer's comments
-        my ($count, $latest) = $self -> _get_comment_stats($answer -> {"id"}, "answer");
+        my ($count, $latest, $flagcount, $flaglatest) = $self -> _get_comment_stats($answer -> {"id"}, "answer");
         return undef if(!defined($count));
 
+        # Updated the counters based on the comment stats.
         $comments += $count;
+        $flagged  += $flagcount;
         $latest_comment = $latest if($latest && $latest > $latest_comment);
+        $latest_flagged = $flaglatest if($flaglatest && $flaglatest > $latest_flagged);
     }
 
     # When was the question itself updated?
-    my $timeh = $self -> {"dbh"} -> prepare("SELECT updated
+    my $timeh = $self -> {"dbh"} -> prepare("SELECT updated, flagged
                                              FROM  `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
                                              WHERE id = ?");
     $timeh -> execute($questionid)
@@ -1967,15 +2081,19 @@ sub _sync_counts {
     my $updated = $timeh -> fetchrow_arrayref()
         or return $self -> self_error("Unable to fetch update time for question $questionid: entry does not exist.");
 
+    # Add on the question flag if needed
+    $flagged += 1 if($updated -> [1]);
+    $latest_flagged = $updated -> [1] if($updated -> [1] && $updated -> [1] > $latest_flagged);
+
     # Work out what the latest update was across everything.
-    my @times = ($latest_answer, $latest_comment, $updated -> [0]);
+    my @times = ($latest_answer, $latest_comment, $latest_flagged, $updated -> [0]);
     $updated = max(@times);
 
     # Now update the question
     my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::qaforums_questions"}."`
-                                            SET answers = ?, comments = ?, latest_answer = ?, latest_comment = ?, updated = ?
+                                            SET answers = ?, comments = ?, flagged_count = ?, latest_answer = ?, latest_comment = ?, latest_flagged = ?, updated = ?
                                             WHERE id = ?");
-    my $result = $seth -> execute($answers, $comments, $latest_answer, $latest_comment, $updated, $questionid);
+    my $result = $seth -> execute($answers, $comments, $flagged, $latest_answer, $latest_comment, $latest_flagged, $updated, $questionid);
     return $self -> self_error("Unable to perform question stats update: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Question stats update failed, no rows updated") if($result eq "0E0");
 

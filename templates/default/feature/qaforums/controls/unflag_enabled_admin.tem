@@ -1,0 +1,1 @@
+<li id="flag-***id***"><div class="control flag set" id="flagbtn-***id***" onclick="flag('***id***')" title="{L_FEATURE_QVIEW_***mode***ADMIN}"><img src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="spinner" /></div></li>

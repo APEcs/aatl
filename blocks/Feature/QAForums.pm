@@ -86,7 +86,7 @@ sub new {
                               "url"     => $self -> build_url(block => "qaforum", pathinfo => ["flagged"]),
                               "text"    => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TAB_FLAGGED"),
                               "title"   => $self -> {"template"} -> replace_langvar("FEATURE_QAFORUM_TITLE_FLAGGED"),
-                              "reqperm" => "qaforums.showflagged",
+                              "reqperm" => "qaforums.flagadmin",
                             },
                             { "mode"    => "faq",
                               "url"     => $self -> build_url(block => "qaforum", pathinfo => ["faq"]),
@@ -129,11 +129,10 @@ sub used_capabilities {
              "qaforums.deleteother" => $self -> {"template"} -> replace_langvar("CAPABILITY_QAFORUM.DELETEOTHER"),
              "qaforums.rate"        => $self -> {"template"} -> replace_langvar("CAPABILITY_QAFORUM.RATE"),
              "qaforums.flag"        => $self -> {"template"} -> replace_langvar("CAPABILITY_QAFORUM.FLAG"),
-             "qaforums.unflag"      => $self -> {"template"} -> replace_langvar("CAPABILITY_QAFORUM.UNFLAG"),
+             "qaforums.flagadmin"   => $self -> {"template"} -> replace_langvar("CAPABILITY_QAFORUM.FLAGADMIN"),
              "qaforums.tag"         => $self -> {"template"} -> replace_langvar("CAPABILITY_QAFORUM.TAG"),
            };
 }
-
 
 
 # ============================================================================
@@ -183,6 +182,52 @@ sub _nice_value {
         return sprintf("%dk", $value / 1000);
     } else {
         return sprintf("%.1fm", $value / 1000000);
+    }
+}
+
+
+## @method private $ _build_flagop($id, $type, $flagged, $flaggedid, $userid, $permcache, $temcache)
+# Generate the flag option to send back to the user.
+#
+# @param id        The compound id to place in the template. Should be qid-<id>, aid-<qid>-<id>, cid-qid-<qid>-<id>, or cid-aid-<aid>-<id>
+# @param type      The type of entry this is a flag block for, should be "question", "answer", or "comment"
+# @param flagged   The flagged timestamp, if 0/undef the entry is not flagged.
+# @param flaggedid The id of the user who flagged the entry, if any
+# @param userid    The id of the user viewing the page.
+# @param permcache A reference to a permissions hash.
+# @param temcache  A reference to a template hash.
+# @return A string containing the entry's flag option.
+sub _build_flagop {
+    my $self = shift;
+    my ($id, $type, $flagged, $flaggedid, $userid, $permcache, $temcache) = @_;
+
+    # Convert the type
+    if($type eq "question") {
+        $type = "QFLAG";
+    } elsif($type eq "answer") {
+        $type = "AFLAG";
+    } else {
+        $type = "CFLAG";
+    }
+
+    if($flagged) {
+        my $flagger = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($flaggedid);
+
+        # Does the user have permission to unflag the entry?
+        my $unflag  = ($permcache -> {"flagadmin"} || $flaggedid == $userid) ? "enabled" : "disabled";
+        my $isadmin = $permcache -> {"flagadmin"} ? "_admin" : "";
+
+        return $self -> {"template"} -> process_template($temcache -> {"unflag_$unflag".$isadmin},
+                                                         {"***id***"   => $id,
+                                                          "***mode***" => $type,
+                                                          "***user***" => $flagger -> {"username"},
+                                                          "***time***" => $self -> {"template"} -> format_time($flagged)});
+    } else {
+        # does the user have permission to flag?
+        my $flag  = ($permcache -> {"flag"} || $flaggedid == $userid) ? "enabled" : "disabled";
+        return $self -> {"template"} -> process_template($temcache -> {"flag_$flag"},
+                                                         {"***id***"   => $id,
+                                                          "***mode***" => $type});
     }
 }
 
@@ -258,6 +303,7 @@ sub _show_question_list {
         $qlist .= $self -> {"template"} -> process_template($questiontem, {"***qid***"       => $question -> {"id"},
                                                                            "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $question -> {"id"} ]),
                                                                            "***rating***"    => $self -> _nice_value($question -> {"rating"}),
+                                                                           "***flagged***"   => $question -> {"flagged_count"} ? "flagged" : "",
                                                                            "***status***"    => $status,
                                                                            "***answers***"   => $question -> {"answers"},
                                                                            "***rawviews***"  => $question -> {"views"},
@@ -323,14 +369,16 @@ sub _build_comment {
     my $nukeit  = $self -> {"template"} -> process_template($temcache -> {"delete_$cannuke"},
                                                             {"***cid***"   => $comment -> {"id"},
                                                              "***id***"    => $id,
-                                                             "***mode***"  => $type,
-                                                             "***state***" => $state});
+                                                             "***mode***"  => $type});
+
+    # Okay, work out flagging. If the comment is flagged, users are told of this, and only the flagger and admins can remove it
+    my $flagop = $self -> _build_flagop("cid-$type-$id-".$comment -> {"id"}, "comment", $comment -> {"flagged"}, $comment -> {"flagged_id"}, $userid, $permcache, $temcache);
 
     return $self -> {"template"} -> process_template($temcache -> {"comment"},
                                                      {"***cid***"       => $comment -> {"id"},
                                                       "***helpfuls***"  => $comment -> {"helpful"},
                                                       "***helpop***"    => $helpful,
-                                                      "***flagop***"    => "",
+                                                      "***flagop***"    => $flagop,
                                                       "***deleteop***"  => $nukeit,
                                                       "***message***"   => markdown($comment -> {"message"}),
                                                       "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $commenter -> {"username"} ]),
@@ -360,11 +408,16 @@ sub _build_comments {
     my $comments = $self -> {"qaforums"} -> get_comments($id, $type);
 
     my $temcache = {
-        "comment"          => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
-        "helpful_enabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_enabled.tem"),
-        "helpful_disabled" => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_disabled.tem"),
-        "delete_enabled"   => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_enabled.tem"),
-        "delete_disabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_disabled.tem"),
+        "comment"              => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
+        "helpful_enabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_enabled.tem"),
+        "helpful_disabled"     => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_disabled.tem"),
+        "delete_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_enabled.tem"),
+        "delete_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_disabled.tem"),
+        "flag_disabled"        => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_disabled.tem"),
+        "flag_enabled"         => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_enabled.tem"),
+        "unflag_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_disabled.tem"),
+        "unflag_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled.tem"),
+        "unflag_enabled_admin" => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled_admin.tem"),
      };
 
     my $qlist = "";
@@ -385,18 +438,20 @@ sub _build_comments {
 }
 
 
-## @method private $ _build_question_controls($question, $userid, $permcache)
+## @method private $ _build_question_controls($question, $userid, $permcache, $temcache)
 # Generate the controls the user may use to operate on the specified question, if any.
 #
 # @param question  A reference to a hash containing the question data.
 # @param userid    The ID of the user viewing the question.
 # @param permcache The permissions cache for the user.
+# @param temcache  A reference to a template hash.
 # @return A string containing the controls block to show in the post html.
 sub _build_question_controls {
     my $self      = shift;
     my $question  = shift;
     my $userid    = shift;
     my $permcache = shift;
+    my $temcache  = shift;
 
     # Determine whether operations are permitted
     my $canedit   = (($question -> {"creator_id"} == $userid && $permcache -> {"editown"}) ||
@@ -410,12 +465,13 @@ sub _build_question_controls {
 
     my $options  = $self -> {"template"} -> load_template("feature/qaforums/controls/edit_question_${canedit}.tem", {"***id***" => $question -> {"id"}});
        $options .= $self -> {"template"} -> load_template("feature/qaforums/controls/delete_question_${candelete}.tem", {"***id***" => $question -> {"id"}});
+       $options .= $self -> _build_flagop("qid-".$question -> {"id"}, "question", $question -> {"flagged"}, $question -> {"flagged_id"}, $userid, $permcache, $temcache);
 
     return $self -> {"template"} -> load_template("feature/qaforums/controls.tem", {"***controls***" => $options});
 }
 
 
-## @method private @ _build_question($question, $userid, $permcache)
+## @method private @ _build_question($question, $userid, $permcache, $temcache)
 # Generate the question block. This generates the HTML required to show the question
 # in the question page.
 #
@@ -428,6 +484,7 @@ sub _build_question {
     my $question  = shift;
     my $userid    = shift;
     my $permcache = shift;
+    my $temcache  = shift;
 
     # Potentially disable delete anyway if the question has answers or comments.
     $permcache -> {"qdeleteown"}   = $permcache -> {"deleteown"}   && ($question -> {"answers"} == 0) && ($question -> {"comments"} == 0);
@@ -458,7 +515,7 @@ sub _build_question {
                                                    "***subject***"   => $question -> {"subject"},
                                                    "***message***"   => $question -> {"message"},
                                                    "***extrainfo***" => "", # TODO
-                                                   "***controls***"  => $self -> _build_question_controls($question, $userid, $permcache),
+                                                   "***controls***"  => $self -> _build_question_controls($question, $userid, $permcache, $temcache),
                                                    "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $asker -> {"username"} ]),
                                                    "***asked***"     => $self -> {"template"} -> fancy_time($question -> {"created"}),
                                                    "***name***"      => $asker -> {"fullname"},
@@ -514,7 +571,7 @@ sub _show_question {
     my $permissions = {
         "rate"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.rate"),
         "flag"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.flag"),
-        "unflag"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.unflag"),
+        "flagadmin"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.flagadmin"),
         "answer"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.answer"),
         "comment"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.comment"),
         "editown"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editown"),
@@ -524,8 +581,20 @@ sub _show_question {
         "setbest"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.bestother") || ($userid == $question -> {"creator_id"}),
     };
 
+    my $temcache = {
+        "flag_disabled"        => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_disabled.tem"),
+        "flag_enabled"         => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_enabled.tem"),
+        "unflag_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_disabled.tem"),
+        "unflag_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled.tem"),
+        "unflag_enabled_admin" => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled_admin.tem"),
+        "answer"               => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
+        "rateup"               => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
+        "ratedown"             => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
+        "bestest"              => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
+    };
+
     # Generate the question block
-    $questionblock = $self -> _build_question($question, $userid, $permissions);
+    $questionblock = $self -> _build_question($question, $userid, $permissions, $temcache);
 
     # Sort for the answers
     my @pathinfo = $self -> {"cgi"} -> param("pathinfo");
@@ -543,15 +612,9 @@ sub _show_question {
     my $count = 0;
     my $best = $question -> {"best_answer_id"} || 0;
     if($answersh) {
-        my $atems = { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
-                      "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
-                      "ratedown" => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
-                      "bestest"  => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
-        };
-
         while(my $answer = $answersh -> fetchrow_hashref()) {
             ++$count;
-            $alist .= $self -> _build_answer($answer, $atems, $permissions, $answer -> {"id"} == $best, $question -> {"best_answer_set"});
+            $alist .= $self -> _build_answer($answer, $temcache, $permissions, $answer -> {"id"} == $best, $question -> {"best_answer_set"});
         }
     }
 
@@ -728,18 +791,20 @@ sub _ask_question {
 # ============================================================================
 #  Answer viewing
 
-## @method private $ _build_answer_controls($answer, $userid, $permcache)
+## @method private $ _build_answer_controls($answer, $userid, $permcache, $temcache)
 # Generate the controls the user may use to operate on the specified answer, if any.
 #
 # @param answer    A reference to a hash containing the answer data.
 # @param userid    The ID of the user viewing the answer.
 # @param permcache The permissions cache for the user.
+# @param temcache  A reference to a template hash.
 # @return A string containing the controls block to show in the post html.
 sub _build_answer_controls {
     my $self      = shift;
     my $answer    = shift;
     my $userid    = shift;
     my $permcache = shift;
+    my $temcache  = shift;
 
     # Determine whether operations are permitted
     my $canedit   = (($answer -> {"creator_id"} == $userid && $permcache -> {"editown"}) ||
@@ -758,6 +823,7 @@ sub _build_answer_controls {
                                                                                                                        "***qid***" => $answer -> {"question_id"}});
        $options .= $self -> {"template"} -> load_template("feature/qaforums/controls/delete_answer_${candelete}.tem", {"***aid***" => $answer -> {"id"},
                                                                                                                        "***qid***" => $answer -> {"question_id"}});
+       $options .= $self -> _build_flagop("aid-".$answer -> {"id"}, "answer", $answer -> {"flagged"}, $answer -> {"flagged_id"}, $userid, $permcache, $temcache);
 
     return $self -> {"template"} -> load_template("feature/qaforums/controls.tem", {"***controls***" => $options});
 }
@@ -817,7 +883,7 @@ sub _build_answer {
                                                       "***best***"      => $bestblock,
                                                       "***url***"       => $self -> build_url(block => "qaforum", pathinfo => [ "question", $answer -> {"question_id"}, "#aid-".$answer -> {"id"} ]),
                                                       "***message***"   => $answer -> {"message"},
-                                                      "***controls***"  => $self -> _build_answer_controls($answer, $userid, $permcache),
+                                                      "***controls***"  => $self -> _build_answer_controls($answer, $userid, $permcache, $temcache),
                                                       "***extrainfo***" => "", # TODO
                                                       "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $answerer -> {"username"} ]),
                                                       "***answered***"  => $self -> {"template"} -> fancy_time($answer -> {"created"}),
@@ -1067,13 +1133,13 @@ sub _build_api_edit_question_response {
 
     # Get the question so it can be checked for access
     my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $qid)
-        or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     # Check some permissions
     my $permcache = {
         "rate"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.rate"),
         "flag"        => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.flag"),
-        "unflag"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.unflag"),
+        "flagadmin"   => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.flagadmin"),
         "answer"      => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.answer"),
         "comment"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.comment"),
         "editown"     => $self -> {"qaforums"} -> check_permission($question -> {"metadata_id"}, $userid, "qaforums.editown"),
@@ -1101,15 +1167,20 @@ sub _build_api_edit_question_response {
     # Edit the post...
     if($self -> {"qaforums"} -> edit_question($qid, $userid, $args -> {"subject"}, $args -> {"reason"}, $args -> {"message"})) {
         my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $qid)
-            or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+            or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_QFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
         $self -> log("qaforum:edit_question", "Question $qid edited");
 
-        return $self -> _build_question($question, $userid, $permcache);
+        return $self -> _build_question($question, $userid, $permcache, {"flag_disabled"        => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_disabled.tem"),
+                                                                         "flag_enabled"         => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_enabled.tem"),
+                                                                         "unflag_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_disabled.tem"),
+                                                                         "unflag_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled.tem"),
+                                                                         "unflag_enabled_admin" => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled_admin.tem"),
+                                        });
     } else {
         return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
                                                                                            {"***message***" => "{L_FEATURE_QVIEW_APIEDIT_QFAIL}",
-                                                                                            "***errors***"  => $self -> {"news"} -> {"errstr"}}));
+                                                                                            "***errors***"  => $self -> {"qaforums"} -> {"errstr"}}));
     }
 
 }
@@ -1132,7 +1203,7 @@ sub _build_api_delete_question_response {
     $self -> log("qaforum:delete_question", "Requested delete of question $qid");
 
     my $question = $self -> {"qaforums"} -> get_question($self -> {"courseid"}, $qid)
-        or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("bad_questionid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     # Check some permissions
     my $permcache = {
@@ -1151,7 +1222,7 @@ sub _build_api_delete_question_response {
 
     # Get here and the post id is valid and the user can delete it, try it
     $self -> {"qaforums"} -> delete_question($qid, $userid)
-        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     $self -> log("qaforum:delete_question", "Question $qid deleted");
 
@@ -1203,7 +1274,7 @@ sub _build_api_answer_add_response {
     my $permissions = {
         "rate"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"),
         "flag"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag"),
-        "unflag"      => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.unflag"),
+        "flagadmin"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flagadmin"),
         "comment"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.comment"),
         "editown"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editown"),
         "editother"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editother"),
@@ -1214,10 +1285,15 @@ sub _build_api_answer_add_response {
 
     # Convert the answer to html to send back
     return $self -> _build_answer($answerdata,
-                                  { "answer"   => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
-                                    "rateup"   => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
-                                    "ratedown" => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
-                                    "bestest"  => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
+                                  { "flag_disabled"        => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_disabled.tem"),
+                                    "flag_enabled"         => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_enabled.tem"),
+                                    "unflag_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_disabled.tem"),
+                                    "unflag_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled.tem"),
+                                    "unflag_enabled_admin" => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled_admin.tem"),
+                                    "answer"               => $self -> {"template"} -> load_template("feature/qaforums/question_answer.tem"),
+                                    "rateup"               => $self -> {"template"} -> load_template("feature/qaforums/rateup.tem"),
+                                    "ratedown"             => $self -> {"template"} -> load_template("feature/qaforums/ratedown.tem"),
+                                    "bestest"              => $self -> {"template"} -> load_template("feature/qaforums/best.tem"),
                                   },
                                   $permissions);
 }
@@ -1245,13 +1321,13 @@ sub _build_api_edit_answer_response {
 
     # Get the answer so it can be checked for access
     my $answer = $self -> {"qaforums"} -> get_answer($qid, $aid)
-        or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     # Check some permissions
     my $permcache = {
         "rate"        => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.rate"),
         "flag"        => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.flag"),
-        "unflag"      => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.unflag"),
+        "flagadmin"   => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.flagadmin"),
         "comment"     => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.comment"),
         "editown"     => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.editown"),
         "editother"   => $self -> {"qaforums"} -> check_permission($answer -> {"metadata_id"}, $userid, "qaforums.editother"),
@@ -1277,7 +1353,7 @@ sub _build_api_edit_answer_response {
     # Edit the post...
     if($self -> {"qaforums"} -> edit_answer($aid, $userid, $args -> {"reason"}, $args -> {"message"})) {
         my $answer = $self -> {"qaforums"} -> get_answer($qid, $aid)
-            or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+            or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIEDIT_AFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
         $self -> log("qaforum:edit_answer", "Answer $aid to question $qid edited");
 
@@ -1294,7 +1370,7 @@ sub _build_api_edit_answer_response {
     } else {
         return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
                                                                                            {"***message***" => "{L_FEATURE_QVIEW_APIEDIT_AFAIL}",
-                                                                                            "***errors***"  => $self -> {"news"} -> {"errstr"}}));
+                                                                                            "***errors***"  => $self -> {"qaforums"} -> {"errstr"}}));
     }
 
 }
@@ -1321,7 +1397,7 @@ sub _build_api_delete_answer_response {
     $self -> log("qaforum:delete_answer", "Requested delete of answer $aid to question $qid");
 
     my $answer = $self -> {"qaforums"} -> get_answer($qid, $aid)
-        or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("bad_answerid", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_QFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     # Check some permissions
     my $permcache = {
@@ -1340,16 +1416,16 @@ sub _build_api_delete_answer_response {
 
     # Get here and the post id is valid and the user can delete it, try it
     $self -> {"qaforums"} -> delete_answer($aid, $userid)
-        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     # If this was the best answer for the question, it isn't anymore!
     my ($best, $set_time) = $self -> {"qaforums"} -> get_best_answer($qid)
-        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     if($best == $aid) {
         $self -> log("qaforum:delete_answer", "Delete of answer $aid to question $qid causing implicit best reset");
         $self -> {"qaforums"} -> set_best_answer($qid, undef)
-            or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+            or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
     }
 
     $self -> log("qaforum:delete_answer", "Answer $aid to question $qid deleted");
@@ -1386,7 +1462,7 @@ sub _build_api_comment_add_response {
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.comment")) {
-        $self -> log("qaforum:api_comment", "Permission denied when attempting to comment on $mode $id");
+        $self -> log("error:qaforum:api_comment", "Permission denied when attempting to comment on $mode $id");
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APICOM_PERMS"));
     }
 
@@ -1411,7 +1487,7 @@ sub _build_api_comment_add_response {
     my $permissions = {
         "rate"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"),
         "flag"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag"),
-        "unflag"      => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.unflag"),
+        "flagadmin"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flagadmin"),
         "editown"     => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editown"),
         "editother"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.editother"),
         "deleteown"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteown"),
@@ -1422,10 +1498,15 @@ sub _build_api_comment_add_response {
     return $self -> _build_comment($commentdata,
                                    $userid,
                                   { "comment" => $self -> {"template"} -> load_template("feature/qaforums/question_comment.tem"),
-                                    "helpful_enabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_enabled.tem"),
-                                    "helpful_disabled" => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_disabled.tem"),
-                                    "delete_enabled"   => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_enabled.tem"),
-                                    "delete_disabled"  => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_disabled.tem"),
+                                    "helpful_enabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_enabled.tem"),
+                                    "helpful_disabled"     => $self -> {"template"} -> load_template("feature/qaforums/controls/helpful_comment_disabled.tem"),
+                                    "delete_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_enabled.tem"),
+                                    "delete_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/delete_comment_disabled.tem"),
+                                    "flag_disabled"        => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_disabled.tem"),
+                                    "flag_enabled"         => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_enabled.tem"),
+                                    "unflag_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_disabled.tem"),
+                                    "unflag_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled.tem"),
+                                    "unflag_enabled_admin" => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled_admin.tem"),
                                   },
                                   $permissions,
                                    $id, $mode);
@@ -1476,11 +1557,99 @@ sub _build_api_delete_comment_response {
 
     # Get here and the comment id is valid and the user can delete it, try it
     $self -> {"qaforums"} -> delete_comment($cid, $userid)
-        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_AFAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
+        or return $self -> api_errorhash("del_failed", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIDEL_CFAILED", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     $self -> log("qaforum:delete_comment", "Comment $cid on $mode $id deleted");
 
     return { 'response' => { 'status' => 'ok' } };
+}
+
+
+sub _build_api_flag_response {
+    my $self = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+    my ($type, $mode, $id, $qid, $cid, $metadataid);
+
+    my $fullid = $self -> {"cgi"} -> param("id")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIFLAG_NOID"));
+
+    $self -> log("qaforum:api_flag", "User attempting to change flag status on entry $fullid");
+
+    # If the full id contains a question or answer id, fetch the metadata id from there
+    ($mode, $id) = $fullid =~ /^(qid|aid)-(\d+)$/;
+    if($mode && $id) {
+        $type = $mode = ($mode eq "qid" ? "question" : "answer");
+
+        $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+        $qid = ($mode eq "question" ? $id : $self -> {"qaforums"} -> _get_answer_questionid($id));
+    } else {
+        # No mode or id parsed, try again as a comment
+        ($mode, $id, $cid) = $fullid =~ /^cid-(qid|aid)-(\d+)-(\d+)$/;
+        if($mode && $id && $cid) {
+            $mode = ($mode eq "qid" ? "question" : "answer");
+            $type = "comment";
+
+            $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
+                or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+
+            $qid = ($mode eq "question" ? $id : $self -> {"qaforums"} -> _get_answer_questionid($id));
+            $id = $cid;
+
+        # Can't parse as a comment, give up
+        } else {
+            return $self -> api_errorhash("bad_id", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIFLAG_BADID"));
+        }
+    }
+
+    # determine who flagged the entry, if it is flagged.
+    my ($flagged_time, $flagged_id) = $self -> {"qaforums"} -> is_flagged($id, $type);
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+        if(!defined($flagged_time));
+
+    # Does the user have permission to flag or unflag in this context?
+    if(!$flagged_id) {
+        if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag")){# || $self -> {"qaforums"} -> user_is_owner($id, $type, $userid)) {
+            $self -> log("error:qaforum:api_flag", "Permission denied when trying to flag $fullid");
+            return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIFLAG_PERMS"));
+        }
+    } else {
+        if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flagadmin") && $flagged_id != $userid) {
+            $self -> log("error:qaforum:api_flag", "Permission denied when trying to unflag $fullid");
+            return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIFLAG_UPERMS"));
+        }
+    }
+
+    # Okay, user has permission - toggle the flagging
+    if($flagged_id) {
+        $self -> {"qaforums"} -> unflag($qid, $id, $type)
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+    } else {
+        $self -> {"qaforums"} -> flag($qid, $id, $type, $userid)
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+    }
+
+    # Get the updated values
+    ($flagged_time, $flagged_id) = $self -> {"qaforums"} -> is_flagged($id, $type);
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+        if(!defined($flagged_time));
+
+    # Now send back an appropriate flag button
+    my $permissions = {
+        "flag"        => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flag"),
+        "flagadmin"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.flagadmin"),
+    };
+
+    my $temcache = {
+        "flag_disabled"        => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_disabled.tem"),
+        "flag_enabled"         => $self -> {"template"} -> load_template("feature/qaforums/controls/flag_enabled.tem"),
+        "unflag_disabled"      => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_disabled.tem"),
+        "unflag_enabled"       => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled.tem"),
+        "unflag_enabled_admin" => $self -> {"template"} -> load_template("feature/qaforums/controls/unflag_enabled_admin.tem"),
+    };
+
+    return $self -> _build_flagop($fullid, $type, $flagged_time, $flagged_id, $userid, $permissions, $temcache);
 }
 
 
@@ -1550,6 +1719,8 @@ sub page_display {
             return $self -> api_response($self -> _build_api_helpful_comment_response());
         } elsif($apiop eq "deletec") {
             return $self -> api_response($self -> _build_api_delete_comment_response());
+        } elsif($apiop eq "flag") {
+            return $self -> api_html_response($self -> _build_api_flag_response());
         } else {
             return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                      $self -> {"template"} -> replace_langvar("API_BAD_OP")))
@@ -1568,6 +1739,8 @@ sub page_display {
             ($title, $content, $extrahead) = $self -> _show_question_list("rating"    , $pathinfo[1]);
         } elsif($pathinfo[0] eq "unanswered") {
             ($title, $content, $extrahead) = $self -> _show_question_list("unanswered", $pathinfo[1]);
+        } elsif($pathinfo[0] eq "flagged") {
+            ($title, $content, $extrahead) = $self -> _show_question_list("flagged_count", $pathinfo[1]);
         } elsif($pathinfo[0] eq "ask") {
             ($title, $content, $extrahead) = $self -> _ask_question();
         } elsif($pathinfo[0] eq "question") {

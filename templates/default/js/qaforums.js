@@ -1,6 +1,7 @@
 var postlock = false;
 var apostlock = false;
 var cpostlock = false;
+var flaglock  = false;
 
 /** Attempt to change the rating on a question or answer.
  *  This will contact the qaforum api and attempt to change the rating on the question
@@ -84,6 +85,7 @@ function best_toggle(element)
                           });
     req.send("id="+core_id);      
 }
+
 
 /** Allow the user to set or clear their 'helpful' status for a comment.
  * 
@@ -259,7 +261,8 @@ function delete_question(qid)
                                 $('delbtn-q'+qid).getChildren('img')[0].fade('in');
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-q'+qid).getChildren('img')[0].fade('out').removeClass('working');
+                                $('delbtn-q'+qid).getChildren('img')[0].fade('out');
+                                $('delbtn-q'+qid).removeClass('working');
                                 
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
@@ -353,7 +356,8 @@ function delete_answer(qid, aid)
                                 $('delbtn-a'+aid).getChildren('img')[0].fade('in');
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-a'+aid).getChildren('img')[0].fade('out').removeClass('working');
+                                $('delbtn-a'+aid).getChildren('img')[0].fade('out');
+                                $('delbtn-a'+aid).removeClass('working');
                                 
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
@@ -555,7 +559,8 @@ function delete_comment(full_id)
                                 $('delbtn-c'+comm_id).getChildren('img')[0].fade('in');
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-c'+comm_id).getChildren('img')[0].fade('out').removeClass('working');
+                                $('delbtn-c'+comm_id).getChildren('img')[0].fade('out');
+                                $('delbtn-c'+comm_id).removeClass('working');
                                 
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
@@ -570,6 +575,52 @@ function delete_comment(full_id)
                           });
     req.send("id="+full_id);
 }
+
+
+
+/** Allow the user to set the flag status on an entry
+ * 
+ * @param full_id A string containing the id of the entry to flag.
+ */
+function flag(full_id)
+{
+    if(flaglock) return false;
+    flaglock = true;
+
+    var req = new Request.HTML({ url: api_request_path("qaforum", "flag"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('flagbtn-'+full_id).addClass('working');
+                                     $('flagbtn-'+full_id).getChildren('img')[0].fade('in');
+                                 },
+
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     $('flagbtn-'+full_id).getChildren('img')[0].fade('out');
+                                     $('flagbtn-'+full_id).removeClass('working');
+                                     
+                                     var err = respHTML.match(/^<div id="apierror"/);
+                                     
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+
+                                     // No error, entry was flagged, the element provided should
+                                     // be the new <li>...
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+
+                                         var oldElem = $('flag-'+full_id);
+                                         tmp.replaces(oldElem);
+                                         oldElem.destroy();
+                                     }
+                                     flaglock = false;
+                                 }
+                               });
+    req.send("id="+full_id);      
+}
+
+
 
 window.addEvent('domready', function() {
     // Rating and 'best answer' controls for questions and answers.
@@ -599,7 +650,7 @@ window.addEvent('domready', function() {
     );
 
     // Hide zero helpful counters on comments
-    $$('li.comment div.ops div.helpfuls').each(
+    $$('li.comment ul.ops div.helpfuls').each(
         function(element) { 
             if(element.get('html') == '0') 
                 element.fade('out');

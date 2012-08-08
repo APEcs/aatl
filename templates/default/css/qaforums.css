@@ -36,6 +36,10 @@ ul.questionlist > li {
     border-top: 1px solid #bbb;
 }
 
+ul.questionlist > li.flagged {
+    background-color: #f6e9e9;
+}
+
 ul.qlist {
     padding: 0px;
     margin: 0px;
@@ -322,12 +326,18 @@ ul.comments li.comment {
     margin-left: 30px;
 }
 
-ul.comments li.comment div.ops {
+ul.comments li.comment ul.ops {
     float: left;
     width: 16px;
     margin-right: 4px;
     font-size: 80%;
     text-align: center;
+}
+
+ul.comments li.comment ul.ops li {
+    list-style-type: none;
+    margin: 0px;
+    padding: 0px;
 }
 
 ul.comments li.comment div.message {
@@ -375,4 +385,41 @@ ul.comments li.comment:hover .control.delete:hover {
 
 ul.comments li.comment .control.delete.working {
     background-position: -16px -48px;
+}
+
+ul.comments li.comment .control.flag {
+    background-position: -32px -48px;
+}
+
+ul.comments li.comment:hover .control.flag {
+    background-position: -32px -16px;
+}
+
+ul.comments li.comment:hover .control.flag:hover {
+    background-position: -32px 0px;
+}
+
+ul.comments li.comment .control.flag.set {
+    background-position: -32px 0px;
+}
+
+ul.comments li.comment .control.flag.working {
+    background-position: -32px -48px;
+}
+
+
+ul.controls .control.flag {
+    background-position: -32px -16px;
+}
+
+ul.controls .control.flag:hover {
+    background-position: -32px 0px;
+}
+
+ul.controls .control.flag.set {
+    background-position: -32px 0px;
+}
+
+ul.controls .control.flag.working {
+    background-position: -32px -48px;
 }
