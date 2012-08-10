@@ -2,3 +2,4 @@
 docs/
 config/site.cfg
 ckeditor
+testharness.pl
