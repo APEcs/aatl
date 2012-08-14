@@ -91,7 +91,7 @@ sub check_permission {
 #  Materials subclass loader
 
 ## @method $ load_materials_module($modulename)
-# Attempt to load an create an instance of a MAterials module.
+# Attempt to load an create an instance of a Materials module.
 #
 # @param modulename The name of the materials module to load.
 # @return A reference to an instance of the requested materials module on success,

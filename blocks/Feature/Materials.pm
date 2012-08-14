@@ -23,7 +23,7 @@ package Feature::Materials;
 use strict;
 use base qw(Feature);
 use Utils qw(is_defined_numeric);
-#use System::Materials;
+use System::Materials;
 
 # ============================================================================
 #  Constructor
@@ -62,7 +62,7 @@ sub new {
 #  Permissions/Roles related.
 
 ## @method $ used_capabilities()
-]# Generate a hash containing the capabilities this Feature tests user's roles
+# Generate a hash containing the capabilities this Feature tests user's roles
 # against, and the description of the capabilities.
 #
 # @return A reference to a hash containing the capabilities this Feature uses
@@ -74,7 +74,6 @@ sub used_capabilities {
 
            };
 }
-
 
 
 # ============================================================================
@@ -95,9 +94,9 @@ sub page_display {
     return $error if($error);
 
     # Exit with a permission error unless the user has permission to read
-    my $canread = $self -> {"qaforums"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
-                                                            $self -> {"session"} -> get_session_userid(),
-                                                            "materials.view");
+    my $canread = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                             $self -> {"session"} -> get_session_userid(),
+                                                             "materials.view");
     if(!$canread) {
         $self -> log("error:materials:permission", "User does not have permission to view materials in course");
 
@@ -128,6 +127,7 @@ sub page_display {
         # If the third element of the pathinfo is defined then it is a call to a materials submodule. In theory.
         if(defined($pathinfo[2])) {
             my $matmodule = $self -> {"materials"} -> load_materials_module($pathinfo[2]);
+
             # Let the material module handle the request
             if($matmodule) {
                 return $matmodule -> page_display();
@@ -138,14 +138,16 @@ sub page_display {
                                                                          $self -> {"template"} -> replace_langvar("API_BAD_MODULE")));
             }
 
-        # Otherwise it's a Materials-page ajax call.
+        # Otherwise it's a Materials-page ajax call. Dispatch to appropriate handlers.
         } else {
 
         }
     } else {
         # Dispatch to materials page generation code
 
-        # User has access, generate the news page for the course.
+        # User has access, generate the materials page for the course.
         return $self -> generate_course_page($title, $content, $extrahead);
     }
 }
+
+1;
