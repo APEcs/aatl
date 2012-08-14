@@ -45,7 +45,7 @@ sub new {
     $self -> {"materials"} = System::Materials -> new(dbh      => $self -> {"dbh"},
                                                       settings => $self -> {"settings"},
                                                       logger   => $self -> {"logger"},
-                                                      modules  => $self -> {"modules"},
+                                                      module   => $self -> {"module"},
                                                       roles    => $self -> {"system"} -> {"roles"},
                                                       metadata => $self -> {"system"} -> {"metadata"},
                                                       courses  => $self -> {"system"} -> {"courses"})

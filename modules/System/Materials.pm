@@ -109,7 +109,7 @@ sub load_materials_module {
     my $modname = $modh -> fetchrow_arrayref()
         or return $self -> self_error("Unable to fetch module id for $modulename: entry does not exist");
 
-    return $self -> {"modules"} -> load_module($modname -> [0]);
+    return $self -> {"module"} -> load_module($modname -> [0]);
 }
 
 1;
