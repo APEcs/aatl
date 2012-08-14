@@ -101,7 +101,7 @@ sub load_materials_module {
     my $modulename = shift;
 
     my $modh = $self -> {"dbh"} -> prepare("SELECT perl_module
-                                            FROM `".$self -> {"settings"} -> {"database"} -> {"material_modules"}."`
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."`
                                             WHERE module_name = ?");
     $modh -> execute($modulename)
         or return $self -> self_error("Unable to execute materials module lookup: ".$self -> {"dbh"} -> errstr);
