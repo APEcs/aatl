@@ -79,6 +79,32 @@ sub used_capabilities {
 # ============================================================================
 #  Interface
 
+## @method $ section_display()
+# Produce the string containing this block's 'section fragment' if it has one. By default,
+# this will return a string containing an error message. If section fragment content is
+# needed, this must be overridden in the subclass.
+#
+# @return The string containing this block's section content fragment.
+sub section_display {
+    my $self = shift;
+
+    return "<p class=\"error\">".$self -> {"template"} -> replace_langvar("BLOCK_SECTION_DISPLAY")."</p>";
+}
+
+
+## @method $ block_display()
+# Produce the string containing this block's 'block fragment' if it has one. By default,
+# this will return a string containing an error message. If block fragment content is
+# needed, this must be overridden in the subclass.
+#
+# @return The string containing this block's content fragment.
+sub block_display {
+    my $self = shift;
+
+    return "<p class=\"error\">".$self -> {"template"} -> replace_langvar("BLOCK_BLOCK_DISPLAY")."</p>";
+}
+
+
 ## @method $ page_display()
 # Produce the string containing this block's full page content. This generates
 # a course news page, including all navigation and decoration.

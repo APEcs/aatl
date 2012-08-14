@@ -21,3 +21,6 @@ TIMES_MONTH   = a month ago
 TIMES_MONTHS  = %t months ago
 TIMES_YEAR    = a year ago
 TIMES_YEARS   = %t years ago
+
+BLOCK_BLOCK_DISPLAY   = Direct call to unimplemented block_display()
+BLOCK_SECTION_DISPLAY = Direct call to unimplemented section_display()
