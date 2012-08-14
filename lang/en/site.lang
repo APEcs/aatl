@@ -4,7 +4,8 @@ EMAIL_SIG  = The AATL Team
 
 SITE_CONTINUE = Continue
 
-API_BAD_OP = Unknown API operation requested.
+API_BAD_OP   = Unknown API operation requested.
+API_BAD_CALL = Incorrect invocation of an API-only module.
 
 # Times for Template::fancy_time
 TIMES_JUSTNOW = just now
