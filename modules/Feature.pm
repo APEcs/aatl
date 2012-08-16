@@ -541,6 +541,7 @@ sub api_response {
     print Encode::encode_utf8($xmldata);
 
     $self -> {"template"} -> set_module_obj(undef);
+    $self -> {"messages"} -> set_module_obj(undef);
     $self -> {"system"} -> clear() if($self -> {"system"});
     $self -> {"session"} -> {"auth"} -> {"app"} -> set_system(undef) if($self -> {"session"} -> {"auth"} -> {"app"});
 
