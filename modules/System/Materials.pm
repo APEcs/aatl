@@ -50,6 +50,7 @@ sub new {
     return SystemModule::set_error("No roles object available.")    if(!$self -> {"roles"});
     return SystemModule::set_error("No course object available.")   if(!$self -> {"courses"});
     return SystemModule::set_error("No metadata object available.") if(!$self -> {"metadata"});
+    return SystemModule::set_error("No module object available.")   if(!$self -> {"module"});
 
     return $self;
 }
