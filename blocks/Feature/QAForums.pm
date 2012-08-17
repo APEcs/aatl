@@ -981,14 +981,14 @@ sub _build_api_rating_response {
 
     # Check the user can rate
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRATE_PERMS"))
         if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate") || $self -> {"qaforums"} -> user_is_owner($id, $mode, $userid));
 
     # Determine whether the user has rated the question or answer
     my $rated = $self -> {"qaforums"} -> user_has_rated($id, $mode, $userid);
-    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($rated));
 
     # if the user has rated the question or answer, cancel it
@@ -1002,7 +1002,7 @@ sub _build_api_rating_response {
 
     # Get the current rating...
     my $rating = $self -> {"qaforums"} -> get_rating($id, $mode);
-    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($rating));
 
     $self -> log("qaforum:api_rating", "Rated $mode $id ".($rated ? $rated : "cancelled"));
@@ -1034,30 +1034,30 @@ sub _build_api_helpful_comment_response {
 
     # Check the user can rate
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_APIRCOM_PERMS"))
         if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.rate"));# || $self -> {"qaforums"} -> user_is_owner($cid, "comment", $userid));
 
     # Determine whether the user has rated the comment
     my $rated = $self -> {"qaforums"} -> user_marked_helpful($cid, $userid);
-    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($rated));
 
     # if the user has rated the comment, cancel it
     if($rated) {
         $self -> {"qaforums"} -> cancel_is_helpful($cid, $userid)
-            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     # Otherwise, mark it
     } else {
         $self -> {"qaforums"} -> comment_is_helpful($cid, $userid)
-            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
     }
 
     # Get the comment
     my $comment = $self -> {"qaforums"} -> get_comment($id, $mode, $cid)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     $self -> log("qaforum:api_helpful", "Marked comment $cid on $mode $id - ".($rated ? "as helpful" : "cancelled"));
 
@@ -1089,7 +1089,7 @@ sub _build_api_best_response {
 
     # Check the user can change the best answer
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.setbest") || $self -> {"qaforums"} -> user_is_owner($qid, "question", $userid)) {
         $self -> log("qaforum:api_best", "No permission to choose best answer to question $qid");
@@ -1098,7 +1098,7 @@ sub _build_api_best_response {
 
     # Get the current best
     my ($current, $set_time) = $self -> {"qaforums"} -> get_best_answer($qid);
-    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($current));
 
     # If the current is set to the selected answer, clear it
@@ -1106,7 +1106,7 @@ sub _build_api_best_response {
 
     # And set it...
     $self -> {"qaforums"} -> set_best_answer($qid, $aid)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     $self -> log("qaforum:api_best", "Best answer to question $qid set to ".($aid ? $aid : "none"));
 
@@ -1114,7 +1114,7 @@ sub _build_api_best_response {
 }
 
 
-## @method $ build_api_edit_question_response()
+## @method private $ _build_api_edit_question_response()
 # Generate a string or hash to return to the caller in response to an API edit
 # request. This will edit the question, if the user has permission to do so, and
 # it will send back the edited question text in the response.
@@ -1230,7 +1230,7 @@ sub _build_api_delete_question_response {
 }
 
 
-## @method $ _build_api_answer_add_response()
+## @method private $ _build_api_answer_add_response()
 # Attempt to add and answer to a question. This will validate that the data submitted by
 # the user is valid, and if so it will add the answer and send back the answer fragment to
 # embed in the page.
@@ -1246,7 +1246,7 @@ sub _build_api_answer_add_response {
 
     # Check that the user has permission to answer the question.
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($qid, "question")
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.answer")) {
         $self -> log("qaforum:api_answer", "No permission to answer question $qid");
@@ -1256,7 +1256,7 @@ sub _build_api_answer_add_response {
     # Check that the user's message is valid
     my ($errors, $args) = $self -> _validate_answer_fields();
     return $self -> api_errorhash("internal_error",
-                                  $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR",
+                                  $self -> {"template"} -> replace_langvar("API_ERROR",
                                                                            {"***error***" => $self -> {"template"} -> load_template("error_list.tem",
                                                                                                                                     {"***message***" => "{L_FEATURE_QVIEW_APIANS_FAILED}",
                                                                                                                                      "***errors***"  => $errors})}))
@@ -1264,10 +1264,10 @@ sub _build_api_answer_add_response {
 
     # Message is valid, try to add it
     my $aid = $self -> {"qaforums"} -> create_answer($qid, $userid, $args -> {"message"})
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     my $answerdata = $self -> {"qaforums"} -> get_answer($qid, $aid)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     $self -> log("qaforum:api_answer", "Answered question $qid with answer $aid");
 
@@ -1434,7 +1434,7 @@ sub _build_api_delete_answer_response {
 }
 
 
-## @method $ _build_api_comment_add_response()
+## @method private $ _build_api_comment_add_response()
 # Attempt to add a comment to an answer or question. This will validate that the data
 # submitted by the user is valid, and if so it will add the comment to the answer or
 # question and send back the comment fragment to embed in the page.
@@ -1459,7 +1459,7 @@ sub _build_api_comment_add_response {
 
     # Check the user can comment
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     if(!$self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.comment")) {
         $self -> log("error:qaforum:api_comment", "Permission denied when attempting to comment on $mode $id");
@@ -1469,7 +1469,7 @@ sub _build_api_comment_add_response {
     # Check that the user's comment is valid
     my ($errors, $args) = $self -> _validate_comment_fields();
     return $self -> api_errorhash("internal_error",
-                                  $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR",
+                                  $self -> {"template"} -> replace_langvar("API_ERROR",
                                                                            {"***error***" => $self -> {"template"} -> load_template("error_list.tem",
                                                                                                                                     {"***message***" => "{L_FEATURE_QVIEW_APICOM_FAILED}",
                                                                                                                                      "***errors***"  => $errors})}))
@@ -1477,10 +1477,10 @@ sub _build_api_comment_add_response {
 
     # Comment is valid, try to add it
     my $cid = $self -> {"qaforums"} -> create_comment($id, $mode, $userid, $args -> {"message"})
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     my $commentdata = $self -> {"qaforums"} -> get_comment($id, $mode, $cid)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     $self -> log("qaforum:api_comment", "User commented on $mode $id with comment $cid");
 
@@ -1537,7 +1537,7 @@ sub _build_api_delete_comment_response {
 
     # Work out permissions
     my $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     my $permcache = {
         "deleteown"   => $self -> {"qaforums"} -> check_permission($metadataid, $userid, "qaforums.deleteown"),
@@ -1546,7 +1546,7 @@ sub _build_api_delete_comment_response {
 
     # Get the comment for ownership checks
     my $commentdata = $self -> {"qaforums"} -> get_comment($id, $mode, $cid)
-        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
     # Does the user have permission to delete it?
     my $ownership = ($commentdata -> {"creator_id"} == $userid ? "own" : "other");
@@ -1581,7 +1581,7 @@ sub _build_api_flag_response {
         $type = $mode = ($mode eq "qid" ? "question" : "answer");
 
         $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
-            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
         $qid = ($mode eq "question" ? $id : $self -> {"qaforums"} -> _get_answer_questionid($id));
     } else {
@@ -1592,7 +1592,7 @@ sub _build_api_flag_response {
             $type = "comment";
 
             $metadataid = $self -> {"qaforums"} -> get_metadataid($id, $mode)
-                or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+                or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
 
             $qid = ($mode eq "question" ? $id : $self -> {"qaforums"} -> _get_answer_questionid($id));
             $id = $cid;
@@ -1605,7 +1605,7 @@ sub _build_api_flag_response {
 
     # determine who flagged the entry, if it is flagged.
     my ($flagged_time, $flagged_id) = $self -> {"qaforums"} -> is_flagged($id, $type);
-    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($flagged_time));
 
     # Does the user have permission to flag or unflag in this context?
@@ -1624,15 +1624,15 @@ sub _build_api_flag_response {
     # Okay, user has permission - toggle the flagging
     if($flagged_id) {
         $self -> {"qaforums"} -> unflag($qid, $id, $type)
-            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
     } else {
         $self -> {"qaforums"} -> flag($qid, $id, $type, $userid)
-            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}));
     }
 
     # Get the updated values
     ($flagged_time, $flagged_id) = $self -> {"qaforums"} -> is_flagged($id, $type);
-    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("FEATURE_QVIEW_API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
+    return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"qaforums"} -> {"errstr"}}))
         if(!defined($flagged_time));
 
     # Now send back an appropriate flag button
