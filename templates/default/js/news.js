@@ -124,7 +124,7 @@ function do_editable(postid)
 
                                          $('workspin-'+postid).fade('out');
                                          $('editpost-'+postid).removeClass('disabled');
-                                         $('editpost-'+postid).addEvent('click', make_editable(postid));
+                                         $('editpost-'+postid).addEvent('click', function() { make_editable(postid) } );
 
                                      // No error, post was edited, the element provided should
                                      // be the updated <li>...

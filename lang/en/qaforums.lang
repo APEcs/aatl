@@ -33,8 +33,6 @@ FEATURE_QLIST_ANSWERS  = Answers
 FEATURE_QLIST_VIEWS    = Views
 FEATURE_QLIST_ASKED    = Asked
 
-FEATURE_QVIEW_API_ERROR   = An internal API error has occurred: ***error***
-
 FEATURE_QVIEW_ERROR_TITLE = Error
 FEATURE_QVIEW_ERROR       = An error has been encountered.
 FEATURE_QVIEW_NOQUESTION  = No question ID has been specified, or the specified ID does not correspond to a valid question.

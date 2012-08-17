@@ -1,2 +1,12 @@
+FEATURE_MATERIALS_ERROR    = Error
+FEATURE_MATERIALS_ERROROK  = Continue
+
 FEATURE_MATERIALS_VIEWPERM_TITLE = Permission error
 FEATURE_MATERIALS_VIEWPERM       = You do not have permission to view the course materials.
+
+FEATURE_MATERIALS_DOEDIT         = Edit
+FEATURE_MATERIALS_TITLE          = Course Materials
+FEATURE_MATERIALS_NEWSEC         = Add a section
+FEATURE_MATERIALS_DEFAULT_TITLE  = New section
+
+FEATURE_MATERIALS_APIADDSEC_PERMS = You do not have permission to add materials sections to this course.

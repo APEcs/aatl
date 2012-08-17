@@ -3,6 +3,7 @@
 ***postform***
 ***entries***
 ***returnlink***
+                <li class="hidden"><!-- End of post list --></li>
             </ul>
             <script type="text/javascript">
 window.addEvent('domready', function() {

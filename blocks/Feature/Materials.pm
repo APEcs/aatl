@@ -70,9 +70,149 @@ sub new {
 sub used_capabilities {
     my $self = shift;
 
-    return { "materials.view"  => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.VIEW"),
-
+    return { "materials.view"       => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.VIEW"),
+             "materials.viewhidden" => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.VIEWHIDDEN"),
+             "materials.addsection" => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.ADDSECTION"),
            };
+}
+
+
+# ============================================================================
+#  Section handling/listing
+
+## @method private $ _build_section($section, $userid, $permcache, $temcache)
+# Generate the HTML used to show a single section.
+#
+# @param section   A reference to a hash containing the section data.
+# @param userid    The ID of the user viewing the section.
+# @param permcache A reference to a hash containing cached permissions.
+# @param temcache  A reference to a hash containing cached templates.
+# @return A string containing the section HTML.
+sub _build_section {
+    my $self      = shift;
+    my $section   = shift;
+    my $userid    = shift;
+    my $permcacne = shift;
+    my $temcache  = shift;
+
+    # Build the section contents
+    my $contents = ""; # TODO
+
+    # Section admin bar and controls
+    my $admin = ""; # $self -> _build_section_admin($section, $userid);
+    my $controls = ""; # $self -> _build_section_controls($section, $userid);
+
+    # Work out the classes to apply to the section
+    my $section_class = "";
+    $section_class .= "hidden" unless($section -> {"visible"});
+    $section_class .= "closed" unless($section -> {"open"});
+
+    # state for the open/closed toggle
+    my $state = $section -> {"open"} ? "open" : "closed";
+
+    return $self -> {"template"} -> process_template($temcache -> {"section"},
+                                                     {"***id***"       => $section -> {"id"},
+                                                      "***class***"    => $section_class,
+                                                      "***admin***"    => $admin,
+                                                      "***state***"    => $state,
+                                                      "***title***"    => $section -> {"title"},
+                                                      "***content***"  => $contents,
+                                                      "***controls***" => $controls,
+                                                     });
+}
+
+
+
+## @method private @ _build_section_list($error)
+# Generate the HTML to show in the page body containing the section list.
+#
+# @param error An optional error message to show at the top of the page; this
+#              will be wrapped in an error box for you.
+# @return An array of two values: a string containing the page content, and a
+#         string with extra header directives.
+sub _build_section_list {
+    my $self = shift;
+    my $error = shift;
+
+    # Wrap the error message in a message box if we have one.
+    $error = $self -> {"template"} -> load_template("feature/materials/error_box.tem", {"***message***" => $error})
+        if($error);
+
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Can the user view hidden sections?
+    my $viewhidden = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.viewhidden");
+
+    # Cache some templates for list generation
+    my $temcache = { "section" => $self -> {"template"} -> load_template("feature/materials/section.tem"),
+    };
+
+    # And some permissions
+    my $permcache = {
+    };
+
+    my $sections = $self -> {"materials"} -> get_section_list($self -> {"courseid"}, $viewhidden);
+    my $sectionlist = "";
+    foreach my $section (@{$sections}) {
+        $sectionlist .= $self -> _build_section($section, $userid, $permcache, $temcache);
+    }
+
+    # Can the user add sections?
+    my $addsection = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.addsection");
+    $addsection = $addsection ? "enabled" : "disabled";
+
+    return ($self -> {"template"} -> load_template("feature/materials/sectionlist.tem",
+                                                   {"***error***"   => $error,
+                                                    "***entries***" => $sectionlist,
+                                                    "***addopt***"  => $self -> {"template"} -> load_template("feature/materials/addsection_${addsection}.tem")
+                                                   }),
+            $self -> {"template"} -> load_template("feature/materials/extrahead.tem"));
+}
+
+
+# ============================================================================
+#  API functions
+
+## @method private $ _build_api_addsection_response()
+# Determine whether the user is allowed to add sections, and if they are try to
+# add a new one to the current course.
+#
+# @return A string or hash containing the API response.
+sub _build_api_addsection_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    $self -> log("materials:addsection", "User attempting to add material section");
+
+    my $addsection = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.addsection");
+    if(!$addsection) {
+        $self -> log("error:materials:addsection", "Permission denied when attempting add a new section");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDSEC_PERMS"));
+    }
+
+    my $sectionid = $self -> {"materials"} -> add_section($self -> {"courseid"}, $userid, $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_DEFAULT_TITLE"))
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    $self -> log("materials:addsection", "User added new section with id $sectionid");
+
+    my $section = $self -> {"materials"} -> get_section($sectionid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    # Cache some templates for list generation
+    my $temcache = { "section" => $self -> {"template"} -> load_template("feature/materials/section.tem"),
+    };
+
+    # And some permissions
+    my $permcache = {
+    };
+
+    return $self -> _build_section($section, $userid, $permcache, $temcache);
 }
 
 
@@ -166,13 +306,19 @@ sub page_display {
 
         # Otherwise it's a Materials-page ajax call. Dispatch to appropriate handlers.
         } else {
-
+            if($apiop eq "addsection") {
+                return $self -> api_html_response($self -> _build_api_addsection_response());
+            } else {
+                return $self -> api_html_response($self -> api_errorhash('bad_op',
+                                                                         $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+            }
         }
     } else {
         # Dispatch to materials page generation code
+        ($content, $extrahead) = $self -> _build_section_list();
 
         # User has access, generate the materials page for the course.
-        return $self -> generate_course_page($title, $content, $extrahead);
+        return $self -> generate_course_page("{L_FEATURE_MATERIALS_TITLE}", $content, $extrahead);
     }
 }
 

@@ -89,6 +89,103 @@ sub check_permission {
 
 
 # ============================================================================
+#  Section listing/manglement
+
+## @method $ add_section($courseid, $userid, $title)
+# Add a new, hidden, closed section to the specified course.
+#
+# @param courseid The ID of the course to add the section to.
+# @param userid   The ID of the user adding the section.
+# @param title    The title to set in the section header.
+# @return The new section ID on success, undef on error.
+sub add_section {
+    my $self     = shift;
+    my $courseid = shift;
+    my $userid   = shift;
+    my $title    = shift;
+
+    $self -> clear_error();
+
+    # Get the ID of the course metadata context, so it can be used to make a new
+    # context for the post
+    my $parentid = $self -> {"courses"} -> get_course_metadataid($courseid)
+        or return $self -> self_error("Unable to obtain course metadata id: ".$self -> {"courses"} -> {"errstr"} || "Course does not exist");
+
+    my $metadataid = $self -> {"metadata"} -> create($parentid)
+        or return $self -> self_error("Unable to create new metadata context: ".$self -> {"metadata"} -> {"errstr"});
+
+    # We need to put the new section after the current maximum (FIXME: potential
+    # concurrent access race condition here. Is it worth addressing?)
+    my $newpos = $self -> _get_max_section_sortpos($courseid);
+    return undef if(!defined($newpos));
+    ++$newpos;
+
+    my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                            (metadata_id, course_id, created, creator_id, title, sort_position)
+                                            VALUES(?, ?, UNIX_TIMESTAMP(), ?, ?, ?)");
+    my $result = $newh -> execute($metadataid, $courseid, $userid, "$title: $newpos", $newpos);
+    return $self -> self_error("Unable to perform section insert: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Section insert failed, no rows inserted") if($result eq "0E0");
+
+    # FIXME: This ties to MySQL, but is more reliable that last_insert_id in general.
+    #        Try to find a decent solution for this mess...
+    my $sectionid = $self -> {"dbh"} -> {"mysql_insertid"}
+        or return $self -> self_error("Unable to obtain new section row id");
+
+    return $sectionid;
+}
+
+
+## @method $ get_section($sectionid)
+# Obtain the data for a specified section.
+#
+# @param sectionid The ID of the section to fetch the data for.
+# @return A reference to a hash containing the section data on success,
+#         undef on error.
+sub get_section {
+    my $self = shift;
+    my $sectionid = shift;
+
+    my $secth = $self -> {"dbh"} -> prepare("SELECT *
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                             WHERE id = ?
+                                             AND deleted IS NULL");
+    $secth -> execute($sectionid)
+        or return $self -> self_error("Unable to execute section loopup query: ".$self -> {"dbh"} -> errstr);
+
+    return $secth -> fetchrow_hashref() || $self -> self_error("Unknown section requested");
+}
+
+
+## @method $ get_section_list($courseid, $show_hidden)
+# Generate a list of sections to present to the user. This does not include the contents
+# of the section, merely the section title and metadata.
+#
+# @param courseid    The ID of the course to fetch sections for,
+# @param show_hidden Include sections that are marked as invisible.
+# @return A reference to an array of hashrefs containing sections, sorted by their
+#         sort positions.
+sub get_section_list {
+    my $self        = shift;
+    my $courseid    = shift;
+    my $show_hidden = shift;
+
+    $self -> clear_error();
+
+    my $secth = $self -> {"dbh"} -> prepare("SELECT *
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                             WHERE course_id = ?
+                                             AND deleted IS NULL ".
+                                            ($show_hidden ? "" : "AND visible = 1 ").
+                                            "ORDER BY sort_position");
+    $secth -> execute($courseid)
+        or return $self -> self_error("Unable to execute section list query: ".$self -> {"dbh"} -> errstr);
+
+    return $secth -> fetchall_arrayref({});
+}
+
+
+# ============================================================================
 #  Materials subclass loader
 
 ## @method $ load_materials_module($modulename)
@@ -111,6 +208,39 @@ sub load_materials_module {
         or return $self -> self_error("Unable to fetch module id for $modulename: entry does not exist");
 
     return $self -> {"module"} -> load_module($modname -> [0]);
+}
+
+
+# ============================================================================
+#  Internals
+
+
+## @method private $ _get_max_section_sortpos($courseid)
+# Obtain the maximum used section sort position in the specified course. This will
+# return the highest sort position value set for sections in the course with the
+# provided ID, or zero if there are no sections.
+#
+# @param courseid The ID of the course to get the maximum section sort pos value for.
+# @return The maximum sort position value used, 0 if no position is set, undef on error.
+sub _get_max_section_sortpos {
+    my $self     = shift;
+    my $courseid = shift;
+
+    $self -> clear_error();
+
+    # Fetch the maximum sort position, ignoring deleted entries.
+    my $posh = $self -> {"dbh"} -> prepare("SELECT MAX(sort_position)
+                                            FROM  `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                            WHERE course_id = ?
+                                            AND deleted IS NULL");
+    $posh -> execute($courseid)
+        or return $self -> self_error("Unable to execute section sort position query: ".$self -> {"dbh"} -> errstr);
+
+    my $pos = $posh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch maximum sort position row. This should not happen.");
+
+    # The result is either a Non-NULL value for the max, or we make it zero.
+    return $pos -> [0] || 0;
 }
 
 1;
