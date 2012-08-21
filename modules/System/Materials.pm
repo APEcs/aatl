@@ -185,6 +185,35 @@ sub get_section_list {
 }
 
 
+## @method $ set_section_order($courseid, $sectionid, $position)
+# Set the sort position for the sepcified section to the given position. This will not
+# enforce any kind of position uniqueness - that's up to the caller to deal with!
+#
+# @param $courseid  The ID of the course to set section ordering in.
+# @param $sectionid The section to change the order of.
+# @param $position  The new section position
+# @return true on success, undef on error
+sub set_section_order {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+    my $position  = shift;
+
+    $self -> clear_error();
+
+    my $posh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                            SET sort_position = ?
+                                            WHERE id = ?
+                                            AND course_id = ?
+                                            AND deleted IS NULL");
+    my $result = $posh -> execute($position, $sectionid, $courseid);
+    return $self -> self_error("Unable to perform section position update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Section position update failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
 # ============================================================================
 #  Materials subclass loader
 

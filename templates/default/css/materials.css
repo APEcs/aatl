@@ -1,0 +1,99 @@
+ul#sectionlist {
+    padding: 0px;
+    margin: 0px;
+    position: relative;
+}
+
+ul#sectionlist > li {
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    -moz-box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
+    -webkit-box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
+    box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
+    list-style-type: none;
+    margin: 0px 0px 10px;
+    overflow: hidden;
+    padding: 8px 10px 0px;
+    background-color: #fff;
+}
+
+ul#sectionlist > li#addsection {
+    border: none;
+    border-radius: 0px;
+    -moz-box-shadow: none;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    text-align: right;
+    background-color: transparent;
+}
+
+
+ul#sectionlist li > h3 {
+    font-size: 14px;
+    margin: 0px;
+    white-space: nowrap;
+}
+
+ul#sectionlist li > h3 a {
+    text-decoration: none;
+    color: #666;
+    font-weight: bold;
+}
+
+ul#sectionlist li > h3 a:hover {
+    text-decoration: none;
+    color: #06A;
+}
+
+ul#sectionlist li > h3 a:active {
+    text-decoration: none;
+    color: #49F;
+}
+
+ul#sectionlist li > h3 a:visited {
+    text-decoration: none;
+    color: #666;
+}
+
+ul#sectionlist .contents {
+    background: #f4f4f4;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-top: 1px solid #ddd;
+    margin-left: -10px;
+    padding: 5px 10px;
+    width: 100%;
+    clear: both;
+}
+
+ul#sectionlist > li.sec-hide {
+    background-color: #f0f0f0;
+    border: 1px dotted #aaa;
+}
+
+ul#sectionlist > li .header {
+    padding-bottom: 8px;
+}
+
+ul#sectionlist > li .header .controls {
+    float: right;
+}
+
+ul#sectionlist > li .header .togglevis {
+    display: block;
+    float: left;
+    width: 16px;
+    margin-right: 5px;
+    background: url("../images/materials/section-open.png") top left no-repeat;
+}
+
+ul#sectionlist > li.sec-hide .contents {
+    background-color: #e4e4e4;
+}
+
+ul#sectionlist > li.sec-close .contents {
+}
+
+ul#sectionlist > li.sec-close .header .togglevis {
+    background: url("../images/materials/section-closed.png") top left no-repeat;
+}

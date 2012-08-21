@@ -70,15 +70,46 @@ sub new {
 sub used_capabilities {
     my $self = shift;
 
-    return { "materials.view"       => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.VIEW"),
-             "materials.viewhidden" => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.VIEWHIDDEN"),
-             "materials.addsection" => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.ADDSECTION"),
+    return { "materials.view"          => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.VIEW"),
+             "materials.viewhidden"    => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.VIEWHIDDEN"),
+             "materials.addsection"    => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.ADDSECTION"),
+             "materials.editsection"   => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.EDITSECTION"),
+             "materials.deletesection" => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.DELSECTION"),
+
            };
 }
 
 
 # ============================================================================
 #  Section handling/listing
+
+## @method $ _build_section_admin($section, $userid, $permcache, $temcache)
+# Build the block containing icons to trigger the operations the user has access
+# to perform on the specified section.
+#
+# @param section   A reference to a hash containing the section data.
+# @param userid    The ID of the user viewing the section.
+# @param permcache A reference to a hash containing cached permissions.
+# @param temcache  A reference to a hash containing cached templates.
+# @return A string containing the section admin block HTML.
+sub _build_section_admin {
+    my $self      = shift;
+    my $section   = shift;
+    my $userid    = shift;
+    my $permcache = shift;
+    my $temcache  = shift;
+
+    my $canedit   = $permcache -> {"editsection"} ? "enabled" : "disabled";
+    my $candelete = $permcache -> {"deletesection"} ? "enabled" : "disabled";
+
+    my $controls  = $self -> {"template"} -> process_template($temcache -> {"sectionedit_".$canedit},
+                                                              {"***id***" => $section -> {"id"}});
+       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectiondel_".$candelete},
+                                                              {"***id***" => $section -> {"id"}});
+
+    return $self -> {"template"} -> process_template($temcache -> {"admincontrols"}, {"***controls***" => $controls });
+}
+
 
 ## @method private $ _build_section($section, $userid, $permcache, $temcache)
 # Generate the HTML used to show a single section.
@@ -92,20 +123,20 @@ sub _build_section {
     my $self      = shift;
     my $section   = shift;
     my $userid    = shift;
-    my $permcacne = shift;
+    my $permcache = shift;
     my $temcache  = shift;
 
     # Build the section contents
     my $contents = ""; # TODO
 
     # Section admin bar and controls
-    my $admin = ""; # $self -> _build_section_admin($section, $userid);
+    my $admin = $self -> _build_section_admin($section, $userid, $permcache, $temcache);
     my $controls = ""; # $self -> _build_section_controls($section, $userid);
 
     # Work out the classes to apply to the section
     my $section_class = "";
-    $section_class .= "hidden" unless($section -> {"visible"});
-    $section_class .= "closed" unless($section -> {"open"});
+    $section_class .= " sec-hide" unless($section -> {"visible"});
+    $section_class .= " sec-close" unless($section -> {"open"});
 
     # state for the open/closed toggle
     my $state = $section -> {"open"} ? "open" : "closed";
@@ -120,7 +151,6 @@ sub _build_section {
                                                       "***controls***" => $controls,
                                                      });
 }
-
 
 
 ## @method private @ _build_section_list($error)
@@ -141,34 +171,39 @@ sub _build_section_list {
     my $userid = $self -> {"session"} -> get_session_userid();
 
     # Can the user view hidden sections?
-    my $viewhidden = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
-                                                                $userid,
-                                                                "materials.viewhidden");
+    my $metadataid = $self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"});
 
     # Cache some templates for list generation
-    my $temcache = { "section" => $self -> {"template"} -> load_template("feature/materials/section.tem"),
+    my $temcache = { "section"              => $self -> {"template"} -> load_template("feature/materials/section.tem"),
+                     "admincontrols"        => $self -> {"template"} -> load_template("feature/materials/admincontrols.tem"),
+                     "sectionedit_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_enabled.tem"),
+                     "sectionedit_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_disabled.tem"),
+                     "sectiondel_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_enabled.tem"),
+                     "sectiondel_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_disabled.tem"),
     };
 
     # And some permissions
     my $permcache = {
+        "viewhidden"    => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.viewhidden"),
+        "addsection"    => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.addsection"),
+        "editsection"   => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.editsection"),
+        "deletesection" => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.deletesection"),
+        "sortlist"      => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.sortlist"),
     };
+    my $sortlist   = $permcache -> {"sortlist"} ? "enabled" : "disabled";
+    my $addsection = $permcache -> {"addsection"} ? "enabled" : "disabled";
 
-    my $sections = $self -> {"materials"} -> get_section_list($self -> {"courseid"}, $viewhidden);
+    my $sections = $self -> {"materials"} -> get_section_list($self -> {"courseid"}, $permcache -> {"viewhidden"});
     my $sectionlist = "";
     foreach my $section (@{$sections}) {
         $sectionlist .= $self -> _build_section($section, $userid, $permcache, $temcache);
     }
 
-    # Can the user add sections?
-    my $addsection = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
-                                                                $userid,
-                                                                "materials.addsection");
-    $addsection = $addsection ? "enabled" : "disabled";
-
     return ($self -> {"template"} -> load_template("feature/materials/sectionlist.tem",
-                                                   {"***error***"   => $error,
-                                                    "***entries***" => $sectionlist,
-                                                    "***addopt***"  => $self -> {"template"} -> load_template("feature/materials/addsection_${addsection}.tem")
+                                                   {"***error***"    => $error,
+                                                    "***entries***"  => $sectionlist,
+                                                    "***addopt***"   => $self -> {"template"} -> load_template("feature/materials/addsection_${addsection}.tem"),
+                                                    "***listsort***" => $self -> {"template"} -> load_template("feature/materials/listsort_${sortlist}.tem")
                                                    }),
             $self -> {"template"} -> load_template("feature/materials/extrahead.tem"));
 }
@@ -213,6 +248,39 @@ sub _build_api_addsection_response {
     };
 
     return $self -> _build_section($section, $userid, $permcache, $temcache);
+}
+
+
+## @method $ _build_api_sectionorder_response()
+# Reorder the sections in the materials page for the current course, if permitted.
+#
+# @return A reference to a hash containing the API response.
+sub _build_api_sectionorder_response {
+    my $self = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Check that the user even has permission to sort.
+    $self -> log("materials:sectionorder", "User attempting to reorder sections");
+
+    my $metadataid = $self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"});
+    if(!$self -> {"materials"} -> check_permission($metadataid, $userid, "materials.sortlist")) {
+        $self -> log("error:materials:sectionorder", "Permission denied when attempting to reorder section");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APISORTSEC_PERMS"));
+    }
+    my $viewhidden = $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.viewhidden");
+
+    # fetch the list of sections, that they may be iterated over
+    my $sections = $self -> {"materials"} -> get_section_list($self -> {"courseid"}, $viewhidden);
+    foreach my $section (@{$sections}) {
+        my $pos = is_defined_numeric($self -> {"cgi"}, "section-".$section -> {"id"});
+
+        if($pos) {
+            $self -> {"materials"} -> set_section_order($self -> {"courseid"}, $section -> {"id"}, $pos)
+                or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}))
+        }
+    }
+
+    return { "response" => {"sort" => "ok"} };
 }
 
 
@@ -308,6 +376,8 @@ sub page_display {
         } else {
             if($apiop eq "addsection") {
                 return $self -> api_html_response($self -> _build_api_addsection_response());
+            } elsif($apiop eq "sectionorder") {
+                return $self -> api_response($self -> _build_api_sectionorder_response());
             } else {
                 return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                          $self -> {"template"} -> replace_langvar("API_BAD_OP")))

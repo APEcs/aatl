@@ -1,0 +1,11 @@
+    listsort = new Sortables($('sectionlist'), { clone: true,
+                                                 revert: true,
+                                                 opacity: 0.7,
+                                                 onComplete: function() { save_section_order() }
+                                               });
+    listsort.removeItems($('sl-end')); // no need to include the hidden end element in the list
+
+    // The 'add section' item should not be sortable either.
+    var additem = $('addsection');
+    if(additem)
+        listsort.removeItems(additem);

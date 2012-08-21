@@ -1,0 +1,24 @@
+***error***
+            <ul id="sectionlist">
+***entries***
+***addopt***
+                <li id="sl-end" class="hidden"><!-- End of section list --></li>
+            </ul>
+            <script type="text/javascript">
+window.addEvent('domready', function() {
+    errbox = new LightFace({title: '{L_FEATURE_MATERIALS_ERROR}',
+                            draggable: false,
+                            overlayAll: true,
+                            buttons: [
+                                      { title: '{L_FEATURE_MATERIALS_ERROROK}', event: function() { errbox.close(); }, color: 'blue' },
+                            ],
+                            content: '<table><tr><td class="nbox-image"><img src="{V_[scriptpath]}templates/default/images/error.png" width="48" height="48" alt="error" /></td><td class="nbox-text" id="errboxmsg"></td></tr></table>'
+    });
+    popbox = new LightFace({title: '{L_FEATURE_MATERIALS_POPUP}',
+                            draggable: false,
+                            overlayAll: true,
+                            content: '<table><tr><td class="nbox-image"><img id="popboximg" src="{V_[scriptpath]}templates/default/images/error.png" width="48" height="48" alt="" /></td><td class="nbox-text" id="popboxmsg"></td></tr></table>'
+    });
+    ***listsort***
+});
+            </script>
