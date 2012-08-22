@@ -240,11 +240,22 @@ sub _build_api_addsection_response {
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
     # Cache some templates for list generation
-    my $temcache = { "section" => $self -> {"template"} -> load_template("feature/materials/section.tem"),
+    my $temcache = { "section"              => $self -> {"template"} -> load_template("feature/materials/section.tem"),
+                     "admincontrols"        => $self -> {"template"} -> load_template("feature/materials/admincontrols.tem"),
+                     "sectionedit_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_enabled.tem"),
+                     "sectionedit_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_disabled.tem"),
+                     "sectiondel_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_enabled.tem"),
+                     "sectiondel_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_disabled.tem"),
     };
 
     # And some permissions
+    my $metadataid = $self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"});
     my $permcache = {
+        "viewhidden"    => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.viewhidden"),
+        "addsection"    => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.addsection"),
+        "editsection"   => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.editsection"),
+        "deletesection" => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.deletesection"),
+        "sortlist"      => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.sortlist"),
     };
 
     return $self -> _build_section($section, $userid, $permcache, $temcache);
@@ -279,6 +290,7 @@ sub _build_api_sectionorder_response {
                 or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}))
         }
     }
+    $self -> log("materials:sectionorder", "Section reorder complete");
 
     return { "response" => {"sort" => "ok"} };
 }
