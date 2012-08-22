@@ -1,4 +1,6 @@
 #!/usr/bin/perl -wT
+# Note: above -w flag should be removed in production, as it will cause wrnings in non-AATL modules
+# to appear in the server error log
 
 use strict;
 use lib qw(/var/www/webperl);
