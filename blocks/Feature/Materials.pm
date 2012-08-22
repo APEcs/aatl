@@ -205,7 +205,7 @@ sub _build_section_list {
                                                     "***addopt***"   => $self -> {"template"} -> load_template("feature/materials/addsection_${addsection}.tem"),
                                                     "***listsort***" => $self -> {"template"} -> load_template("feature/materials/listsort_${sortlist}.tem")
                                                    }),
-            $self -> {"template"} -> load_template("feature/materials/extrahead.tem"));
+            $self -> extra_header());
 }
 
 
@@ -298,6 +298,18 @@ sub _build_api_sectionorder_response {
 
 # ============================================================================
 #  Interface
+
+## @method $ extra_header()
+# Produce a string containing any javascript/css directives that need to be included in the
+# page header.
+#
+# @return A strign containing html to include in the page header
+sub extra_header {
+    my $self = shift;
+
+    return $self -> {"template"} -> load_template("feature/materials/extrahead.tem");
+}
+
 
 ## @method $ section_display()
 # Produce the string containing this block's 'section fragment' if it has one. By default,
