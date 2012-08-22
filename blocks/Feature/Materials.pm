@@ -365,7 +365,7 @@ sub page_display {
                                                       })
     }
 
-    # Is this an API call, or a normal news page call?
+    # Is this an API call, or a normal materials page call?
     my $apiop = $self -> is_api_operation();
     if(defined($apiop)) {
         my @pathinfo = $self -> {"cgi"} -> param('pathinfo');
