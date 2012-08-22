@@ -98,8 +98,8 @@ sub determine_courseid {
         return $self -> self_error("Request for non-existent course $cid.") if(!$coursedata);
 
         # Does the course match the set course code?
-        return $self -> self_error("Request for course $cid that does not match current course path.")
-            unless($course eq $coursedata -> {"code"});
+        return $self -> self_error("Request for course $cid that does not match current course path ($course v ".$coursedata -> {"code"}.").")
+            unless(lc($course) eq lc($coursedata -> {"code"}));
 
         # cid is valid, and course codes match, update the user's current cid
         # and let the caller check permissions on it
@@ -116,7 +116,7 @@ sub determine_courseid {
         return $self -> self_error("Request for non-existent course $cid.") if(!$coursedata);
 
         # If the course path matches the code, the user is looking at a known course
-        return $cid if($course eq $coursedata -> {"code"});
+        return $cid if(lc($course) eq lc($coursedata -> {"code"}));
 
         # Otherwise, the user is looking at a course other than the one set in their cid,
         # so clear the cid and let the system work out the correct one...
@@ -249,7 +249,7 @@ sub generate_course_page {
     my $content   = shift;
     my $extrahead = shift || "";
 
-    my $courseid = $self -> determine_courseid()
+    my $courseid = $self -> {"courseid"}
         or return $self -> self_error("Unable to determine course id.");
 
     # Fetch the current course
@@ -282,6 +282,7 @@ sub generate_course_page {
     return $self -> {"template"} -> load_template("course/page.tem", {"***extrahead***"    => $extrahead,
                                                                       "***title***"        => $title,
                                                                       "***coursecode***"   => $course -> {"code"},
+                                                                      "***courseid***"     => $self -> {"courseid"},
                                                                       "***coursetitle***"  => $course -> {"title"},
                                                                       "***featurelinks***" => $featurelist,
                                                                       "***rightboxes***"   => $rightboxes,
