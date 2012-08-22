@@ -1,1 +1,1 @@
-<div class="control delete" id="delbtn-c***cid***" onclick="delete_comment('***mode***-***id***-***cid***')" title="{L_FEATURE_QVIEW_CDEL}"><img src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="spinner" /></div>
+<div class="control delete" id="delbtn-c***cid***" onclick="delete_comment('***mode***-***id***-***cid***')" title="{L_FEATURE_QVIEW_CDEL}"></div>

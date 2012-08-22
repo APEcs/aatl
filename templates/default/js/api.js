@@ -27,3 +27,36 @@ function api_request_path(block, operation)
     return reqpath;
 }
 
+
+/** Attach a spinner to the specified container, and fade it in.
+ *  Once the spinner is no longer needed, you must call hide_spinner()
+ *  to remove the spinner (or destroy the container), or horrible things
+ *  will happen.
+ * 
+ * @param container The container to add the spinner to.
+ */
+function show_spinner(container)
+{
+    if(!container.spinimg) {
+        container.spinimg = new Element('img', {src: spinner_url,
+                                                width: '16',
+                                                height: '16'});
+        container.spinimg.inject(container);
+        container.spinimg.fade('in');
+    }
+}
+
+
+/** Remove a previously-added spinner from a container. This will
+ *  fade out and then destroy a spinner added to the container with
+ *  show_spinner().
+ * 
+ * @param container The container to remove the spinner from.
+ */
+function hide_spinner(container)
+{
+    if(container.spinimg) {
+        container.spinimg.fade('out').get('tween').chain(function() { container.spinimg.destroy();
+                                                                      container.spinimg = null; });
+    }
+}

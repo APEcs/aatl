@@ -6,10 +6,10 @@ var flaglock  = false;
 /** Attempt to change the rating on a question or answer.
  *  This will contact the qaforum api and attempt to change the rating on the question
  *  or answer the rating is attached to.
- * 
+ *
  * @param element The element that triggered the rating change (should be an up or down arrow)
  */
-function rate_toggle(element) 
+function rate_toggle(element)
 {
     var full_id = element.get('id');
     var op      = full_id.substr(0, 3);
@@ -29,14 +29,14 @@ function rate_toggle(element)
                                     if(rup == "set") {
                                         $('rup-'+core_id).addClass('rated');
                                     } else {
-                                        $('rup-'+core_id).removeClass('rated');    
+                                        $('rup-'+core_id).removeClass('rated');
                                     }
 
                                     var rdown = res.getAttribute("down");
                                     if(rdown == "set") {
                                         $('rdn-'+core_id).addClass('rated');
                                     } else {
-                                        $('rdn-'+core_id).removeClass('rated');    
+                                        $('rdn-'+core_id).removeClass('rated');
                                     }
 
                                     var value = res.getAttribute("rating");
@@ -46,12 +46,12 @@ function rate_toggle(element)
                                 }
                             }
                           });
-    req.send("id="+core_id);  
+    req.send("cid="+courseid+"&id="+core_id);
 }
 
 
 /** Allow the user to set or clear the best answer for a question.
- * 
+ *
  * @param element The element that triggered the best answer selection change.
  */
 function best_toggle(element)
@@ -78,17 +78,17 @@ function best_toggle(element)
                                                                    element.addClass('chosen');
                                                                } else {
                                                                    element.removeClass('chosen');
-                                                               }                                        
+                                                               }
                                                            });
                                 }
                             }
                           });
-    req.send("id="+core_id);      
+    req.send("cid="+courseid+"&id="+core_id);
 }
 
 
 /** Allow the user to set or clear their 'helpful' status for a comment.
- * 
+ *
  * @param full_id A string containing the mode (qid, aid), the id of the
  *                question or answer the comment is attached to, and the
  *                id of the comment itself.
@@ -125,18 +125,18 @@ function helpful_comment(full_id)
                                 }
                             }
                           });
-    req.send("id="+full_id);      
+    req.send("cid="+courseid+"&id="+full_id);
 }
 
 
 /** Convert a question subject and body to a form suitable for editing. This
- *  replaces the question subject with an input box, the body with a ckeditor 
+ *  replaces the question subject with an input box, the body with a ckeditor
  *  text area, and adds a 'reason' box and an 'edit' button.
- * 
+ *
  * @param qid    The ID of the question to convert to edit mode.
  * @param config The ckeditor configuration to use.
  */
-function make_question_editable(qid, config) 
+function make_question_editable(qid, config)
 {
     // Fix up the click action on the edit button before doing anything else
     $('editbtn-q'+qid).removeEvent('click');
@@ -155,8 +155,8 @@ function make_question_editable(qid, config)
                                                                         html: $('qmsg-q'+qid).innerHTML,
                                                                         id: 'editmsg-q'+qid
                                                                       }));
-    var submit = new Element('div', 
-                             { 'class': 'newpost formsubmit' 
+    var submit = new Element('div',
+                             { 'class': 'newpost formsubmit'
                              }).adopt([new Element('input', { type: 'text',
                                          size: 70,
                                          maxlength: 128,
@@ -177,12 +177,12 @@ function make_question_editable(qid, config)
                                                               onclick: 'edit_question(\''+qid+'\')',
                                                               value: editbtn_name })]);
     var container = new Element('div', {'class': 'editbox'}).adopt([message, submit]);
-   
-    
+
+
     // Attach them to the page in place of the original elements
     var oldElem = $('qmsg-q'+qid);
     subject.replaces($('subj-q'+qid));
-    oldElem.dissolve().get('reveal').chain(function() { 
+    oldElem.dissolve().get('reveal').chain(function() {
                                                container.replaces($('qmsg-q'+qid));
                                                CKEDITOR.replace('editmsg-q'+qid, { customConfig: config });
                                                container.reveal();
@@ -199,7 +199,7 @@ function make_question_editable(qid, config)
 /** AJAX function to take the contents of the editor fields for a question and ask
  *  the server to update the question. If the update succeeds, this replaces the edit
  *  fields with the returned content.
- * 
+ *
  * @param qid The ID of the question being updated.
  */
 function edit_question(qid)
@@ -216,7 +216,7 @@ function edit_question(qid)
                                  },
                                  onSuccess: function(respTree, respElems, respHTML) {
                                      var err = respHTML.match(/^<div id="apierror"/);
-                                     
+
                                      if(err) {
                                          $('errboxmsg').set('html', respHTML);
                                          errbox.open();
@@ -232,25 +232,26 @@ function edit_question(qid)
                                          tmp = tmp.getChildren()[0];
 
                                          var oldElem = $('qid-'+qid);
-                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-q'+qid].destroy(); 
-                                                                                             tmp.replaces(oldElem).reveal(); 
+                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-q'+qid].destroy();
+                                                                                             tmp.replaces(oldElem).reveal();
                                                                                              oldElem.destroy(); });
-                                         
+
                                      }
                                      postlock = false;
                                  }
                                });
-    req.post({qid: qid,
+    req.post({cid: courseid,
+              qid: qid,
               subject: $('editsub-q'+qid).get('value'),
               reason: $('editwhy-q'+qid).get('value'),
               message: CKEDITOR.instances['editmsg-q'+qid].getData()
-             });  
+             });
 }
 
 
-/** Attempt to delete a question. This will ask the server to delete the specified 
+/** Attempt to delete a question. This will ask the server to delete the specified
  *  question and if the entry is deleted the user is redirected to the question list.
- * 
+ *
  * @param qid The ID of the question to attempt to delete.
  */
 function delete_question(qid)
@@ -258,12 +259,12 @@ function delete_question(qid)
     var req = new Request({ url: api_request_path("qaforum", "deleteq"),
                             onRequest: function() {
                                 $('delbtn-q'+qid).addClass('working');
-                                $('delbtn-q'+qid).getChildren('img')[0].fade('in');
+                                show_spinner($('delbtn-q'+qid));
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-q'+qid).getChildren('img')[0].fade('out');
+                                hide_spinner($('delbtn-q'+qid));
                                 $('delbtn-q'+qid).removeClass('working');
-                                
+
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
                                     $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
@@ -280,12 +281,12 @@ function delete_question(qid)
                                 }
                             }
                           });
-    req.send("qid="+qid);  
+    req.send("cid="+courseid+"&qid="+qid);
 }
 
 
 /** Add an answer to the specified question
- * 
+ *
  * @param questionid The ID of the question to add the answer to.
  */
 function add_answer(questionid)
@@ -302,7 +303,7 @@ function add_answer(questionid)
                                  },
                                  onSuccess: function(respTree, respElems, respHTML) {
                                      var err = respHTML.match(/^<div id="apierror"/);
-                                     
+
                                      if(err) {
                                          $('errboxmsg').set('html', respHTML);
                                          errbox.open();
@@ -333,18 +334,19 @@ function add_answer(questionid)
                                      apostlock = false;
                                  }
                                });
-    req.post({id: questionid,
+    req.post({cid: courseid,
+              id: questionid,
               message: CKEDITOR.instances['new-answer'].getData()
-             }); 
+             });
 
     return false;
 }
 
 
-/** Attempt to delete an answer from the answer list. This askes the 
+/** Attempt to delete an answer from the answer list. This askes the
  *  server to delete the specified answer and if the entry is deleted
  *  it removes it from the page.
- * 
+ *
  * @param qid    The ID of the question this is an answer to.
  * @param aid  The ID of the answer to attempt to delete.
  */
@@ -353,12 +355,12 @@ function delete_answer(qid, aid)
     var req = new Request({ url: api_request_path("qaforum", "deletea"),
                             onRequest: function() {
                                 $('delbtn-a'+aid).addClass('working');
-                                $('delbtn-a'+aid).getChildren('img')[0].fade('in');
+                                show_spinner($('delbtn-a'+aid));
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-a'+aid).getChildren('img')[0].fade('out');
+                                hide_spinner($('delbtn-a'+aid));
                                 $('delbtn-a'+aid).removeClass('working');
-                                
+
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
                                     $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
@@ -374,20 +376,21 @@ function delete_answer(qid, aid)
                                 }
                             }
                           });
-    req.post({ qid: qid,
+    req.post({ cid: courseid,
+               qid: qid,
                aid: aid
-             });  
+             });
 }
 
 
-/** Convert an answer to a form suitable for editing. This replaces the answer with a ckeditor 
+/** Convert an answer to a form suitable for editing. This replaces the answer with a ckeditor
  *  text area, and adds a 'reason' box and an 'edit' button.
- * 
+ *
  * @param qid    The ID of the question this is an answer to.
  * @param aid    The ID of the answer to convert to edit mode.
  * @param config The ckeditor configuration to use.
  */
-function make_answer_editable(qid, aid, config) 
+function make_answer_editable(qid, aid, config)
 {
     // Fix up the click action on the edit button before doing anything else
     $('editbtn-a'+aid).removeEvent('click');
@@ -400,8 +403,8 @@ function make_answer_editable(qid, aid, config)
                                                                         html: $('amsg-a'+aid).innerHTML,
                                                                         id: 'editmsg-a'+aid
                                                                       }));
-    var submit = new Element('div', 
-                             { 'class': 'newpost formsubmit' 
+    var submit = new Element('div',
+                             { 'class': 'newpost formsubmit'
                              }).adopt([new Element('input', { type: 'text',
                                          size: 70,
                                          maxlength: 128,
@@ -422,11 +425,11 @@ function make_answer_editable(qid, aid, config)
                                                               onclick: 'edit_answer(\''+qid+'\', \''+aid+'\')',
                                                               value: editbtn_name })]);
     var container = new Element('div', {'class': 'editbox', style: 'display: none'}).adopt([message, submit]);
-   
-    
+
+
     // Attach them to the page in place of the original elements
     var oldElem = $('amsg-a'+aid);
-    oldElem.dissolve().get('reveal').chain(function() { 
+    oldElem.dissolve().get('reveal').chain(function() {
                                                container.replaces($('amsg-a'+aid));
                                                CKEDITOR.replace('editmsg-a'+aid, { customConfig: config });
                                                container.reveal();
@@ -439,7 +442,7 @@ function make_answer_editable(qid, aid, config)
 /** AJAX function to take the contents of the editor fields for an answer and ask
  *  the server to update the answer. If the update succeeds, this replaces the edit
  *  fields with the returned content.
- * 
+ *
  * @param qid The ID of the question containing the answer being updated.
  * @param aid The ID of the answer being edited.
  */
@@ -457,7 +460,7 @@ function edit_answer(qid, aid)
                                  },
                                  onSuccess: function(respTree, respElems, respHTML) {
                                      var err = respHTML.match(/^<div id="apierror"/);
-                                     
+
                                      if(err) {
                                          $('errboxmsg').set('html', respHTML);
                                          errbox.open();
@@ -473,15 +476,16 @@ function edit_answer(qid, aid)
                                          tmp = tmp.getChildren()[0];
 
                                          var oldElem = $('aid-'+aid);
-                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-a'+aid].destroy(); 
-                                                                                             tmp.replaces(oldElem).reveal(); 
+                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-a'+aid].destroy();
+                                                                                             tmp.replaces(oldElem).reveal();
                                                                                              oldElem.destroy(); });
-                                         
+
                                      }
                                      apostlock = false;
                                  }
                                });
-    req.post({qid: qid,
+    req.post({cid: courseid,
+              qid: qid,
               aid: aid,
               reason: $('editwhy-a'+aid).get('value'),
               message: CKEDITOR.instances['editmsg-a'+aid].getData()
@@ -490,7 +494,7 @@ function edit_answer(qid, aid)
 
 
 /** Add an comment to the specified question or answer
- * 
+ *
  * @param id The mode and ID of the question/answer to add the comment to
  */
 function add_comment(id)
@@ -507,7 +511,7 @@ function add_comment(id)
                                  },
                                  onSuccess: function(respTree, respElems, respHTML) {
                                      var err = respHTML.match(/^<div id="apierror"/);
-                                     
+
                                      if(err) {
                                          $('errboxmsg').set('html', respHTML);
                                          errbox.open();
@@ -521,7 +525,7 @@ function add_comment(id)
                                          tmp.setStyle("display", "none");
                                          tmp.inject($('comms-'+id), 'bottom');
                                          tmp.reveal();
-                                         
+
                                          var count = tmp.getElement('div.helpfuls');
                                          if(count) count.fade('out');
                                      }
@@ -533,18 +537,19 @@ function add_comment(id)
                                      cpostlock = false;
                                  }
                                });
-    req.post({id: id,
+    req.post({cid: courseid,
+              id: id,
               message: $('msg-'+id).get('value')
-             }); 
+             });
 
     return false;
 }
 
 
-/** Attempt to delete a comment from the comment list. This askes the 
+/** Attempt to delete a comment from the comment list. This askes the
  *  server to delete the specified comment and if the entry is deleted
  *  it removes it from the page.
- * 
+ *
  * @param full_id A string containing the mode (qid, aid), the id of the
  *                question or answer the comment is attached to, and the
  *                id of the comment itself.
@@ -552,16 +557,16 @@ function add_comment(id)
 function delete_comment(full_id)
 {
     var comm_id = full_id.substr(full_id.lastIndexOf("-") + 1);
-    
+
     var req = new Request({ url: api_request_path("qaforum", "deletec"),
                             onRequest: function() {
                                 $('delbtn-c'+comm_id).addClass('working');
-                                $('delbtn-c'+comm_id).getChildren('img')[0].fade('in');
+                                show_spinner($('delbtn-c'+comm_id));
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-c'+comm_id).getChildren('img')[0].fade('out');
+                                hide_spinner($('delbtn-c'+comm_id));
                                 $('delbtn-c'+comm_id).removeClass('working');
-                                
+
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
                                     $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
@@ -573,13 +578,13 @@ function delete_comment(full_id)
                                 }
                             }
                           });
-    req.send("id="+full_id);
+    req.send("cid="+courseid+"&id="+full_id);
 }
 
 
 
 /** Allow the user to set the flag status on an entry
- * 
+ *
  * @param full_id A string containing the id of the entry to flag.
  */
 function flag(full_id)
@@ -591,15 +596,15 @@ function flag(full_id)
                                  method: 'post',
                                  onRequest: function() {
                                      $('flagbtn-'+full_id).addClass('working');
-                                     $('flagbtn-'+full_id).getChildren('img')[0].fade('in');
+                                     show_spinner($('flagbtn-'+full_id));
                                  },
 
                                  onSuccess: function(respTree, respElems, respHTML) {
-                                     $('flagbtn-'+full_id).getChildren('img')[0].fade('out');
+                                     hide_spinner($('flagbtn-'+full_id));
                                      $('flagbtn-'+full_id).removeClass('working');
-                                     
+
                                      var err = respHTML.match(/^<div id="apierror"/);
-                                     
+
                                      if(err) {
                                          $('errboxmsg').set('html', respHTML);
                                          errbox.open();
@@ -617,7 +622,7 @@ function flag(full_id)
                                      flaglock = false;
                                  }
                                });
-    req.send("id="+full_id);      
+    req.send("cid="+courseid+"&id="+full_id);
 }
 
 
@@ -651,8 +656,8 @@ window.addEvent('domready', function() {
 
     // Hide zero helpful counters on comments
     $$('li.comment ul.ops div.helpfuls').each(
-        function(element) { 
-            if(element.get('html') == '0') 
+        function(element) {
+            if(element.get('html') == '0')
                 element.fade('out');
         }
     );

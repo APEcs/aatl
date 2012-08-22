@@ -1,1 +1,1 @@
-<li><div class="control delete" id="delbtn-q***id***" onclick="delete_question('***id***')" title="{L_FEATURE_QVIEW_QDEL}"><img src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="spinner" /></div></li>
+<li><div class="control delete" id="delbtn-q***id***" onclick="delete_question('***id***')" title="{L_FEATURE_QVIEW_QDEL}"></div></li>

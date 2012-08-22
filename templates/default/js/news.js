@@ -2,8 +2,8 @@
 /** Fetch more posts from the server to show in the news list. This
  *  does a HTML request to the server requesting more posts to show
  *  in the news post list.
- * 
- * @param postid The ID of the first post to show in the list. 
+ *
+ * @param postid The ID of the first post to show in the list.
  */
 function do_fetchmore(postid)
 {
@@ -19,14 +19,14 @@ function do_fetchmore(postid)
                                      $('postlist').adopt(respTree);
                                  }
                                });
-    req.send("postid="+postid);
+    req.send("cid="+courseid+"&postid="+postid);
 }
 
 
-/** Attempt to delete a post from the message list. This askes the 
+/** Attempt to delete a post from the message list. This askes the
  *  server to delete the specified news entry and if the entry is deleted
  *  it removes it from the page.
- * 
+ *
  * @param postid  The ID of the post to attempt to delete.
  * @param spinner The URL of a spinner image to replace the delete icon with
  *                while the delete request is being processed.
@@ -36,11 +36,12 @@ function do_deletepost(postid)
     var req = new Request({ url: api_request_path("news", "delete"),
                             onRequest: function() {
                                 $('delbtn-'+postid).addClass('working');
-                                $('delbtn-'+postid).getChildren('img')[0].fade('in');
+                                show_spinner($('delbtn-'+postid));
                             },
                             onSuccess: function(respText, respXML) {
-                                $('delbtn-'+postid).getChildren('img')[0].fade('out').removeClass('working');
-                                
+                                hide_spinner($('delbtn-'+postid));
+                                $('delbtn-'+postid).removeClass('working');
+
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
                                     $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
@@ -52,17 +53,17 @@ function do_deletepost(postid)
                                 }
                             }
                           });
-    req.send("postid="+postid);  
+    req.send("cid="+courseid+"&postid="+postid);
 }
 
 
 /** Convert a post in the post list to a form suitable for editing. This
- *  replaces the post subject with an input box, the body with a ckeditor 
+ *  replaces the post subject with an input box, the body with a ckeditor
  *  text area, and adds an 'edit post' button.
- * 
+ *
  * @param postid The ID of the post to convert to edit mode.
  */
-function make_editable(postid, config) 
+function make_editable(postid, config)
 {
     // Fix up the click action on the edit button before doing anything else
     $('editbtn-'+postid).removeEvent('click');
@@ -81,8 +82,8 @@ function make_editable(postid, config)
                                                                         html: $('msg-'+postid).innerHTML,
                                                                         id: 'editmsg-'+postid
                                                                       }));
-    var submit = new Element('div', 
-                             { 'class': 'newpost formsubmit' 
+    var submit = new Element('div',
+                             { 'class': 'newpost formsubmit'
                              }).adopt([new Element('img', { id: 'workspin-'+postid,
                                                             style: 'opacity: 0',
                                                             src: spinner_url,
@@ -95,9 +96,9 @@ function make_editable(postid, config)
                                                               'class': 'button blue',
                                                               onclick: 'do_editable(\''+postid+'\')',
                                                               value: editbtn_name })]);
-    
+
     var container = new Element('div', {'class': 'editbox'}).adopt([message, submit]);
-    
+
     // Attach them to the page in place of the original elements
     subject.replaces($('subj-'+postid));
     container.replaces($('msg-'+postid));
@@ -117,7 +118,7 @@ function do_editable(postid)
                                  },
                                  onSuccess: function(respTree, respElems, respHTML) {
                                      var err = respHTML.match(/^<div id="apierror"/);
-                                     
+
                                      if(err) {
                                          $('errboxmsg').set('html', respHTML);
                                          errbox.open();
@@ -133,15 +134,16 @@ function do_editable(postid)
                                          tmp = tmp.getChildren()[0];
 
                                          var oldElem = $('post-'+postid);
-                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-'+postid].destroy(); 
-                                                                                             tmp.replaces(oldElem).reveal(); 
+                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-'+postid].destroy();
+                                                                                             tmp.replaces(oldElem).reveal();
                                                                                              oldElem.destroy(); });
-                                         
+
                                      }
                                  }
                                });
-    req.post({postid: postid,
+    req.post({cid: courseid,
+              postid: postid,
               subject: $('editsub-'+postid).get('value'),
               message: CKEDITOR.instances['editmsg-'+postid].getData()
-             });  
+             });
 }

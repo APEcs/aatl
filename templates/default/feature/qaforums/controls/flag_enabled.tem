@@ -1,1 +1,1 @@
-<li id="flag-***id***"><div class="control flag" id="flagbtn-***id***" onclick="flag('***id***')" title="{L_FEATURE_QVIEW_***mode***}"><img src="{V_[templatepath]}images/spinner.gif" width="16" height="16" alt="spinner" /></div></li>
+<li id="flag-***id***"><div class="control flag" id="flagbtn-***id***" onclick="flag('***id***')" title="{L_FEATURE_QVIEW_***mode***}"></div></li>

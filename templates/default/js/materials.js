@@ -1,5 +1,10 @@
 var addlock = false;
+var dellock = false;
 
+/** Add a new materials section to the current course. This asks the server to
+ *  create a new section in the current course, and adds the resulting section
+ *  to the end of the section list if successful.
+ */
 function add_section() 
 {
     if(addlock) return;
@@ -24,12 +29,16 @@ function add_section()
 
                                          tmp.setStyle("display", "none");
                                          tmp.inject($('addsection'), 'before');
+
                                          if(listsort) listsort.addItems(tmp);
+                                         toggle_body(tmp);
+                                         
+                                         
                                          tmp.reveal();
                                      }
                                      $('addsecimg').fade('out');
                                      $('addsecbtn').removeClass('disabled');
-                                     $('addsecbtn').addEvent('click', function() { add_section() });
+                                     $('addsecbtn').addEvent('click', function() { add_section(); });
                                      addlock = false;
                                  }
                                });
@@ -37,6 +46,43 @@ function add_section()
 }
 
 
+/** Delete a section from the page. This will ask the server to remove a section from the
+ *  materials page, and if it succeeds the section is deleted from the page the user sees.
+ */
+function delete_section(sectionid)
+{
+    var req = new Request({ url: api_request_path("materials", "delsection"),
+                            method: 'post',
+                            onRequest: function() {
+                                $('delsec-'+sectionid).addClass('working');
+                                show_spinner($('delsec-'+sectionid));
+                            },
+                            onSuccess: function(respText, respXML) {
+                                hide_spinner($('delsec-'+sectionid));
+                                $('delsec-'+sectionid).removeClass('working');
+                                
+                                var err = respXML.getElementsByTagName("error")[0];
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+
+                                // No error, answer was deleted
+                                } else {
+                                    if(listsort) listsort.removeItems($('section-'+sectionid));
+
+                                    $('section-'+sectionid).nix();
+                                }
+                            }
+                          });
+    req.post({ cid: courseid,
+               sid: sectionid
+             });  
+}
+
+
+/** Save the ordering of the sections in the materials page. This is called when the
+ *  user finishes dragging sections to automatically save the current order.
+ */
 function save_section_order()
 {
     var idlist = listsort.serialize(0, function(element, index) { 
@@ -57,34 +103,30 @@ function save_section_order()
                                 }
                             }
                           });
-    req.send(idlist);      
+    req.send("cid="+courseid+"&"+idlist);      
 }
 
+function toggle_body(element) {
+    var toggle = element.getElement("span.togglevis");
+    if(toggle) {
+        var body = element.getElement("div.contents");
+        
+        toggle.addEvent('click', function() {
+                            if(element.hasClass('sec-close')) {
+                                element.removeClass('sec-close');
+                                body.reveal();
+                            } else {
+                                element.addClass('sec-close');
+                                body.dissolve();
+                            }
+                        });
+
+        if(element.hasClass('sec-close')) {
+            body.dissolve();
+        }
+    }
+}
 
 window.addEvent('domready', function() {
-
-    $$('ul#sectionlist li.sec-close .contents').each(
-        function(element) {
-            element.dissolve();
-        }
-    );
-
-    $$('ul#sectionlist li').each(
-        function(element) {
-            var toggle = element.getElement("span.togglevis");
-            if(toggle) {
-                var body = element.getElement("div.contents");
-
-                toggle.addEvent('click', function() {
-                                    if(element.hasClass('sec-close')) {
-                                        element.removeClass('sec-close');
-                                        body.reveal();
-                                    } else {
-                                        element.addClass('sec-close');
-                                        body.dissolve();
-                                    }
-                                });
-            }
-        }
-    );
+    $$('ul#sectionlist li').each(function(element) { toggle_body(element); });
 });
