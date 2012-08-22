@@ -14,10 +14,10 @@ window.addEvent('domready', function() {
                             ],
                             content: '<table><tr><td class="nbox-image"><img src="{V_[scriptpath]}templates/default/images/error.png" width="48" height="48" alt="error" /></td><td class="nbox-text" id="errboxmsg"></td></tr></table>'
     });
-    popbox = new LightFace({title: '{L_FEATURE_MATERIALS_POPUP}',
+    popbox = new LightFace({title: '<div id="poptitle">{L_FEATURE_MATERIALS_POPUP}</div>',
                             draggable: false,
                             overlayAll: true,
-                            content: '<table><tr><td class="nbox-image"><img id="popboximg" src="{V_[scriptpath]}templates/default/images/error.png" width="48" height="48" alt="" /></td><td class="nbox-text" id="popboxmsg"></td></tr></table>'
+                            content: '<div id="popbody"></div>'
     });
     ***listsort***
 });
