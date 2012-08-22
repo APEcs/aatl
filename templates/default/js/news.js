@@ -10,7 +10,7 @@ function do_fetchmore(postid)
     var req = new Request.HTML({ url: api_request_path("news", "more"),
                                  onRequest: function() {
                                      $('fetchimg').fade('in');
-                                     $('fetchbtn').removeEvents();
+                                     $('fetchbtn').removeEvents('click');
                                      $('fetchbtn').addClass('disabled');
                                  },
                                  onSuccess: function(respTree, respElems) {
@@ -66,7 +66,7 @@ function do_deletepost(postid)
 function make_editable(postid, config)
 {
     // Fix up the click action on the edit button before doing anything else
-    $('editbtn-'+postid).removeEvent('click');
+    $('editbtn-'+postid).removeEvents('click');
     $('editbtn-'+postid).addClass('ctrldisabled');
 
     // Create the input elements needed to make the edit work
@@ -113,7 +113,7 @@ function do_editable(postid)
                                  method: 'post',
                                  onRequest: function() {
                                      $('workspin-'+postid).fade('in');
-                                     $('editpost-'+postid).removeEvents();
+                                     $('editpost-'+postid).removeEvents('click');
                                      $('editpost-'+postid).addClass('disabled');
                                  },
                                  onSuccess: function(respTree, respElems, respHTML) {
