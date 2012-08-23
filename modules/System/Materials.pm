@@ -165,7 +165,6 @@ sub delete_section {
 }
 
 
-
 ## @method $ edit_section($courseid, $sectionid, $title)
 # Update the title of the specified section to the supplied string.
 #
@@ -187,6 +186,62 @@ sub edit_section {
                                               AND course_id = ?
                                               AND deleted IS NULL");
     my $result = $titleh -> execute($title, $sectionid, $courseid);
+    return $self -> self_error("Unable to perform section update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Section update failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
+## @method $ set_section_visible($courseid, $sectionid, $visible)
+# Update the visibility setting of the specified section
+#
+# @param courseid  The ID of the course containing the section to edit.
+# @param sectionid The ID of the section to edit.
+# @param visible   Should the section be visible? Should be 0 (invisible), or 1 (visible)
+# @return true on success, undef on error.
+sub set_section_visible {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+    my $visible   = shift;
+
+    $self -> clear_error();
+
+    my $titleh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                              SET visible = ?
+                                              WHERE id = ?
+                                              AND course_id = ?
+                                              AND deleted IS NULL");
+    my $result = $titleh -> execute($visible, $sectionid, $courseid);
+    return $self -> self_error("Unable to perform section update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Section update failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
+## @method $ set_section_opened($courseid, $sectionid, $opened)
+# Update the default open/closed setting of the specified section
+#
+# @param courseid  The ID of the course containing the section to edit.
+# @param sectionid The ID of the section to edit.
+# @param opened   Should the section be opened? Should be 0 (closed), or 1 (opened)
+# @return true on success, undef on error.
+sub set_section_opened {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+    my $opened    = shift;
+
+    $self -> clear_error();
+
+    my $titleh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                              SET open = ?
+                                              WHERE id = ?
+                                              AND course_id = ?
+                                              AND deleted IS NULL");
+    my $result = $titleh -> execute($opened, $sectionid, $courseid);
     return $self -> self_error("Unable to perform section update: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Section update failed, no rows inserted") if($result eq "0E0");
 

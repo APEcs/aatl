@@ -1,0 +1,1 @@
+<li><div class="control openctrl ***state***" id="openbtn-***id***" onclick="default_open('***id***')" title="{L_FEATURE_MATERIALS_OPENTOGGLE}"></div></li>

@@ -98,3 +98,37 @@ ul#sectionlist > li.sec-close .contents {
 ul#sectionlist > li.sec-close .header .togglevis {
     background: url("../images/materials/section-closed.png") top left no-repeat;
 }
+
+
+ul.controls .control.visctrl {
+    background-position: -64px -16px;
+}
+
+ul.controls .control.visctrl:hover {
+    background-position: -64px -32px;
+}
+
+ul.controls .control.visctrl.set {
+    background-position: -64px 0px;
+}
+
+ul.controls .control.visctrl.working {
+    background-position: -64px -48px;
+}
+
+
+ul.controls .control.openctrl {
+    background-position: -80px -16px;
+}
+
+ul.controls .control.openctrl:hover {
+    background-position: -80px -32px;
+}
+
+ul.controls .control.openctrl.set {
+    background-position: -80px 0px;
+}
+
+ul.controls .control.openctrl.working {
+    background-position: -80px -48px;
+}

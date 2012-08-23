@@ -1,0 +1,1 @@
+<li><div class="control visctrl ***state***" id="visbtn-***id***" onclick="default_visible('***id***')" title="{L_FEATURE_MATERIALS_VISTOGGLE}"></div></li>

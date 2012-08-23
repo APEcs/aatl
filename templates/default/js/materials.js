@@ -107,6 +107,9 @@ function save_section_order()
 }
 
 
+/** Save the title set for the specified section
+ *
+ */
 function edit_section(sectionid)
 {
     var req = new Request({ url: api_request_path("materials", "editsection"),
@@ -144,7 +147,8 @@ function edit_section(sectionid)
 /** Cancel a previously started section edit operation.
  *
  */
-function cancel_editable(sectionid) {
+function cancel_editable(sectionid)
+{
 
     var input = $('edittitle-'+sectionid);
     var title = new Element('h3', { id:  'title-'+sectionid,
@@ -160,7 +164,8 @@ function cancel_editable(sectionid) {
 /** Make a section title editable by the user.
  *
  */
-function make_section_editable(sectionid) {
+function make_section_editable(sectionid)
+{
 
     $('editsec-'+sectionid).removeEvents('click');
     $('editsec-'+sectionid).addClass('ctrldisabled');
@@ -188,6 +193,75 @@ function make_section_editable(sectionid) {
 }
 
 
+function default_open(sectionid)
+{
+    var req = new Request({ url: api_request_path("materials", "defopen"),
+                            onRequest: function() {
+                                $('openbtn-'+sectionid).addClass('working');
+                                show_spinner($('openbtn-'+sectionid));
+                            },
+                            onSuccess: function(respText, respXML) {
+                                hide_spinner($('openbtn-'+sectionid));
+                                $('openbtn-'+sectionid).removeClass('working');
+
+                                var err = respXML.getElementsByTagName("error")[0];
+
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+                                } else {
+                                    var res = respXML.getElementsByTagName("open")[0];
+                                    var set = res.getAttribute("set");
+
+                                    if(set) {
+                                        $('openbtn-'+sectionid).addClass('set');
+                                    } else {
+                                        $('openbtn-'+sectionid).removeClass('set');
+                                    }
+                                }
+                            }
+                          });
+    req.send("cid="+courseid+"&secid="+sectionid);
+}
+
+
+function default_visible(sectionid)
+{
+    var req = new Request({ url: api_request_path("materials", "defvis"),
+                            onRequest: function() {
+                                $('visbtn-'+sectionid).addClass('working');
+                                show_spinner($('visbtn-'+sectionid));
+                            },
+                            onSuccess: function(respText, respXML) {
+                                hide_spinner($('visbtn-'+sectionid));
+                                $('visbtn-'+sectionid).removeClass('working');
+
+                                var err = respXML.getElementsByTagName("error")[0];
+
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+                                } else {
+                                    var res = respXML.getElementsByTagName("visible")[0];
+                                    var set = res.getAttribute("set");
+
+                                    if(set) {
+                                        $('visbtn-'+sectionid).addClass('set');
+                                        $('section-'+sectionid).removeClass('sec-hide');
+                                    } else {
+                                        $('visbtn-'+sectionid).removeClass('set');
+                                        $('section-'+sectionid).addClass('sec-hide');
+                                    }
+                                }
+                            }
+                          });
+    req.send("cid="+courseid+"&secid="+sectionid);
+}
+
+
+/** Show or hide the body of a section based on its opened setting
+ *
+ */
 function toggle_body(element) {
     var toggle = element.getElement("span.togglevis");
     if(toggle) {

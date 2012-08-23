@@ -102,7 +102,14 @@ sub _build_section_admin {
     my $canedit   = $permcache -> {"editsection"} ? "enabled" : "disabled";
     my $candelete = $permcache -> {"deletesection"} ? "enabled" : "disabled";
 
-    my $controls  = $self -> {"template"} -> process_template($temcache -> {"sectionedit_".$canedit},
+    my $controls  = "";
+       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectionvis_".$canedit},
+                                                              {"***id***"    => $section -> {"id"},
+                                                               "***state***" => $section -> {"visible"} ? "set" : ""});
+       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectionopen_".$canedit},
+                                                              {"***id***"    => $section -> {"id"},
+                                                               "***state***" => $section -> {"open"} ? "set" : ""});
+       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectionedit_".$canedit},
                                                               {"***id***" => $section -> {"id"}});
        $controls .= $self -> {"template"} -> process_template($temcache -> {"sectiondel_".$candelete},
                                                               {"***id***" => $section -> {"id"}});
@@ -180,6 +187,10 @@ sub _build_section_list {
                      "sectionedit_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_disabled.tem"),
                      "sectiondel_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_enabled.tem"),
                      "sectiondel_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_disabled.tem"),
+                     "sectionvis_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_enabled.tem"),
+                     "sectionvis_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_disabled.tem"),
+                     "sectionopen_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_enabled.tem"),
+                     "sectionopen_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_disabled.tem"),
     };
 
     # And some permissions
@@ -246,6 +257,10 @@ sub _build_api_addsection_response {
                      "sectionedit_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_disabled.tem"),
                      "sectiondel_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_enabled.tem"),
                      "sectiondel_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_disabled.tem"),
+                     "sectionvis_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_enabled.tem"),
+                     "sectionvis_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_disabled.tem"),
+                     "sectionopen_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_enabled.tem"),
+                     "sectionopen_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_disabled.tem"),
     };
 
     # And some permissions
@@ -366,6 +381,83 @@ sub _build_api_editsection_response {
 }
 
 
+
+## @method private $ _build_api_defaultvisible_response()
+# Determine whether the user is allowed to edit sections, and if they are try to
+# update the default visibility for the specified section.
+#
+# @return A string or hash containing the API response.
+sub _build_api_defaultvisible_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $id = $self -> {"cgi"} -> param("secid")
+        or return $self -> api_errorhash("no_secid", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELSEC_NOID"));
+
+    $self -> log("materials:defvis_section", "User attempting to edit visibility of material section $id");
+
+    my $editsection = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.editsection");
+    if(!$editsection) {
+        $self -> log("error:materials:defvis_section", "Permission denied when attempting edit section $id");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_PERMS"));
+    }
+
+    my $section = $self -> {"materials"} -> get_section($id)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_BADCID"))
+        if($section -> {"course_id"} != $self -> {"courseid"});
+
+    my $visible = !$section -> {"visible"};
+    $self -> {"materials"} -> set_section_visible($self -> {"courseid"}, $id, $visible)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    $self -> log("materials:defvis_section", "Section $id updated with visibility $visible");
+
+    return { "visible" => {"set" => $visible} };
+}
+
+
+## @method private $ _build_api_defaultopen_response()
+# Determine whether the user is allowed to edit sections, and if they are try to
+# update the default open state for the specified section.
+#
+# @return A string or hash containing the API response.
+sub _build_api_defaultopen_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $id = $self -> {"cgi"} -> param("secid")
+        or return $self -> api_errorhash("no_secid", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELSEC_NOID"));
+
+    $self -> log("materials:defopen_section", "User attempting to edit visibility of material section $id");
+
+    my $editsection = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.editsection");
+    if(!$editsection) {
+        $self -> log("error:materials:defopen_section", "Permission denied when attempting edit section $id");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_PERMS"));
+    }
+
+    my $section = $self -> {"materials"} -> get_section($id)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_BADCID"))
+        if($section -> {"course_id"} != $self -> {"courseid"});
+
+    my $open = !$section -> {"open"};
+    $self -> {"materials"} -> set_section_opened($self -> {"courseid"}, $id, $open)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    $self -> log("materials:defopen_section", "Section $id updated with open status $open");
+
+    return { "open" => {"set" => $open } };
+}
+
+
 # ============================================================================
 #  Interface
 
@@ -476,6 +568,10 @@ sub page_display {
                 return $self -> api_response($self -> _build_api_editsection_response());
             } elsif($apiop eq "sectionorder") {
                 return $self -> api_response($self -> _build_api_sectionorder_response());
+            } elsif($apiop eq "defvis") {
+                return $self -> api_response($self -> _build_api_defaultvisible_response());
+            } elsif($apiop eq "defopen") {
+                return $self -> api_response($self -> _build_api_defaultopen_response());
             } else {
                 return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                          $self -> {"template"} -> replace_langvar("API_BAD_OP")))
