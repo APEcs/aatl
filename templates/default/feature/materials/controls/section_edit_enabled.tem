@@ -1,1 +1,1 @@
-<li><div class="control edit" id="editsec--***id***" onclick="make_section_editable('***id***');" title="{L_FEATURE_MATERIALS_SECEDIT}"></div></li>
+<li><div class="control edit" id="editsec-***id***" onclick="make_section_editable('***id***');" title="{L_FEATURE_MATERIALS_SECEDIT}"></div></li>

@@ -136,6 +136,64 @@ sub add_section {
 }
 
 
+## @method $ delete_section($courseid, $sectionid, $userid)
+# Mark the specified section as deleted by the provided user, if it is not already
+# deleted.
+#
+# @param courseid  The ID of the course containing the section to delete.
+# @param sectionid The ID of the section to mark as deleted.
+# @param userid    The ID of the user doing the deletion.
+# @return true on success, undef on error.
+sub delete_section {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+    my $userid    = shift;
+
+    $self -> clear_error();
+
+    my $nukeh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                             SET deleted = UNIX_TIMESTAMP(), deleted_id = ?
+                                             WHERE id = ?
+                                             AND course_id = ?
+                                             AND deleted IS NULL");
+    my $result = $nukeh -> execute($userid, $sectionid, $courseid);
+    return $self -> self_error("Unable to perform section delete: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Section delete failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
+
+## @method $ edit_section($courseid, $sectionid, $title)
+# Update the title of the specified section to the supplied string.
+#
+# @param courseid  The ID of the course containing the section to edit.
+# @param sectionid The ID of the section to edit.
+# @param title     The new title string to set for the section
+# @return true on success, undef on error.
+sub edit_section {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+    my $title     = shift;
+
+    $self -> clear_error();
+
+    my $titleh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                              SET title = ?
+                                              WHERE id = ?
+                                              AND course_id = ?
+                                              AND deleted IS NULL");
+    my $result = $titleh -> execute($title, $sectionid, $courseid);
+    return $self -> self_error("Unable to perform section update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Section update failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
 ## @method $ get_section($sectionid)
 # Obtain the data for a specified section.
 #

@@ -296,6 +296,76 @@ sub _build_api_sectionorder_response {
 }
 
 
+## @method private $ _build_api_delsection_response()
+# Determine whether the user is allowed to delete sections, and if they are try to
+# delete the section specified by the user.
+#
+# @return A string or hash containing the API response.
+sub _build_api_delsection_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $id = $self -> {"cgi"} -> param("secid")
+        or return $self -> api_errorhash("no_secid", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELSEC_NOID"));
+
+    $self -> log("materials:delsection", "User attempting to delete material section $id");
+
+    my $delsection = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.deletesection");
+    if(!$delsection) {
+        $self -> log("error:materials:delsection", "Permission denied when attempting delete section $id");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELSEC_PERMS"));
+    }
+
+    $self -> {"materials"} -> delete_section($self -> {"courseid"}, $id, $userid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    $self -> log("materials:delsection", "Section delete complete");
+
+    return { "response" => {"delete" => "ok"} };
+}
+
+
+## @method private $ _build_api_editsection_response()
+# Determine whether the user is allowed to edit section titless, and if they are try to
+# update the title for the section specified by the user.
+#
+# @return A string or hash containing the API response.
+sub _build_api_editsection_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $id = $self -> {"cgi"} -> param("secid")
+        or return $self -> api_errorhash("no_secid", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELSEC_NOID"));
+
+    $self -> log("materials:editsection", "User attempting to edit material section $id");
+
+    my $editsection = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.editsection");
+    if(!$editsection) {
+        $self -> log("error:materials:editsection", "Permission denied when attempting edit section $id");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIEDITSEC_PERMS"));
+    }
+
+    my ($title, $error) = $self -> validate_string("title", {"required" => 1,
+                                                             "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIEDITSEC_TITLE"),
+                                                             "minlen"   => 8,
+                                                             "maxlen"   => 128});
+    return $self -> api_errorhash("bad_title", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIEDITSEC_BADT",
+                                                                                        {"***error***" => $error}))
+        if($error);
+
+    $self -> {"materials"} -> edit_section($self -> {"courseid"}, $id, $title)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    $self -> log("materials:editsection", "Section updated with title '$title'");
+
+    return { "response" => {"title" => $title} };
+}
+
+
 # ============================================================================
 #  Interface
 
@@ -400,6 +470,10 @@ sub page_display {
         } else {
             if($apiop eq "addsection") {
                 return $self -> api_html_response($self -> _build_api_addsection_response());
+            } elsif($apiop eq "delsection") {
+                return $self -> api_response($self -> _build_api_delsection_response());
+            } elsif($apiop eq "editsection") {
+                return $self -> api_response($self -> _build_api_editsection_response());
             } elsif($apiop eq "sectionorder") {
                 return $self -> api_response($self -> _build_api_sectionorder_response());
             } else {

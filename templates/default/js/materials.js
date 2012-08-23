@@ -5,7 +5,7 @@ var dellock = false;
  *  create a new section in the current course, and adds the resulting section
  *  to the end of the section list if successful.
  */
-function add_section() 
+function add_section()
 {
     if(addlock) return;
     addlock = true;
@@ -19,7 +19,7 @@ function add_section()
                                  },
                                  onSuccess: function(respTree, respElems, respHTML) {
                                      var err = respHTML.match(/^<div id="apierror"/);
-                                     
+
                                      if(err) {
                                          $('errboxmsg').set('html', respHTML);
                                          errbox.open();
@@ -32,8 +32,8 @@ function add_section()
 
                                          if(listsort) listsort.addItems(tmp);
                                          toggle_body(tmp);
-                                         
-                                         
+
+
                                          tmp.reveal();
                                      }
                                      $('addsecimg').fade('out');
@@ -60,7 +60,7 @@ function delete_section(sectionid)
                             onSuccess: function(respText, respXML) {
                                 hide_spinner($('delsec-'+sectionid));
                                 $('delsec-'+sectionid).removeClass('working');
-                                
+
                                 var err = respXML.getElementsByTagName("error")[0];
                                 if(err) {
                                     $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
@@ -75,8 +75,8 @@ function delete_section(sectionid)
                             }
                           });
     req.post({ cid: courseid,
-               sid: sectionid
-             });  
+               secid: sectionid
+             });
 }
 
 
@@ -85,7 +85,7 @@ function delete_section(sectionid)
  */
 function save_section_order()
 {
-    var idlist = listsort.serialize(0, function(element, index) { 
+    var idlist = listsort.serialize(0, function(element, index) {
                                         if(element.getProperty('id')) {
                                             return element.getProperty('id').replace('item_','') + '=' + index;
                                         } else {
@@ -103,14 +103,96 @@ function save_section_order()
                                 }
                             }
                           });
-    req.send("cid="+courseid+"&"+idlist);      
+    req.send("cid="+courseid+"&"+idlist);
 }
+
+
+function edit_section(sectionid)
+{
+    var req = new Request({ url: api_request_path("materials", "editsection"),
+                            method: 'post',
+                            onRequest: function() {
+                                $('edittitle-'+sectionid).disabled = true;
+                            },
+                            onSuccess: function(respText, respXML) {
+                                var err = respXML.getElementsByTagName("error")[0];
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+                                    $('edittitle-'+sectionid).disabled = false;
+                                } else {
+                                    var newval = respXML.getElementsByTagName("response")[0];
+
+                                    var title = new Element('h3', { id:  'title-'+sectionid,
+                                                                    html: newval.getAttribute('title') });
+                                    var input = $('edittitle-'+sectionid);
+                                    title.replaces(input);
+                                    input.destroy();
+
+                                    $('editsec-'+sectionid).removeClass('ctrldisabled');
+                                    $('editsec-'+sectionid).addEvent('click', function() { make_section_editable(sectionid); });
+                                }
+                            }
+                          });
+
+    req.post({cid: courseid,
+              secid: sectionid,
+              title: $('edittitle-'+sectionid).value });
+}
+
+
+/** Cancel a previously started section edit operation.
+ *
+ */
+function cancel_editable(sectionid) {
+
+    var input = $('edittitle-'+sectionid);
+    var title = new Element('h3', { id:  'title-'+sectionid,
+                                    html: input.get('value') });
+    title.replaces(input);
+    input.destroy();
+
+    $('editsec-'+sectionid).removeClass('ctrldisabled');
+    $('editsec-'+sectionid).addEvent('click', function() { make_section_editable(sectionid); });
+}
+
+
+/** Make a section title editable by the user.
+ *
+ */
+function make_section_editable(sectionid) {
+
+    $('editsec-'+sectionid).removeEvents('click');
+    $('editsec-'+sectionid).addClass('ctrldisabled');
+
+    var title = new Element('input', { type: 'text',
+                                       size: 70,
+                                       maxlength: 128,
+                                       value: $('title-'+sectionid).get('text'),
+                                       id: 'edittitle-'+sectionid,
+                                       events: {
+                                           blur: function(event) { edit_section(sectionid); },
+                                           keyup: function(event) { if(event.code == 13) {
+                                                                        edit_section(sectionid);
+                                                                    // might catch escapes on some systems...
+                                                                    } else if(event.code == 27) {
+                                                                        cancel_editable(sectionid);
+                                                                    }
+                                                                  }
+                                       }
+                                     });
+    var oldtitle = $('title-'+sectionid);
+    title.replaces(oldtitle);
+    oldtitle.destroy();
+    title.focus();
+}
+
 
 function toggle_body(element) {
     var toggle = element.getElement("span.togglevis");
     if(toggle) {
         var body = element.getElement("div.contents");
-        
+
         toggle.addEvent('click', function() {
                             if(element.hasClass('sec-close')) {
                                 element.removeClass('sec-close');

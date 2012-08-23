@@ -9,7 +9,14 @@ FEATURE_MATERIALS_TITLE          = Course Materials
 FEATURE_MATERIALS_NEWSEC         = Add a section
 
 FEATURE_MATERIALS_APIADDSEC_PERMS  = You do not have permission to add materials sections to this course.
+FEATURE_MATERIALS_APIDELSEC_PERMS  = You do not have permission to delete materials sections in this course.
+FEATURE_MATERIALS_APIEDITSEC_PERMS = You do not have permission to edit material section titles in this course.
 FEATURE_MATERIALS_APISORTSEC_PERMS = You do not have permission to sort materials in this course.
+
+FEATURE_MATERIALS_APIDELSEC_NOID   = No section ID passed to the API.
+
+FEATURE_MATERIALS_APIEDITSEC_TITLE = Section title
+FEATURE_MATERIALS_APIEDITSEC_BADT  = Unable to change section title: ***error***
 
 FEATURE_MATERIALS_DEFAULT_TITLE  = New section
 FEATURE_MATERIALS_SECEDIT        = Edit this section title
