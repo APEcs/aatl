@@ -1,0 +1,14 @@
+<table>
+      <tr>
+        <th>Time</th>
+	<th>Question</th>
+      </tr>
+      <TMPL_LOOP NAME=QUESTION_LIST>
+      
+      <tr id='<TMPL_VAR NAME=ID>'>
+        <td><TMPL_VAR NAME=TIME></td>
+	<td><TMPL_VAR NAME=QUESTION></td>
+      </tr>
+      
+      </TMPL_LOOP>
+</table>

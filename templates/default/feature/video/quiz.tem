@@ -1,0 +1,17 @@
+<div id="question_***question_number***" class="question_number">Question ***question_number***.</div>
+<div class="quiz_template">
+  <div class="question">***question***</div>
+  
+  <form id="form_***question_id***">
+     ***answers***
+  </form>
+  
+  <span id="loading"></span>
+  <div id="feedback">***feedback***</div>
+  
+  
+</div>
+
+  <div class="buttons">
+     ***buttons***
+  </div>
