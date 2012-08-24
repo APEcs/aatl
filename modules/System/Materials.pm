@@ -328,7 +328,7 @@ sub set_section_order {
 
 
 # ============================================================================
-#  Materials subclass loader
+#  Materials subclass related
 
 ## @method $ load_materials_module($modulename)
 # Attempt to load an create an instance of a Materials module.
@@ -349,7 +349,28 @@ sub load_materials_module {
     my $modname = $modh -> fetchrow_arrayref()
         or return $self -> self_error("Unable to fetch module id for $modulename: entry does not exist");
 
-    return $self -> {"module"} -> load_module($modname -> [0], { courseid => $self -> {"courseid"} });
+    return $self -> {"module"} -> load_module($modname -> [0], { courseid  => $self -> {"courseid"},
+                                                                 materials => $self});
+}
+
+
+## @method $ get_section_list()
+# Generate an optionlist containing the names and ids of available materials
+# modules.
+#
+# @return A reference to an array of hashrefs containing the materials modules,
+#         undef on error.
+sub get_module_optionlist {
+    my $self = shift;
+
+    my $modh = $self -> {"dbh"} -> prepare("SELECT module_name AS value, title AS name
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."`
+                                            ORDER BY module_name");
+    $modh -> execute()
+        or return $self -> self_error("Unable to execute materials module list lookup: ".$self -> {"dbh"} -> errstr);
+
+    return $modh -> fetchall_arrayref({})
+        or $self -> self_error("Unable to fetch materials module list: no modules defined");
 }
 
 

@@ -289,6 +289,13 @@ function toggle_body(element) {
     }
 }
 
+
+function add_material(sectionid)
+{
+    
+
+}
+
 window.addEvent('domready', function() {
     $$('ul#sectionlist li').each(function(element) { toggle_body(element); });
 });

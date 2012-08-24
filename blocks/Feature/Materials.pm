@@ -75,7 +75,7 @@ sub used_capabilities {
              "materials.addsection"    => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.ADDSECTION"),
              "materials.editsection"   => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.EDITSECTION"),
              "materials.deletesection" => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.DELSECTION"),
-
+             "materials.addmaterials"  => $self -> {"template"} -> replace_langvar("CAPABILITY_MATERIALS.ADDMATERIALS"),
            };
 }
 
@@ -118,6 +118,32 @@ sub _build_section_admin {
 }
 
 
+## @method $ _build_section_controls($section, $userid, $permcache, $temcache)
+# Build the block containing icons to trigger the operations the user has access
+# to perform with the specified section (adding materials, etc).
+#
+# @param section   A reference to a hash containing the section data.
+# @param userid    The ID of the user viewing the section.
+# @param permcache A reference to a hash containing cached permissions.
+# @param temcache  A reference to a hash containing cached templates.
+# @return A string containing the section admin block HTML.
+sub _build_section_controls {
+    my $self      = shift;
+    my $section   = shift;
+    my $userid    = shift;
+    my $permcache = shift;
+    my $temcache  = shift;
+
+    my $canadd   = $permcache -> {"addmaterials"} ? "enabled" : "disabled";
+
+    my $controls  = "";
+       $controls .= $self -> {"template"} -> process_template($temcache -> {"matsadd_".$canadd},
+                                                              {"***id***" => $section -> {"id"}});
+
+    return $self -> {"template"} -> process_template($temcache -> {"sectioncontrols"}, {"***controls***" => $controls });
+}
+
+
 ## @method private $ _build_section($section, $userid, $permcache, $temcache)
 # Generate the HTML used to show a single section.
 #
@@ -138,7 +164,7 @@ sub _build_section {
 
     # Section admin bar and controls
     my $admin = $self -> _build_section_admin($section, $userid, $permcache, $temcache);
-    my $controls = ""; # $self -> _build_section_controls($section, $userid);
+    my $controls = $self -> _build_section_controls($section, $userid, $permcache, $temcache);
 
     # Work out the classes to apply to the section
     my $section_class = "";
@@ -191,6 +217,9 @@ sub _build_section_list {
                      "sectionvis_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_disabled.tem"),
                      "sectionopen_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_enabled.tem"),
                      "sectionopen_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_disabled.tem"),
+                     "sectioncontrols"      => $self -> {"template"} -> load_template("feature/materials/sectioncontrols.tem"),
+                     "matsadd_enabled"      => $self -> {"template"} -> load_template("feature/materials/controls/material_add_enabled.tem"),
+                     "matsadd_disabled"     => $self -> {"template"} -> load_template("feature/materials/controls/material_add_disabled.tem"),
     };
 
     # And some permissions
@@ -200,6 +229,7 @@ sub _build_section_list {
         "editsection"   => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.editsection"),
         "deletesection" => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.deletesection"),
         "sortlist"      => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.sortlist"),
+        "addmaterials"  => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.addmaterials"),
     };
     my $sortlist   = $permcache -> {"sortlist"} ? "enabled" : "disabled";
     my $addsection = $permcache -> {"addsection"} ? "enabled" : "disabled";
@@ -261,6 +291,9 @@ sub _build_api_addsection_response {
                      "sectionvis_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_disabled.tem"),
                      "sectionopen_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_enabled.tem"),
                      "sectionopen_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_disabled.tem"),
+                     "sectioncontrols"      => $self -> {"template"} -> load_template("feature/materials/sectioncontrols.tem"),
+                     "matsadd_enabled"      => $self -> {"template"} -> load_template("feature/materials/controls/material_add_enabled.tem"),
+                     "matsadd_disabled"     => $self -> {"template"} -> load_template("feature/materials/controls/material_add_disabled.tem"),
     };
 
     # And some permissions
@@ -271,6 +304,7 @@ sub _build_api_addsection_response {
         "editsection"   => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.editsection"),
         "deletesection" => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.deletesection"),
         "sortlist"      => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.sortlist"),
+        "addmaterials"  => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.addmaterials"),
     };
 
     return $self -> _build_section($section, $userid, $permcache, $temcache);
@@ -381,7 +415,6 @@ sub _build_api_editsection_response {
 }
 
 
-
 ## @method private $ _build_api_defaultvisible_response()
 # Determine whether the user is allowed to edit sections, and if they are try to
 # update the default visibility for the specified section.
@@ -458,6 +491,35 @@ sub _build_api_defaultopen_response {
 }
 
 
+## @method private $ _build_api_addmatform_response()
+# Generate the material addition form to send back to the client to embed in the
+# page.
+#
+# @return A string or hash containing the API response.
+sub _build_api_addmatform_response {
+    my $self = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $id = $self -> {"cgi"} -> param("secid")
+        or return $self -> api_errorhash("no_secid", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELSEC_NOID"));
+
+    $self -> log("materials:addform", "User attempting to add material to section $id");
+
+    my $addmaterial = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                 $userid,
+                                                                 "materials.addmaterials");
+    if(!$addmaterial) {
+        $self -> log("error:materials::addform", "Permission denied when attempting add a new material");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDMAT_PERMS"));
+    }
+
+    my $modules = $self -> {"materials"} -> get_module_optionlist()
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    return $self -> {"template"} -> load_template("feature/materials/addform.tem", {"***id***"      => $id,
+                                                                                    "***modules***" => $self -> {"template"} -> build_optionlist($modules)});
+}
+
 # ============================================================================
 #  Interface
 
@@ -473,11 +535,13 @@ sub extra_header {
 }
 
 
-## @method $ section_display()
+## @method $ section_display($section)
 # Produce the string containing this block's 'section fragment' if it has one. By default,
 # this will return a string containing an error message. If section fragment content is
 # needed, this must be overridden in the subclass.
 #
+# @param section A reference to the base section data (subclasses may need to pull in additional
+#                data)
 # @return The string containing this block's section content fragment.
 sub section_display {
     my $self = shift;

@@ -13,6 +13,7 @@ FEATURE_MATERIALS_APIDELSEC_PERMS  = You do not have permission to delete materi
 FEATURE_MATERIALS_APIEDITSEC_PERMS = You do not have permission to edit material section titles in this course.
 FEATURE_MATERIALS_APIVISSEC_PERMS  = You do not have permission to change the visibility of material sections in this course.
 FEATURE_MATERIALS_APISORTSEC_PERMS = You do not have permission to sort materials in this course.
+FEATURE_MATERIALS_APIADDMAT_PERMS  = You do not have permission to add this sort of material to this course.
 
 FEATURE_MATERIALS_APIDELSEC_NOID   = No section ID passed to the API.
 
@@ -24,7 +25,11 @@ FEATURE_MATERIALS_APIEDITSEC_BADT  = Unable to change section title: ***error***
 FEATURE_MATERIALS_OPENTOGGLE       = Should this section be open by default? (click to toggle)
 FEATURE_MATERIALS_VISTOGGLE        = Should this section be visible to students? (click to toggle)
 
-
 FEATURE_MATERIALS_DEFAULT_TITLE  = New section
 FEATURE_MATERIALS_SECEDIT        = Edit this section title
 FEATURE_MATERIALS_SECDELETE      = Delete this section (and all its contents!)
+
+
+FEATURE_MATERIALS_MATADD         = Add a new resource to this section
+FEATURE_MATERIALS_NEWMAT_TITLE   = Name
+FEATURE_MATERIALS_NEWMAT_TYPE    = Type

@@ -56,3 +56,20 @@ ul.controls > li {
 .control.delete.working {
     background-position: -16px -48px;
 }
+
+
+.control.addent {
+    background-position: -96px -16px;
+}
+
+.control.addent:hover {
+    background-position: -96px -32px;
+}
+
+.control.addent.ctrldisabled {
+    background-position: -96px -16px;
+}
+
+.control.addent.working {
+    background-position: -96px -48px;
+}

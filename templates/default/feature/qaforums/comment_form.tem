@@ -1,7 +1,6 @@
 <div class="commentform">
     <div class="show" id="cshow-***mode***-***id***"><span>{L_FEATURE_QVIEW_ADDCOMMENT}</span></div>
     <div class="body" style="display: none">
-        <form id="form-***mode***-***id***" action="">
         <table>
         <tr>
         <td class="textentry"><textarea name="msg-***mode***-***id***" id="msg-***mode***-***id***" cols="64" rows="3"></textarea></td>
@@ -13,7 +12,6 @@
         </td>
         </tr>
         </table>
-        </form>
     </div>
     <!-- help here -->
 </div>

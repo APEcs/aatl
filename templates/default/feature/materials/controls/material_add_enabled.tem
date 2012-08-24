@@ -1,0 +1,1 @@
+<li><div class="control addent" id="addmat-***id***" onclick="add_material('***id***');" title="{L_FEATURE_MATERIALS_MATADD}"></div></li>
