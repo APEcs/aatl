@@ -193,6 +193,9 @@ function make_section_editable(sectionid)
 }
 
 
+/** Toggle the 'start opened' setting for the specified section
+ *
+ */
 function default_open(sectionid)
 {
     var req = new Request({ url: api_request_path("materials", "defopen"),
@@ -225,6 +228,9 @@ function default_open(sectionid)
 }
 
 
+/** Toggle the 'visible' setting for the specified section
+ *
+ */
 function default_visible(sectionid)
 {
     var req = new Request({ url: api_request_path("materials", "defvis"),
