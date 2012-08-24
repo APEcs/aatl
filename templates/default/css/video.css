@@ -1,0 +1,109 @@
+#wrapper{
+  text-align:left;
+  width: 500px;
+  margin-left:auto;
+  margin-right:auto;
+  margin-top:auto;
+  margin-bottom:auto;
+}
+
+.overlay
+{
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 640px;
+  height: 360px;
+  background: lightgray;
+  bottom: 0;
+  right: 0;
+}
+
+.no_overlay
+{
+}
+
+#video_box
+{
+  position:relative;
+  width:640px;
+  height:360px;
+}
+
+.quiz_template
+{
+  background: white;
+  
+  margin-left: auto;
+  margin-right: auto;
+  width: 80%;
+  height: 60%;
+  
+  padding: 20px;
+  
+  border: 2px solid;
+  border-radius: 25px;
+  -moz-border-radius: 25px;
+}
+
+.question
+{
+  margin-bottom: 20px;
+  font-weight:bold;
+  font-size: 125%;
+}
+
+.question_number
+{
+  font-size: 125%;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.buttons
+{
+  display:block;
+  
+  position:absolute;
+  bottom: 20;
+  right:0;
+  width:350px;
+}
+
+input
+{
+  margin-top: 10px;
+  margin-bottom: 10px;
+  margin-left: 30px;
+}
+
+#progress_background
+{
+  position: relative;
+  border: 1px solid black;
+  width: 500px;
+  height: 20px;
+}
+
+#progress_bar
+{
+  background: green;
+  
+  background: -webkit-gradient(linear, left top, left bottom, from(lightgreen), to(green));
+  
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 20px;
+}
+
+#progress_text
+{
+  background: none;
+  position: absolute;
+  text-align: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+}

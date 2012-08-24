@@ -1,0 +1,19 @@
+<script src='{V_[templatepath]}js/api.js'></script>
+<script src='{V_[templatepath]}js/popcorn/popcorn-complete.js'></script>
+<script src='{V_[templatepath]}js/popcorn/plugins/QuestionMaster/popcorn.QuestionMaster.js'></script>
+<link rel=StyleSheet href='{V_[templatepath]}css/video.css'>
+
+<div id="wrapper">
+   <!-- Load the video player -->
+  <div class="video_box" style="position: relative;">
+   <video width="640" height="360" id="player" controls>
+     ***video_sources***
+   </video>
+   <div id="vid_overlay" class="no_overlay" >
+   </div>
+
+  </div>
+
+   <div id="footnote"></div>
+   <div id="time"></div>
+</div>

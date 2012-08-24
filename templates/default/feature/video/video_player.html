@@ -1,0 +1,98 @@
+<html>
+
+<head>
+<link rel="stylesheet" type="text/css" href="templates/default/css/login.css">
+
+<style type="text/css">
+body{
+  text-align:center;
+  min-width: 500px;
+}
+
+#wrapper{
+  text-align:left;
+  width: 500px;
+  margin-left:auto;
+  margin-right:auto;
+  margin-top:auto;
+  margin-bottom:auto;
+}
+
+.overlay
+{
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 640px;
+  height: 360px;
+  background: lightgray;
+  bottom: 0;
+  right: 0;
+}
+
+.no_overlay
+{
+}
+
+#video_box
+{
+  position:relative;
+  width:640px;
+  height:360px;
+}
+</style>
+
+<!-- Import Mozilla Popcorn -->
+<script src="popcorn/popcorn-complete.js"></script>
+
+<!-- Import the Punisher (Quiz Engine) -->
+<script src="popcorn/plugins/punisher/popcorn.punisher.js"></script>
+
+<!-- Setup our environment -->
+<script>
+  document.addEventListener( "DOMContentLoaded", function() {
+
+    var popcorn = Popcorn( "#player"), flag = true;
+
+    popcorn.Punisher({
+      quiz: "demosheet.xml"
+    });
+    
+    // Autoplay
+    //popcorn.play();
+
+  }, false );
+  
+  
+</script>
+
+</head>
+
+<body>
+<div id="wrapper">
+   <!-- Load the video player -->
+  <div class="video_box" style="position: relative;">
+   <video width="640" height="360" id="player" controls>
+     <!-- 
+     <source src="video/Agnis_Philosophy_Final_Fa-RAAGMP3.CoM.mp4">
+     <source src="video/Agnis_Philosophy_Final_Fa-RAAGMP3.CoM.ogg">
+     <source src="video/Agnis_Philosophy_Final_Fa-RAAGMP3.CoM.flv">
+
+   	  It should be possible to run flash fallback using mozilla popcorn.
+          This is still theoretical though, and I need to run some testing on
+	  a browser that doesn't support HTML5. I can't think of any but 
+	  Internet Explorer, and I currently don't have access to a version
+	  old enough to test it with. It also requires a rather substantial 
+	  amount of work.
+      -->
+   </video>
+   <div id="vid_overlay" class="no_overlay" >
+   </div>
+
+  </div>
+
+   <div id="footnote"></div>
+   <div id="time"></div>
+</div>
+</body>
+</html>

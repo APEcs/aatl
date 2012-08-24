@@ -1,0 +1,30 @@
+table, td, th
+{
+  border: 1px solid black;
+  padding: 5px;
+  border-collapse: collapse;
+}
+
+#content
+{
+  margin: 0px;
+  padding: 0px;
+  width: 100%;
+}
+
+#video_box
+{
+  width: 650px;
+  float: left;
+}
+
+#qlist_box
+{
+  width: 300px;
+  float: left;
+}
+
+.next_question
+{
+  background: lightgrey;
+}

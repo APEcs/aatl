@@ -1,0 +1,19 @@
+<script src='{V_[templatepath]}js/Request.File.js'></script>
+<script src='{V_[templatepath]}js/iFrameFormRequest.js'></script>
+<script src='{V_[templatepath]}js/add_video.js'></script>
+<link rel=StyleSheet href="{V_[templatepath]}css/video.css">
+
+<form id="video_form" ***form_properties***>
+  <input type="file" name="***file_id***" id="***file_id***">
+  <input type="hidden" name="upload_video"><br/>
+  <input type="submit" value="Submit" name="submit">
+</form>
+
+<span id="debug_line">Idle..</span>
+
+<div id="progress_background">
+  <div id="progress_bar">
+  </div>
+  <div id="progress_text">
+  </div>
+</div>
