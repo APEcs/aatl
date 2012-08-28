@@ -193,14 +193,19 @@ sub get_progress
     return "NOT_FOUND" unless ( -e $log_file );
     
     # We can now open the file for reading
-    my $filehandle = File::Tail -> new( $log_file ) 
-        or return 0;
+    #my $filehandle = File::Tail -> new( $log_file ) 
+    #    or return 0;
+    my $ref = tie *FH, "File::Tail", (name=>$log_file) or return 0;
+    
     #	or return $self -> self_error("Could not open $log_file for reading: $!");
 
     # We read the last line
-    my $progress_line; my $timeout = 500;
-    while(not defined ($progress_line = $filehandle -> read) && $timeout > 0){ $timeout--; };
-    return "0" unless(defined($progress_line));
+    my $progress_line; 
+    
+    # Get the last line from the file. Remember we have to wait for the line to be
+    # completely written to the file before pulling it, hence the while loop.
+    #$filehandle -> autoflush(1);
+    $progress_line = <FH>;
     
     # Return a special symbol if we're done processing
     return 100 if( $progress_line eq "EOF\n" );

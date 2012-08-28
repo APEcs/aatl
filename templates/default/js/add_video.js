@@ -17,6 +17,7 @@ function prepare_form()
 			progress.setStyle('width', 10); 
 			$("progress_text").set("html","Uploading... Please do not close the browser"); 
 			$("debug_line").set("html","Requested..."); 
+		//	$('video_form').getParent.set("html", "");
 		},
 		
 		onProgress: function(event){

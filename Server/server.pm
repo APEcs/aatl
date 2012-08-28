@@ -105,8 +105,7 @@ sub processor_thread
     
     # EXECUTE: Convert the video - This will lock the thread until it is done converting,
     # but the queue structure remains accessible, and as such this isn't a problem.
-    my $video_converter = new Convert();
-    $video_converter = new Convert( max_file_size_mb => $message_map -> {"FILE_SIZE"}) if($message_map -> {"FILE_SIZE"} ne "");
+    my $video_converter = new Convert( max_file_size_mb => $message_map -> {"FILE_SIZE"}) if($message_map -> {"FILE_SIZE"} ne "");
     
     print "Converting: " . $message_map -> {"VIDEO_URL"};
     $video_converter -> convert_video( $message_map -> {"VIDEO_URL"}, $message_map -> {"OUTPUT_FORMAT"}, $message_map -> {"TEMP_FILE"} );
