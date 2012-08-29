@@ -1,3 +1,4 @@
+use lib qw(../modules)
 use File::Temp;
 
 use IO::Socket;

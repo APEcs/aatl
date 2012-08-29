@@ -205,24 +205,32 @@ sub get_progress
     # Get the last line from the file. Remember we have to wait for the line to be
     # completely written to the file before pulling it, hence the while loop.
     #$filehandle -> autoflush(1);
-    $progress_line = <FH>;
-    
-    # Return a special symbol if we're done processing
-    return 100 if( $progress_line eq "EOF\n" );
-    
-    # Reduce the number of whitespaces to make the string parsable
-    $progress_line =~ s/\h+/ /g;
- 
-    # Now we can split the string on white spaces
-    my @progress_data = split( " ", $progress_line );
-
-    # Temporary line to accomodate for the lack of structure
-    my $video_info = { length_in_seconds => 235 };
-    
-    if(defined($video_info -> {"length_in_seconds"})) 
+    while( <FH> )
     {
-      my $progress = ($progress_data[9] / $video_info -> {"length_in_seconds"});
-      return ($progress * 100) . "\n";
+       $progress_line = $_;
+       
+       # Return a special symbol if we're done processing
+       return 100 if( $progress_line eq "EOF\n" );
+
+       # Reduce the number of whitespaces to make the string parsable
+       $progress_line =~ s/\h+/ /g;
+
+       # Now we can split the string on white spaces
+       my @progress_data = split( " ", $progress_line );
+
+       # Temporary line to accomodate for the lack of structure
+       my $video_info = { length_in_seconds => 235 };
+
+       # Note: Right now I'm checking the length of the progress_data to see if the arguments
+       #       are going to be at the place we expect them to. It would be better if we could
+       #       guarantee that the string we actually get from the file is a full line.
+       if(defined($video_info -> {"length_in_seconds"}) && scalar(@progress_data) == 16) 
+       {
+	 print STDERR "Progress Line: " . $progress_line . "\n";
+	 print STDERR "Time: " . @progress_data[9] . "\n";
+	 my $progress = ($progress_data[9] / $video_info -> {"length_in_seconds"});
+	 return ($progress * 100) . "\n";
+       }
     }
 
 }
@@ -230,7 +238,18 @@ sub get_progress
 # ==============================================================================
 #   Quiz Creation & Editing
 
-# COMING SOON
+## @method $ edit_get_questions(MAT_ID)
+#  This method returns the complete list of questions, including answers, solutions
+#  and feedback to the user. This method can only be called if the user has the role
+#  of course creator/manager. 
+sub edit_get_questions
+{
+    my $self   = shift;
+    my $mat_id = shift;
+    
+#    my $questionlist = _get
+}
+
 
 # ==============================================================================
 #   Interface
@@ -321,6 +340,42 @@ sub page_display
 
 ## ============================================================================================
 #    Internals
+
+## @method private $ _edit_get_sorted_question_list($mat_id)
+#  This method retrives a sorted list containing all the information of questions related to the
+#  specified by the material ID. This should only be used if the user actually has priviliges to
+#  edit quiz questions.
+#
+#  @param mat_id The material id that is associated with the video that the user is editting
+#  @return Returns an array reference containing the data on a successful operation, undef otherwise. 
+sub _edit_get_sorted_question_list
+{
+    my $self   = shift;
+    my $mat_id = shift;
+    
+    $self -> clear_error();
+    
+    my $question_query = $self -> {"dbh"} -> prepare("SELECT question_id, time, question_type, question_text
+    						      FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material::video_questions"} ."`
+						      WHERE material_id = ?
+						      ORDER BY time ASC");
+    $question_query -> execute($mat_id);
+    
+    my @question_list;
+    while( my $question = $question_query -> fetchrow_hashref() )
+    {
+        my $answers_query = $self -> {"dbh"} -> prepare("SELECT answer_id, answer_text, is_solution, feedback
+      		 				         FROM `". $self -> {"settings"} -> {"database"} -> {"feature::material::video_answers"} . "`
+						         WHERE question_id = ?");
+	$answers_query -> execute( $question -> {"question_id"} );
+	
+	push(@question_list, { $question,
+			       ANSWERS => $answers_query -> fetchall_arrayref({})
+			     });
+    }
+    
+    return @question_list;						          
+}
 
 ## @method private $ _get_sorted_question_list($mat_id)
 # This method retrieves a sorted time:question_id list. The question_id can be used to retrieve 
