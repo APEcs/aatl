@@ -42,7 +42,7 @@ sub _build_api_addform_response {
 
     my $addmaterial = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
                                                                 $userid,
-                                                                "materials.addhtmlpage");
+                                                                "materials.htmlpage.add");
     if(!$addmaterial) {
         $self -> log("error:materials::htmlpage:addform", "Permission denied when attempting add a new section");
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDMAT_PERMS"));

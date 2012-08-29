@@ -636,6 +636,8 @@ sub page_display {
                 return $self -> api_response($self -> _build_api_defaultvisible_response());
             } elsif($apiop eq "defopen") {
                 return $self -> api_response($self -> _build_api_defaultopen_response());
+            } elsif($apiop eq "addmatform") {
+                return $self -> api_html_response($self -> _build_api_addmatform_response());
             } else {
                 return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                          $self -> {"template"} -> replace_langvar("API_BAD_OP")))

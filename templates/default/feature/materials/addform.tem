@@ -1,10 +1,16 @@
-                <div class="entry">
-                    <label for="newtitle">{L_MATERIALS_NEWMAT_TITLE}:<br />
-                    <input type="text" id="newtitle" name="newtitle" class="highlight" size="80" maxlength="128" value=""/></label>
+                <div class="title" style="display:none">{L_FEATURE_MATERIALS_NEWMAT_NEW}</div>
+                <div class="addform">
+                    <div class="entry">
+                        <label for="newtitle">{L_FEATURE_MATERIALS_NEWMAT_TITLE}:<br />
+                        <input type="text" id="newtitle" name="newtitle" class="highlight" size="80" maxlength="128" value=""/></label>
+                    </div>
+                    <div class="entry">
+                        <label for="newtype">{L_FEATURE_MATERIALS_NEWMAT_TYPE}:<br />
+                        <select size="1" id="newtype" name="newtype" onchange="select_newmat_type();">***modules***</select></label>
+                    </div>
+                    <div id="matform">
+                    </div>
                 </div>
-                <div class="entry">
-                    <label for="newtype">{L_MATERIALS_NEWMAT_TYPE}:<br />
-                    <select size="1" id="newtype" name="newtype" onchange="select_newmat_type();">***modules***</select></label>
-                </div>
-                <div id="matform">
-                </div>
+                <script type="text/javascript">
+                    addvars = [ 'newtitle', 'newtype' ];
+                </script>

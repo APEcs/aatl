@@ -17,8 +17,10 @@ window.addEvent('domready', function() {
     popbox = new LightFace({title: '<div id="poptitle">{L_FEATURE_MATERIALS_POPUP}</div>',
                             draggable: false,
                             overlayAll: true,
-                            content: '<div id="popbody"></div>'
+                            content: '<div id="popbody"></div>',
+                            zIndex: 8001
     });
     ***listsort***
+    ckeditlist = Array();
 });
             </script>

@@ -4,7 +4,9 @@ FEATURE_MATERIALS_ERROROK  = Continue
 FEATURE_MATERIALS_VIEWPERM_TITLE = Permission error
 FEATURE_MATERIALS_VIEWPERM       = You do not have permission to view the course materials.
 
+FEATURE_MATERIALS_DOADD          = Add
 FEATURE_MATERIALS_DOEDIT         = Edit
+FEATURE_MATERIALS_CANCEL         = Cancel
 FEATURE_MATERIALS_TITLE          = Course Materials
 FEATURE_MATERIALS_NEWSEC         = Add a section
 
@@ -33,3 +35,10 @@ FEATURE_MATERIALS_SECDELETE      = Delete this section (and all its contents!)
 FEATURE_MATERIALS_MATADD         = Add a new resource to this section
 FEATURE_MATERIALS_NEWMAT_TITLE   = Name
 FEATURE_MATERIALS_NEWMAT_TYPE    = Type
+FEATURE_MATERIALS_NEWMAT_NEW     = Add Materials
+
+
+
+# Types of materials
+MATERIALS_TYPE_NONE               = - Select a type -
+MATERIALS_TYPE_HTMLPAGE           = HTML Page

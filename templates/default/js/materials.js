@@ -292,9 +292,97 @@ function toggle_body(element) {
 
 function add_material(sectionid)
 {
-    
+    var req = new Request.HTML({ url: api_request_path("materials", "addmatform"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('addmat-'+sectionid).addClass('working');
+                                     show_spinner($('addmat-'+sectionid));
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     hide_spinner($('addmat-'+sectionid));
+                                     $('addmat-'+sectionid).removeClass('working');
 
+                                     var err = respHTML.match(/^<div id="apierror"/);
+
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+
+                                         var title = tmp.getElement('div.title').get('text');
+
+                                         $('poptitle').set('text', title);
+                                         $('popbody').empty().grab(tmp);
+                                         popbox.setButtons([{title: addbtn_name, color: 'blue', event: function() { do_add_material(sectionid) } },
+                                                            {title: cancelbtn_name, color: 'blue', event: function() { popbox.close(); }}]);
+                                         popbox.buttons[0].disabled = true;
+                                         popbox.open();
+                                     }
+                                 }
+                               });
+    req.send("secid="+sectionid);
 }
+
+
+function set_newmat_body(container, bodyTree, bodyJS)
+{
+    container.adopt(bodyTree);
+
+    // Now that the response html is in the dom tree, javascript accessing
+    // it should work...
+    if(bodyJS) eval(bodyJS);
+
+    ckeditlist.each(function(editname) {
+                        CKEDITOR.replace(editname, { customConfig: ckeditor_config });
+                    });
+
+    $('matform').reveal().get('reveal').chain(function() { popbox._position(); });
+}
+
+
+function clear_newmat_body(container)
+{
+    container.dissolve().get('reveal').chain(function() {
+                                                 ckeditlist.each(function(editname) {
+                                                                     CKEDITOR.instances[editname].destroy();
+                                                                 });
+                                                 ckeditlist.empty();
+                                                 container.empty();
+                                             });
+}
+
+
+function select_newmat_type()
+{
+    var sel = $('newtype').get('value');
+    if(sel) {
+        var req = new Request.HTML({ url: api_request_path("materials", "addform/"+sel),
+                                     method: 'post',
+                                     evalScripts: false,
+                                     onRequest: function() {
+                                         clear_newmat_body($('matform'));
+                                     },
+                                     onSuccess: function(respTree, respElems, respHTML, respJS) {
+                                         var err = respHTML.match(/^<div id="apierror"/);
+
+                                         if(err) {
+                                             $('errboxmsg').set('html', respHTML);
+                                             errbox.open();
+                                         } else {
+                                             set_newmat_body($('matform'), respTree, respJS);
+
+                                             popbox.buttons[0].disabled = false;
+                                         }
+                                     }
+                                   });
+        req.send();
+    } else {
+        popbox.buttons[0].disabled = true;
+        clear_newmat_body($('matform'));
+    }
+}
+
 
 window.addEvent('domready', function() {
     $$('ul#sectionlist li').each(function(element) { toggle_body(element); });

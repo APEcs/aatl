@@ -132,3 +132,20 @@ ul.controls .control.openctrl.set {
 ul.controls .control.openctrl.working {
     background-position: -80px -48px;
 }
+
+div.entry {
+    text-align: left;
+    margin: 0px auto;
+}
+
+div.entry label {
+    color: #555;
+}
+
+div.entry label input {
+    width: 100%;
+}
+
+div.addform {
+    width: 950px;
+}
