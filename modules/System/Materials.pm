@@ -25,7 +25,7 @@ use base qw(SystemModule);
 use List::Util qw(max);
 
 # ==============================================================================
-#  Creation
+#  Creation/Cleanup
 
 ## @cmethod $ new(%args)
 # Create a new Materials object to manage Materials creation and lookup.
@@ -53,6 +53,23 @@ sub new {
     return SystemModule::set_error("No module object available.")   if(!$self -> {"module"});
 
     return $self;
+}
+
+
+## @method void clear()
+# Remove any circular references this module may possess. This must be called
+# prior to exit to ensure that circular references do not prevent proper cleanup.
+# In particular, instances of this class contain a cache of materials module
+# instances, each of which contains a reference to this class.
+sub clear() {
+    my $self = shift;
+
+    if($self -> {"modulecache"}) {
+        foreach my $modname (keys(%{$self -> {"modulecache"}})) {
+            $self -> {"modulecache"} -> {$modname} -> {"materials"} = undef;
+        }
+        $self -> {"modulecache"} = undef;
+    }
 }
 
 
@@ -107,7 +124,7 @@ sub add_section {
     $self -> clear_error();
 
     # Get the ID of the course metadata context, so it can be used to make a new
-    # context for the post
+    # context for the section
     my $parentid = $self -> {"courses"} -> get_course_metadataid($courseid)
         or return $self -> self_error("Unable to obtain course metadata id: ".$self -> {"courses"} -> {"errstr"} || "Course does not exist");
 
@@ -264,9 +281,34 @@ sub get_section {
                                              WHERE id = ?
                                              AND deleted IS NULL");
     $secth -> execute($sectionid)
-        or return $self -> self_error("Unable to execute section loopup query: ".$self -> {"dbh"} -> errstr);
+        or return $self -> self_error("Unable to execute section lookup query: ".$self -> {"dbh"} -> errstr);
 
     return $secth -> fetchrow_hashref() || $self -> self_error("Unknown section requested");
+}
+
+
+## @method $ get_section_metadataid($courseid, $sectionid)
+# Obtain the metadata context id for a specified section.
+#
+# @param sectionid The ID of the section to fetch the data for.
+# @return The section metadata id on success, undef on error.
+sub get_section_metadataid {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+
+    my $secth = $self -> {"dbh"} -> prepare("SELECT metadata_id
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
+                                             WHERE id = ?
+                                             AND course_id = ?
+                                             AND deleted IS NULL");
+    $secth -> execute($sectionid, $courseid)
+        or return $self -> self_error("Unable to execute section metadataid query: ".$self -> {"dbh"} -> errstr);
+
+    my $secdata = $secth -> fetchrow_arrayref()
+        or return $self -> self_error("Unknown section requested");
+
+    return $secdata -> [0];
 }
 
 
@@ -328,17 +370,130 @@ sub set_section_order {
 
 
 # ============================================================================
+#  Material listing/manglement
+
+## @method $ add_material($courseid, $sectionid, $userid, $typeid, $title)
+# Add a new material header. This creates a basic material header using the values
+# supplied, it does not attempt to do any material-specific operations! Note that
+# this does not attempt to perform any permissions checks on the addition: the caller
+# is assumed to have done these!
+#
+# @param courseid  The ID of the course the material is being added to.
+# @param sectionid The ID of the section the material should be added to.
+# @param userid    The ID of the user adding the material.
+# @param typeid    The ID of the material type
+# @param title     The title to set for the material.
+# @return The new material header ID on success, undef on error.
+sub add_material {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+    my $userid    = shift;
+    my $typeid    = shift;
+    my $title     = shift;
+
+    # Get the ID of the section metadata context, so it can be used to make a new
+    # context for the material
+    my $parentid = $self -> get_section_metadataid($courseid, $sectionid)
+        or return $self -> self_error("Unable to obtain section metadata id: ".$self -> {"errstr"});
+
+    my $metadataid = $self -> {"metadata"} -> create($parentid)
+        or return $self -> self_error("Unable to create new metadata context: ".$self -> {"metadata"} -> {"errstr"});
+
+    # Work out where to add the material in the list
+    my $newpos = $self -> _get_max_material_sortpos($courseid, $sectionid);
+    return undef if(!defined($newpos));
+    ++$newpos;
+
+    my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                            (metadata_id, course_id, section_id, created, creator_id, type_id, title, sort_position)
+                                            VALUES(?, ?, ?, UNIX_TIMESTAMP(), ?, ?, ?, ?)");
+    my $result = $newh -> execute($metadataid, $courseid, $sectionid, $userid, $typeid, $title, $newpos);
+    return $self -> self_error("Unable to perform material insert: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Material insert failed, no rows inserted") if($result eq "0E0");
+
+    # FIXME: This ties to MySQL, but is more reliable that last_insert_id in general.
+    #        Try to find a decent solution for this mess...
+    my $materialid = $self -> {"dbh"} -> {"mysql_insertid"}
+        or return $self -> self_error("Unable to obtain new section row id");
+
+    return $materialid;
+}
+
+
+## @method $ set_material_dataid($courseid, $sectionid, $materialid, $dataid)
+# Update the data ID associated with the specified material. The ID is a free index
+# into any data table the material module may manage.
+#
+# @param courseid   The ID of the course containing the material to edit.
+# @param sectionid  The ID of the section containing the material to edit.
+# @param materialid The ID of the material to edit.
+# @param dataid     The data ID to set for this material (may be undef)
+# @return true on success, undef on error.
+sub set_material_dataid {
+    my $self       = shift;
+    my $courseid   = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+    my $dataid     = shift;
+
+    $self -> clear_error();
+
+    my $titleh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                              SET type_data_id = ?
+                                              WHERE id = ?
+                                              AND course_id = ?
+                                              AND section_id = ?
+                                              AND deleted IS NULL");
+    my $result = $titleh -> execute($dataid, $materialid, $courseid, $sectionid);
+    return $self -> self_error("Unable to perform material dataid update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Material dataid update failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
+## @method $ get_material($materialid)
+# Obtain the header data for a specified material. Note that this does not (indeed,
+# can not!) pull in additional type-secific data.
+#
+# @param materialid The ID of the material to fetch the header data for.
+# @return A reference to a hash containing the material data on success,
+#         undef on error.
+sub get_material {
+    my $self = shift;
+    my $materialid = shift;
+
+    my $math = $self -> {"dbh"} -> prepare("SELECT *
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                            WHERE id = ?
+                                            AND deleted IS NULL");
+    $math -> execute($materialid)
+        or return $self -> self_error("Unable to execute material lookup query: ".$self -> {"dbh"} -> errstr);
+
+    return $math -> fetchrow_hashref() || $self -> self_error("Unknown material requested");
+}
+
+
+# ============================================================================
 #  Materials subclass related
 
 ## @method $ load_materials_module($modulename)
-# Attempt to load an create an instance of a Materials module.
+# Attempt to load an create an instance of a Materials module. Note that this will cache
+# loaded and created modules, reducing the overhead of calling this to load the same module
+# to a single return after the first call.
 #
 # @param modulename The name of the materials module to load.
+# @param nocache    If true, force instantiation of a new module, even if one is already
+#                   cached. This defaults to false, and should be used with extreme care.
 # @return A reference to an instance of the requested materials module on success,
 #         undef on error.
 sub load_materials_module {
     my $self       = shift;
     my $modulename = shift;
+    my $nocache    = shift;
+
+    return $self -> {"modulecache"} -> {$modulename} if($self -> {"modulecache"} -> {$modulename} && !$nocache);
 
     my $modh = $self -> {"dbh"} -> prepare("SELECT perl_module
                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."`
@@ -349,8 +504,13 @@ sub load_materials_module {
     my $modname = $modh -> fetchrow_arrayref()
         or return $self -> self_error("Unable to fetch module id for $modulename: entry does not exist");
 
-    return $self -> {"module"} -> load_module($modname -> [0], { courseid  => $self -> {"courseid"},
-                                                                 materials => $self});
+    my $module = $self -> {"module"} -> load_module($modname -> [0], { courseid  => $self -> {"courseid"},
+                                                                       materials => $self});
+
+    # Cache the module if possible
+    $self -> {"modulecache"} -> {$modulename} = $module unless($nocache);
+
+    return $module;
 }
 
 
