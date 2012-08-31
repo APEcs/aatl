@@ -29,12 +29,12 @@ use System::Materials;
 #  Constructor
 
 ## @cmethod $ new(%args)
-# Overloaded constructor for QAForums, loads the System::QAForums model and other
+# Overloaded constructor for Materials, loads the System::Materials model and other
 # classes required to generate the forum pages.
 #
 # @param args A hash of values to initialise the object with. See the Block docs
 #             for more information.
-# @return A reference to a new Feature::QAForums object on success, undef on error.
+# @return A reference to a new Feature::Materials object on success, undef on error.
 sub new {
     my $invocant = shift;
     my $class    = ref($invocant) || $invocant;
@@ -42,13 +42,14 @@ sub new {
         or return undef;
 
     # Create a news model to work through.
-    $self -> {"materials"} = System::Materials -> new(dbh      => $self -> {"dbh"},
-                                                      settings => $self -> {"settings"},
-                                                      logger   => $self -> {"logger"},
-                                                      module   => $self -> {"module"},
-                                                      roles    => $self -> {"system"} -> {"roles"},
-                                                      metadata => $self -> {"system"} -> {"metadata"},
-                                                      courses  => $self -> {"system"} -> {"courses"})
+    $self -> {"system"} -> {"materials"} =
+        $self -> {"materials"} = System::Materials -> new(dbh      => $self -> {"dbh"},
+                                                          settings => $self -> {"settings"},
+                                                          logger   => $self -> {"logger"},
+                                                          module   => $self -> {"module"},
+                                                          roles    => $self -> {"system"} -> {"roles"},
+                                                          metadata => $self -> {"system"} -> {"metadata"},
+                                                          courses  => $self -> {"system"} -> {"courses"})
         or return SystemModule::set_error("Materials initialisation failed: ".$System::Materials::errstr);
 
     # FIXME: This will probably need to instantiate the tags feature to get at Feature::Tags::block_display().
@@ -160,7 +161,17 @@ sub _build_section {
     my $temcache  = shift;
 
     # Build the section contents
-    my $contents = ""; # TODO
+    my $contents = "";
+    my $matlist = $self -> {"materials"} -> get_section_materiallist($self -> {"courseid"}, $section, $permcache -> {"viewhidden"})
+        or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Fatal error: ".$self -> {"materials"} -> {"errstr"});
+
+    foreach my $material (@{$matlist}) {
+        # Caching done in System::Materials makes this safe enough to do...
+        my $matmodule = $self -> {"materials"} -> load_materials_module($material -> {"module_name"})
+            or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Unsupported material module '"..$material -> {"module_name"}."'");
+
+        $contents .= $matmodule -> section_display($material -> {"id"});
+    }
 
     # Section admin bar and controls
     my $admin = $self -> _build_section_admin($section, $userid, $permcache, $temcache);
@@ -234,7 +245,9 @@ sub _build_section_list {
     my $sortlist   = $permcache -> {"sortlist"} ? "enabled" : "disabled";
     my $addsection = $permcache -> {"addsection"} ? "enabled" : "disabled";
 
-    my $sections = $self -> {"materials"} -> get_section_list($self -> {"courseid"}, $permcache -> {"viewhidden"});
+    my $sections = $self -> {"materials"} -> get_section_list($self -> {"courseid"}, $permcache -> {"viewhidden"})
+        or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Fatal error: ".$self -> {"materials"} -> {"errstr"});
+
     my $sectionlist = "";
     foreach my $section (@{$sections}) {
         $sectionlist .= $self -> _build_section($section, $userid, $permcache, $temcache);
@@ -247,6 +260,58 @@ sub _build_section_list {
                                                     "***listsort***" => $self -> {"template"} -> load_template("feature/materials/listsort_${sortlist}.tem")
                                                    }),
             $self -> extra_header());
+}
+
+
+# ============================================================================
+#  Validation support functions
+
+## @method private @ _validate_material_fields($metadataid, $userid, $materialid)
+# Determine whether the materials information submitted by the user is valid.
+# This will validate any common material fields, and then invoke the appropriate
+# materials module to validate the remaining fields.
+#
+# @param metadataid The ID of the metadata context the material is in.
+# @param userid     The ID of the user adding or editing the material.
+# @param materialid If this function is being called as part of an edit process,
+#                   this parameter contains the ID of the material being edited.
+# @return An array of three values: a reference to a hash containing the validated
+#         arguments, a reference to the materials module used to validate the
+#         material-specific fields, and a string containing a list of errors, if
+#         any were encountered.
+sub _validate_material_fields {
+    my $self                    = shift;
+    my $metadataid              = shift;
+    my $userid                  = shift;
+    my ($args, $error, $errors) = ({"materialid" => shift}, "", "");
+
+    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
+
+    # Title and type need validating properly...
+    ($args -> {"title"}, $error) = $self -> validate_string("title", {"required" => 1,
+                                                                      "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_NEWMAT_TITLE"),
+                                                                      "minlen"   => 8,
+                                                                      "maxlen"   => 128});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    ($args -> {"type"}, $error) = $self -> validate_options("type", {"required" => 1,
+                                                                     "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_NEWMAT_TYPE"),
+                                                                     "source"   => $self -> {"settings"} -> {"database"} -> {"feature::material_modules"},
+                                                                     "where"    => "WHERE id > 0 AND module_name = ?"});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    # Load the material module, so that it can handle validating its own fields
+    my $module = $self -> {"modules"} -> load_materials_module($args -> {"type"});
+
+    # This should never actually happen - the validation on type should detect bad types - but check anyway
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***"  => "{L_MATERIALS_ERR_BADMODULE}",
+                                                                   "***module***" => $args -> {"type"}})
+        if(!$module);
+
+    # Now get the material module to do its thing
+    $errors .= $module -> validate_material_fields($metadataid, $userid, $args, $errtem);
+
+    return ($args, $module, $errors);
 }
 
 
@@ -520,6 +585,45 @@ sub _build_api_addmatform_response {
                                                                                     "***modules***" => $self -> {"template"} -> build_optionlist($modules)});
 }
 
+
+
+sub _build_api_addmat_response {
+    my $self = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $sectionid = $self -> {"cgi"} -> param("secid")
+        or return $self -> api_errorhash("no_secid", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELSEC_NOID"));
+
+    $self -> log("materials:addmat", "User attempting to add material to section $sectionid");
+
+    my $metadataid = $self -> {"materials"} -> get_section_metadataid($self -> {"courseid"}, $sectionid);
+    my $addmaterial = $self -> {"materials"} -> check_permission($metadataid,
+                                                                 $userid,
+                                                                 "materials.addmaterials");
+    if(!$addmaterial) {
+        $self -> log("error:materials::addform", "Permission denied when attempting add a new material");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDMAT_PERMS"));
+    }
+
+    my ($args, $module, $errors) = $self -> _validate_material_fields($metadataid, $userid);
+    return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                       {"***message***" => "{L_FEATURE_MATERIALS_APIADD_FAIL}",
+                                                                                        "***errors***"  => $errors}))
+        if($errors);
+
+    my $materialid = $self -> {"materials"} -> add_material($self -> {"courseid"}, $sectionid, $userid, $args -> {"type"}, $args -> {"title"})
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    my $dataid = $module -> add_material($sectionid, $materialid, $args)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $module -> {"errstr"}}));
+
+    $self -> {"materials"} -> set_material_dataid($self -> {"courseid"}, $sectionid, $materialid, $dataid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    return $module -> section_display($materialid);
+}
+
+
 # ============================================================================
 #  Interface
 
@@ -535,13 +639,12 @@ sub extra_header {
 }
 
 
-## @method $ section_display($section)
+## @method $ section_display(materialid)
 # Produce the string containing this block's 'section fragment' if it has one. By default,
 # this will return a string containing an error message. If section fragment content is
 # needed, this must be overridden in the subclass.
 #
-# @param section A reference to the base section data (subclasses may need to pull in additional
-#                data)
+# @param materialid The ID of the material to display.
 # @return The string containing this block's section content fragment.
 sub section_display {
     my $self = shift;

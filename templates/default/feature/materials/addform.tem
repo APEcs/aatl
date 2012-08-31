@@ -4,7 +4,7 @@
                         <label for="newtitle">{L_FEATURE_MATERIALS_NEWMAT_TITLE}:<br />
                         <input type="text" id="newtitle" name="newtitle" class="highlight" size="80" maxlength="128" value=""/></label>
                     </div>
-                    <div class="entry">
+                    <div class="entry" id="newtypebox">
                         <label for="newtype">{L_FEATURE_MATERIALS_NEWMAT_TYPE}:<br />
                         <select size="1" id="newtype" name="newtype" onchange="select_newmat_type();">***modules***</select></label>
                     </div>
@@ -12,5 +12,5 @@
                     </div>
                 </div>
                 <script type="text/javascript">
-                    addvars = [ 'newtitle', 'newtype' ];
+                    ckeditlist = new Array();
                 </script>

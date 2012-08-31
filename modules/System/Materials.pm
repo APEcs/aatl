@@ -1,5 +1,5 @@
 ## @file
-# This file contains the implementation of the AATL QA Forum handling engine.
+# This file contains the implementation of the AATL materials model.
 #
 # @author  Chris Page &lt;chris@starforge.co.uk&gt;
 #
@@ -276,6 +276,8 @@ sub get_section {
     my $self = shift;
     my $sectionid = shift;
 
+    $self -> clear_error();
+
     my $secth = $self -> {"dbh"} -> prepare("SELECT *
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
                                              WHERE id = ?
@@ -296,6 +298,8 @@ sub get_section_metadataid {
     my $self      = shift;
     my $courseid  = shift;
     my $sectionid = shift;
+
+    $self -> clear_error();
 
     my $secth = $self -> {"dbh"} -> prepare("SELECT metadata_id
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
@@ -369,6 +373,39 @@ sub set_section_order {
 }
 
 
+## @method $ get_section_materiallist($courseid, $section, $show_hidden)
+# Generate a list of materials IDs and modules in the specified section to present
+# to the user.
+#
+# @param courseid    The ID of the course to fetch materials for.
+# @param sectionid   The ID of the section containing the materials to fetch
+# @param show_hidden Include sections that are marked as invisible.
+# @return A reference to an array of hashrefs containing material IDs and module names,
+#         sorted by their sort positions, undef on error.
+sub get_section_materiallist {
+    my $self        = shift;
+    my $courseid    = shift;
+    my $sectionid   = shift;
+    my $show_hidden = shift;
+
+    $self -> clear_error();
+
+    my $secth = $self -> {"dbh"} -> prepare("SELECT mats.id, mods.module_name
+                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."` AS mats,
+                                                  `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."` AS mods
+                                             WHERE mats.course_id = ?
+                                             AND mats.section_id = ?
+                                             AND mats.deleted IS NULL ".
+                                            ($show_hidden ? "" : "AND mats.visible = 1 ").
+                                            "AND mods.id = mats.type_id
+                                             ORDER BY sort_position");
+    $secth -> execute($courseid, $sectionid)
+        or return $self -> self_error("Unable to execute materials list query: ".$self -> {"dbh"} -> errstr);
+
+    return $secth -> fetchall_arrayref({});
+}
+
+
 # ============================================================================
 #  Material listing/manglement
 
@@ -391,6 +428,8 @@ sub add_material {
     my $userid    = shift;
     my $typeid    = shift;
     my $title     = shift;
+
+    $self -> clear_error();
 
     # Get the ID of the section metadata context, so it can be used to make a new
     # context for the material
@@ -464,6 +503,8 @@ sub get_material {
     my $self = shift;
     my $materialid = shift;
 
+    $self -> clear_error();
+
     my $math = $self -> {"dbh"} -> prepare("SELECT *
                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
                                             WHERE id = ?
@@ -492,6 +533,8 @@ sub load_materials_module {
     my $self       = shift;
     my $modulename = shift;
     my $nocache    = shift;
+
+    $self -> clear_error();
 
     return $self -> {"modulecache"} -> {$modulename} if($self -> {"modulecache"} -> {$modulename} && !$nocache);
 
@@ -522,6 +565,7 @@ sub load_materials_module {
 #         undef on error.
 sub get_module_optionlist {
     my $self = shift;
+    $self -> clear_error();
 
     my $modh = $self -> {"dbh"} -> prepare("SELECT module_name AS value, title AS name
                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."`
@@ -558,6 +602,38 @@ sub _get_max_section_sortpos {
                                             AND deleted IS NULL");
     $posh -> execute($courseid)
         or return $self -> self_error("Unable to execute section sort position query: ".$self -> {"dbh"} -> errstr);
+
+    my $pos = $posh -> fetchrow_arrayref()
+        or return $self -> self_error("Unable to fetch maximum sort position row. This should not happen.");
+
+    # The result is either a Non-NULL value for the max, or we make it zero.
+    return $pos -> [0] || 0;
+}
+
+
+## @method private $ _get_max_material_sortpos($courseid, $sectionid)
+# Obtain the maximum used material sort position in the specified section. This will
+# return the highest sort position value set for materials in the section with the
+# provided ID, or zero if there are no materials in the section.
+#
+# @param courseid  The ID of the course to get the maximum material sort pos value for.
+# @param sectionid The ID of the section to get the maximum material sort pos value for.
+# @return The maximum sort position value used, 0 if no position is set, undef on error.
+sub _get_max_material_sortpos {
+    my $self      = shift;
+    my $courseid  = shift;
+    my $sectionid = shift;
+
+    $self -> clear_error();
+
+    # Fetch the maximum sort position, ignoring deleted entries.
+    my $posh = $self -> {"dbh"} -> prepare("SELECT MAX(sort_position)
+                                            FROM  `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                            WHERE course_id = ?
+                                            AND section_id = ?
+                                            AND deleted IS NULL");
+    $posh -> execute($courseid, $sectionid)
+        or return $self -> self_error("Unable to execute material sort position query: ".$self -> {"dbh"} -> errstr);
 
     my $pos = $posh -> fetchrow_arrayref()
         or return $self -> self_error("Unable to fetch maximum sort position row. This should not happen.");

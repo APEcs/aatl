@@ -290,6 +290,7 @@ function toggle_body(element) {
 }
 
 
+
 function add_material(sectionid)
 {
     var req = new Request.HTML({ url: api_request_path("materials", "addmatform"),
@@ -325,13 +326,51 @@ function add_material(sectionid)
 }
 
 
-function set_newmat_body(container, bodyTree, bodyJS)
+function do_add_material(sectionid)
+{
+    var req = new Request.HTML({ url: api_request_path("materials", "addmat"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     show_spinner(popbox.footer, 'top');
+                                     popbox.buttons[0].disabled = true;
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     hide_spinner(popbox.footer);
+
+                                     var err = respHTML.match(/^<div id="apierror"/);
+
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+                                         popbox.buttons[0].disabled = false;
+                                     } else {
+                                         popbox.close();
+
+                                         var tmp = new Element('div').adopt(respTree);
+
+                                     }
+                                 }
+                               });
+    var formdata = { secid: sectionid,
+                     title: $('newtitle').get('value'),
+                     type: $('newtype').get('value'),
+                   };
+    subformsave(formdata);
+
+    req.post(formdata);
+}
+
+/** Set the new material form to the specified tree.
+ *  This sets the contents of the container to the specified body, replaces any text areas
+ *  that should be ckeditor instances, and reveals the new body. It assumes that
+ *  at least one call to clear_newmat_body() has been made before calling this!
+ *
+ * @param container The element that should contain the form tree.
+ * @param bodyTree  The material form tree to place in the body.
+ */
+function set_newmat_body(container, bodyTree)
 {
     container.adopt(bodyTree);
-
-    // Now that the response html is in the dom tree, javascript accessing
-    // it should work...
-    if(bodyJS) eval(bodyJS);
 
     ckeditlist.each(function(editname) {
                         CKEDITOR.replace(editname, { customConfig: ckeditor_config });
@@ -341,6 +380,12 @@ function set_newmat_body(container, bodyTree, bodyJS)
 }
 
 
+/** Clear the contents of the specified container.
+ *  This will hide the container, remove any ckeditor instances, and then remove the container's
+ *  contents.
+ *
+ * @param container The element containing the material form to clear.
+ */
 function clear_newmat_body(container)
 {
     container.dissolve().get('reveal').chain(function() {
@@ -353,17 +398,22 @@ function clear_newmat_body(container)
 }
 
 
+/** Update the material addition form based on the material type selected by the user.
+ *  This is called every time the material type selector is changed, to allow different
+ *  types of material to present the user with different form options.
+ */
 function select_newmat_type()
 {
     var sel = $('newtype').get('value');
     if(sel) {
         var req = new Request.HTML({ url: api_request_path("materials", "addform/"+sel),
                                      method: 'post',
-                                     evalScripts: false,
                                      onRequest: function() {
+                                         show_spinner($('newtypebox'));
                                          clear_newmat_body($('matform'));
                                      },
                                      onSuccess: function(respTree, respElems, respHTML, respJS) {
+                                         hide_spinner($('newtypebox'));
                                          var err = respHTML.match(/^<div id="apierror"/);
 
                                          if(err) {

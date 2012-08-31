@@ -1,5 +1,7 @@
         <div class="textwrapper"><textarea name="newhtmlpage" id="newhtmlpage" rows="10" cols="80"></textarea></div>
 <script type="text/javascript">
     ckeditlist.push('newhtmlpage');
-    addvars.push('newhtmlpage');
+    subformsave = function(formdata) {
+        formdata['htmlpage'] = CKEDITOR.instances['newhtmlpage'].getData();
+    };
 </script>

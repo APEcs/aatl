@@ -3,6 +3,7 @@ FEATURE_MATERIALS_ERROROK  = Continue
 
 FEATURE_MATERIALS_VIEWPERM_TITLE = Permission error
 FEATURE_MATERIALS_VIEWPERM       = You do not have permission to view the course materials.
+FEATURE_MATERIALS_GENERAL_PERMS  = You do not have permission to perform the requested operation.
 
 FEATURE_MATERIALS_DOADD          = Add
 FEATURE_MATERIALS_DOEDIT         = Edit
@@ -37,7 +38,9 @@ FEATURE_MATERIALS_NEWMAT_TITLE   = Name
 FEATURE_MATERIALS_NEWMAT_TYPE    = Type
 FEATURE_MATERIALS_NEWMAT_NEW     = Add Materials
 
+FEATURE_MATERIALS_APIADD_FAIL    = Material addition failed
 
+FEATURE_MATERIALS_ERR_BADMODULE  = Unsupported materials module '***module***'
 
 # Types of materials
 MATERIALS_TYPE_NONE               = - Select a type -

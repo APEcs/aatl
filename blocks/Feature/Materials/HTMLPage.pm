@@ -24,7 +24,40 @@ package Feature::Materials::HTMLPage;
 use strict;
 use base qw(Feature::Materials);
 use Utils qw(is_defined_numeric);
-use System::Materials;
+use System::Materials::HTMLPage;
+
+# ============================================================================
+#  Constructor
+
+## @cmethod $ new(%args)
+# Overloaded constructor for Materials, loads the System::Materials model and other
+# classes required to generate the forum pages.
+#
+# @param args A hash of values to initialise the object with. See the Block docs
+#             for more information.
+# @return A reference to a new Feature::Materials object on success, undef on error.
+sub new {
+    my $invocant = shift;
+    my $class    = ref($invocant) || $invocant;
+    my $self     = $class -> SUPER::new(@_)
+        or return undef;
+
+    # Create a news model to work through.
+    $self -> {"htmlpage"} = System::Materials::HTMLPage -> new(dbh       => $self -> {"dbh"},
+                                                               settings  => $self -> {"settings"},
+                                                               logger    => $self -> {"logger"},
+                                                               module    => $self -> {"module"},
+                                                               roles     => $self -> {"system"} -> {"roles"},
+                                                               metadata  => $self -> {"system"} -> {"metadata"},
+                                                               courses   => $self -> {"system"} -> {"courses"},
+                                                               materials => $self -> {"materials"})
+        or return SystemModule::set_error("HTMLPage initialisation failed: ".$System::Materials::errstr);
+
+    # FIXME: This will probably need to instantiate the tags feature to get at Feature::Tags::block_display().
+    # $self -> {"tags"} = $self -> {"modules"} -> load_module("Feature::Tags");
+
+    return $self;
+}
 
 
 # ============================================================================
@@ -38,13 +71,13 @@ sub _build_api_addform_response {
     my $self = shift;
     my $userid = $self -> {"session"} -> get_session_userid();
 
-    $self -> log("materials::htmlpage:addform", "User attempting to add htlm page");
+    $self -> log("materials::htmlpage:addform", "User attempting to add html page");
 
     my $addmaterial = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
                                                                 $userid,
                                                                 "materials.htmlpage.add");
     if(!$addmaterial) {
-        $self -> log("error:materials::htmlpage:addform", "Permission denied when attempting add a new section");
+        $self -> log("error:materials::htmlpage:addform", "Permission denied when attempting add a new html page");
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDMAT_PERMS"));
     }
 
@@ -54,6 +87,42 @@ sub _build_api_addform_response {
 
 # ============================================================================
 #  Interface
+
+## @method $ validate_material_fields($metadataid, $userid, $args, $errtem)
+# Validate any fields specific to this materials module, and store the validated
+# results in the provided args hash.
+#
+# @param args   A reference to a hash to store field values in. Note that this will already
+#               contain at least two fields: 'title' and 'type'. If this is being invoked
+#               as part of an edit operation, args will also contain 'materialid', the id of
+#               the material being edited.
+# @param errtem A string containing the error template to use when reporting errors. This
+#               contains a replacement marker '***error***' that should be replaced with the
+#               error message as needed.
+# @return An empty string if all fields validated correctly, otherwise a list of errors.
+sub validate_material_fields {
+    my $self       = shift;
+    my $metadataid = shift;
+    my $userid     = shift;
+    my $args       = shift;
+    my $errtem     = shift;
+    my ($error, $errors) = ("", "");
+
+    my $op = "materials.htmlpage.".($args -> {"materialid"} ? "edit" : "add");
+    if(!$self -> {"materials"} -> check_permission($metadataid, $userid, $op)) {
+        $self -> log("error:materials::htmlpage:validate", "Permission denied when attempting material $op");
+        $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_GENERAL_PERMS")});
+    }
+
+    ($args -> {"message"}, $error) = $self -> validate_htmlarea("htmlpage", {"required" => 1,
+                                                                             "minlen"   => 8,
+                                                                             "nicename" => $self -> {"template"} -> replace_langvar("MATERIALS_TYPE_HTMLPAGE"),
+                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+
+    return $errors
+}
+
 
 ## @method $ extra_header()
 # Produce a string containing any javascript/css directives that need to be included in the
