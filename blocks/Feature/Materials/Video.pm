@@ -104,6 +104,8 @@ sub build_quiz
     		   <button disabled='disabled' id='continue'>Continue</button>
 		   <button id='skip'>Skip</button>";
     
+    # TODO:
+    # Modify Question_number to represent the actual number of the question (e.g. Question 1, Question 2, etc)
     return $self -> {"template"} -> load_template("feature/video/quiz.tem", {
     							"***question_number***" => 1, # This should be modified accordingly
 							"***question***"        => $quiz -> {"question_txt"},
@@ -125,9 +127,11 @@ sub validate_answers
     
     my $q_id = $self -> {"cgi"} -> param("quiz_id");
     
+    # Get the actual solutions
     my $solutions = _get_feedback_by_qid($self, $q_id);
     my @selected_answers = $self -> {"cgi"} -> param("answer");
     
+    # Compare the solutions against the answers, and fill the feedback string if the answers are incorrect
     my $feedback = "";
     foreach my $answer (@selected_answers)
     {
@@ -136,7 +140,6 @@ sub validate_answers
         $feedback = $feedback . $solutions -> {"$answer"}{"feedback"} . "\n";
       }
     }
-    
     
     return "CORRECT" if ($feedback eq "");
     
@@ -149,14 +152,15 @@ sub upload_video
 {
     my $self = shift;
     
+    # TODO
     # We check for the user permissions
     
     # Now that we've validated permissions, we can grab the data and store it 
     # on the server
     my $video = System::Materials::Video -> upload_video($self, $self -> {"cgi"}, "video_file", "test");
     
+    # TODO
     # Create a temporary file to log the data in
-    
     my $log_file = "/tmp/test.log";
     
     #########################################################
@@ -174,7 +178,11 @@ sub upload_video
     System::Materials::Video -> dispatch_video($self, $args_ogg);
     
     # We can now make an entry into the database to accomodate the video information
-    
+    # TODO
+    # We should probably return the name/location of the uploaded video file as well,
+    # for use in the get_progress function. Alternatively, we could store some of the 
+    # video_info in the database, specifying video length there instead. This would speed
+    # the script up significantly.
     return $log_file;
 }
 
@@ -193,14 +201,17 @@ sub get_progress
     return "NOT_FOUND" unless ( -e $log_file );
     
     # We can now open the file for reading
-    #my $filehandle = File::Tail -> new( $log_file ) 
-    #    or return 0;
     my $ref = tie *FH, "File::Tail", (name=>$log_file) or return 0;
     
-    #	or return $self -> self_error("Could not open $log_file for reading: $!");
-
     # We read the last line
     my $progress_line; 
+    
+    # TODO
+    # This should read my $video_info = Convert -> validate_video( VIDEO_FILE );
+    # where VIDEO_FILE is the file that we've uploaded (not the target file that
+    # is currently being processed, as any information from that would be incorrect)
+    # We could also store some of this object in the database, speeding the process up
+    my $video_info = { length_in_seconds => 235 };
     
     # Get the last line from the file. Remember we have to wait for the line to be
     # completely written to the file before pulling it, hence the while loop.
@@ -217,9 +228,6 @@ sub get_progress
 
        # Now we can split the string on white spaces
        my @progress_data = split( " ", $progress_line );
-
-       # Temporary line to accomodate for the lack of structure
-       my $video_info = { length_in_seconds => 235 };
 
        # Note: Right now I'm checking the length of the progress_data to see if the arguments
        #       are going to be at the place we expect them to. It would be better if we could
@@ -247,7 +255,12 @@ sub edit_get_questions
     my $self   = shift;
     my $mat_id = shift;
     
-#    my $questionlist = _get
+    # We get the list of questions from the database
+    my $questionlist = _edit_get_sorted_question_list($self, $mat_id);
+    
+    # We parse these questions into XML format
+    # And we return the list to the user
+    return XMLout( {question => $questionlist} );
 }
 
 
@@ -257,12 +270,15 @@ sub edit_get_questions
 sub block_display
 {
     my $self = shift;
+    return $self -> {"template"} -> load_template("feature/video/edit_video.tem",
+    						  {"***video_sources***" => "<source src='../../~meulenj9/video/hello.mp4'>"});
+    
     return $self -> {"template"} -> load_template("feature/video/upload_form.tem",
     						  {"***form_properties***" => "method='post' enctype='multipart/form-data'",
 						  "***file_id***" 	  => "video_file"});
     
     return $self -> {"template"} -> load_template("feature/video/video.tem",{
-						    "***video_sources***" => "<source src='../../../../~meulenj9/video/hello.ogg'>"
+						    "***video_sources***" => "<source src='../../~meulenj9/video/hello.mp4'>"
 						  });
 }
 
@@ -273,6 +289,9 @@ sub page_display
     # Now we check for api operations
     my $apiop = $self -> is_api_operation();
  
+    # TODO
+    # We should do permission checking here
+    
     if(defined $apiop)
     {  
        if($apiop eq "get_time_id_list")
@@ -310,9 +329,11 @@ sub page_display
        }
        else
        {
+          
            # The functionality that follows is only allowed to be performed by users with
 	   # special priviliges, such as lecturers. 
 	   
+	   # TODO
 	   # First validate if the user has permissions to actually perform any of these
 	   # actions
 	   
@@ -326,15 +347,20 @@ sub page_display
 	   {
 	       return get_progress($self);
 	   }
+	   elsif($apiop eq "request_edit_questions")
+	   {
+	       return edit_get_questions($self, 1);
+	   }
 	   else
 	   {
 	       # Log this as potential mallicious access. Log the API operation, userid, material id.
+	       # Also, return something sensible
                return "Invalid Operation!!!!!!!!!!!!!!!!!!!!!!!!";
 	   }
        }
     }
     
-    
+    # This should never be reached
     return "Test";
 }
 
@@ -369,12 +395,29 @@ sub _edit_get_sorted_question_list
 						         WHERE question_id = ?");
 	$answers_query -> execute( $question -> {"question_id"} );
 	
-	push(@question_list, { $question,
-			       ANSWERS => $answers_query -> fetchall_arrayref({})
+	my $answers_ref = $answers_query -> fetchall_arrayref({});
+	
+	# I can honestly say that the following lines of code probably aren't very good. This is probably related to my limited understanding
+	# of how XML::Simple works, and even more limited time to try to understand how it works. Instead, I produced a piece of code that,
+	# whilst probably suboptimal, produces the type of XML data that I need.
+	my @answer_list;
+	for my $answer (@$answers_ref)
+	{
+	   push(@answer_list, {answer_id   => [$answer -> {"answer_id"}],
+	   		      answer_text => [$answer -> {"answer_text"}],
+			      is_solution => [$answer -> {"is_solution"}],
+			      feedback    => [$answer -> {"feedback"}]});
+	}
+	
+	push(@question_list, {  question_id   => [$question -> {"question_id"}],
+				time          => [$question -> {"time"}],
+				question_type => [$question -> {"question_type"}],
+				question_text => [$question -> {"question_text"}],
+			       	answers       => \@answer_list
 			     });
     }
     
-    return @question_list;						          
+    return \@question_list;						          
 }
 
 ## @method private $ _get_sorted_question_list($mat_id)
@@ -463,7 +506,7 @@ sub _get_feedback_by_qid
     my $q_id = shift;
     
     $self -> clear_error();
-    print STDERR "QID: " . $q_id;
+    
     my $solutions_query = $self -> {"dbh"} -> prepare("SELECT answer_id, is_solution, feedback
     						       FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material::video_answers"} ."`
 						       WHERE question_id = ?");

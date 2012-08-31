@@ -3,11 +3,13 @@
 <script src='{V_[templatepath]}js/add_video.js'></script>
 <link rel=StyleSheet href="{V_[templatepath]}css/video.css">
 
-<form id="video_form" ***form_properties***>
-  <input type="file" name="***file_id***" id="***file_id***">
-  <input type="hidden" name="upload_video"><br/>
-  <input type="submit" value="Submit" name="submit">
-</form>
+<div id="form_div">
+  <form id="video_form" ***form_properties***>
+    <input type="file" name="***file_id***" id="***file_id***">
+    <input type="hidden" name="upload_video"><br/>
+    <input type="submit" value="Submit" name="submit">
+  </form>
+</div>
 
 <span id="debug_line">Idle..</span>
 
