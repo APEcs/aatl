@@ -1,0 +1,63 @@
+<script src='{V_[templatepath]}js/popcorn/popcorn-complete.js'></script>
+<script src='{V_[templatepath]}js/popcorn/plugins/quiz_editor/popcorn.quiz_editor.js'></script>
+<link rel=StyleSheet href='{V_[templatepath]}css/video.css'>
+
+<script>
+  var template_path = "{V_[templatepath]}";
+</script>
+
+<div class="video_wrapper">
+  <div class="video_box">
+    <video width="640" height="360" id="player" controls>
+       ***video_sources***
+    </video>
+
+      <div class="quiz_form" id="quiz_form_wrapper">
+	<form id="quiz_form">
+	  <table>
+            <tr colspan="3"><td>Add a question</td></tr>
+	    <tr><td>Time</td><td><input type="number" id="form_time"></td></tr>
+	    <tr><td>Question</td><td><textarea></textarea></td></tr>
+	    <tr><td>Question Type</td><td><select><option>Checkbox</option><option>Radio Button</option></select></td></tr>
+	    <tr><td>Number of answers</td><td><select id="number_answers_chkbox">
+	    					  <option value="1">1</option>
+						  <option value="2">2</option>
+						  <option value="3">3</option>
+						  <option value="4">4</option>
+						  <option value="5">5</option>
+	    </td></tr>
+	    <tr><td>Answer</td><td>Solution?</td><td>Feedback</td></tr>
+	    <tr id="answer_1"><td><input type="text"></td><td><input type="checkbox"></td><td><input type="text"></td></tr>
+	  </table>
+	</form>
+     </div>
+
+  </div>
+  
+  <div id="table_wrapper">
+    <table id="questions_table"> 
+      <tr><td align="center">Time</td><td align="center">Question</td><td align="center">Action</td></tr>
+      <tr>
+          <td align="center">230</td>
+          <td >This is a story about a little bird. The bird was doing some perl programming.</td>
+	  <td align="center">
+	     <a href="javascript:void(0);">
+	      <span class="remove_button">
+	       <img src="{V_[templatepath]}images/video/delete_ico.svg" width="15px" height="20px">
+	      </span>
+	     </a>
+	     
+	     <a href="javascript:void(0);">
+	      <span class="edit_button">
+	       <img src="{V_[templatepath]}images/video/edit.png" width="15px" height="20px">
+	      </span>
+	     </a>
+	   </td>
+      </tr>
+    </table>
+    <div class="add_question_wrapper">
+      <button id="add_question">Add Question</button>
+      <button id="submit_question">Submit Question</button>
+    </div>
+  </div>
+</div>

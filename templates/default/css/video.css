@@ -107,3 +107,66 @@ input
   left: 0;
   width: 100%;
 }
+
+.video_wrapper
+{
+  margin: auto;
+  width: 1000px;
+  height: 480px;
+}
+
+.video_wrapper .video_box
+{ 
+  float: left;
+  width: 640px;
+  display: inline;
+}
+
+.table_wrapper
+{
+  float: left;
+  text-align: center;
+}
+
+.table_wrapper .remove_button
+{
+  padding: auto; 
+}
+
+.add_question_wrapper
+{
+  width: 100%;
+  text-align: center;
+}
+
+.video_wrapper
+{
+  position: relative;
+  float: left;
+}
+
+.quiz_form
+{
+  position: absolute;
+  top:0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  
+  margin: auto;
+  background: white;
+  max-width: 640px;
+}
+
+#add_question
+{
+  visibility: visible;
+  width: 100px;
+}
+
+#submit_question
+{ 
+  visibility: hidden;
+  margin-left: -100px;
+}
