@@ -1,0 +1,1 @@
+<li><div class="control edit" id="editmat-***mid***" onclick="edit_mat('***sid***', '***mid***', '***type***');" title="{L_FEATURE_MATERIALS_MATEDIT}"></div></li>

@@ -141,7 +141,8 @@ sub _build_section_controls {
        $controls .= $self -> {"template"} -> process_template($temcache -> {"matsadd_".$canadd},
                                                               {"***id***" => $section -> {"id"}});
 
-    return $self -> {"template"} -> process_template($temcache -> {"sectioncontrols"}, {"***controls***" => $controls });
+    return $self -> {"template"} -> process_template($temcache -> {"sectioncontrols"}, {"***controls***" => $controls }) if($controls);
+    return "";
 }
 
 
@@ -162,15 +163,16 @@ sub _build_section {
 
     # Build the section contents
     my $contents = "";
-    my $matlist = $self -> {"materials"} -> get_section_materiallist($self -> {"courseid"}, $section, $permcache -> {"viewhidden"})
+    my $matlist = $self -> {"materials"} -> get_section_materiallist($self -> {"courseid"}, $section -> {"id"}, $permcache -> {"viewhidden"})
         or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Fatal error: ".$self -> {"materials"} -> {"errstr"});
 
     foreach my $material (@{$matlist}) {
         # Caching done in System::Materials makes this safe enough to do...
-        my $matmodule = $self -> {"materials"} -> load_materials_module($material -> {"module_name"})
+        my $matmodule = $self -> {"matmodules"} -> {$material -> {"module_name"}} =
+            $self -> {"materials"} -> load_materials_module($material -> {"module_name"})
             or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Unsupported material module '"..$material -> {"module_name"}."'");
 
-        $contents .= $matmodule -> section_display($material -> {"id"});
+        $contents .= $matmodule -> section_display($section -> {"id"}, $material -> {"id"}, $userid);
     }
 
     # Section admin bar and controls
@@ -300,16 +302,24 @@ sub _validate_material_fields {
                                                                      "where"    => "WHERE id > 0 AND module_name = ?"});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
+    # If the type is bad, nothing else can be done.
+    return ($args, undef, $errors) if($error);
+
+    # convert the type to a typeid
+    $args -> {"typeid"} = $self -> {"materials"} -> get_material_typeid($args -> {"type"})
+        or $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $self -> {"materials"} -> {"errstr"}});
+
     # Load the material module, so that it can handle validating its own fields
-    my $module = $self -> {"modules"} -> load_materials_module($args -> {"type"});
+    my $module = $self -> {"materials"} -> load_materials_module($args -> {"type"});
 
     # This should never actually happen - the validation on type should detect bad types - but check anyway
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***"  => "{L_MATERIALS_ERR_BADMODULE}",
+    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***"  => $self -> {"materials"} -> {"errstr"},
                                                                    "***module***" => $args -> {"type"}})
         if(!$module);
 
     # Now get the material module to do its thing
-    $errors .= $module -> validate_material_fields($metadataid, $userid, $args, $errtem);
+    $errors .= $module -> validate_material_fields($metadataid, $userid, $args, $errtem)
+        if($module);
 
     return ($args, $module, $errors);
 }
@@ -611,16 +621,18 @@ sub _build_api_addmat_response {
                                                                                         "***errors***"  => $errors}))
         if($errors);
 
-    my $materialid = $self -> {"materials"} -> add_material($self -> {"courseid"}, $sectionid, $userid, $args -> {"type"}, $args -> {"title"})
+    my $materialid = $self -> {"materials"} -> add_material($self -> {"courseid"}, $sectionid, $userid, $args -> {"typeid"}, $args -> {"title"})
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
-    my $dataid = $module -> add_material($sectionid, $materialid, $args)
+    my $dataid = $module -> add_material($sectionid, $materialid, $userid, $args)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $module -> {"errstr"}}));
 
     $self -> {"materials"} -> set_material_dataid($self -> {"courseid"}, $sectionid, $materialid, $dataid)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
-    return $module -> section_display($materialid);
+    $self -> log("materials:addmat", "User add material with title '".$args -> {"title"}."' to section $sectionid");
+
+    return $module -> section_display($sectionid, $materialid, $userid);
 }
 
 
@@ -633,9 +645,17 @@ sub _build_api_addmat_response {
 #
 # @return A strign containing html to include in the page header
 sub extra_header {
-    my $self = shift;
+    my $self  = shift;
+    my $extra = $self -> {"template"} -> load_template("feature/materials/extrahead.tem");
 
-    return $self -> {"template"} -> load_template("feature/materials/extrahead.tem");
+    if($self -> {"matmodules"}) {
+        foreach my $mat (keys(%{$self -> {"matmodules"}})) {
+            $extra .= $self -> {"matmodules"} -> {$mat} -> extra_header()
+                if($self -> {"matmodules"} -> {$mat} -> can('extra_header'));
+        }
+    }
+
+    return $extra;
 }
 
 
@@ -741,6 +761,8 @@ sub page_display {
                 return $self -> api_response($self -> _build_api_defaultopen_response());
             } elsif($apiop eq "addmatform") {
                 return $self -> api_html_response($self -> _build_api_addmatform_response());
+            } elsif($apiop eq "addmat") {
+                return $self -> api_html_response($self -> _build_api_addmat_response());
             } else {
                 return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                          $self -> {"template"} -> replace_langvar("API_BAD_OP")))

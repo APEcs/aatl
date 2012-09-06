@@ -61,6 +61,43 @@ sub new {
 
 
 # ============================================================================
+#  Controls/support
+
+## @method private $ _build_section_controls($sectionid, $materialid, $userid, $metadataid)
+# Generate the controls the user has access to for a material in a material section
+# block.
+#
+# @param sectionid   The ID of the section the material is in.
+# @param materialid  The ID of the material being displayed
+# @param userid      The ID of the user viewing the material.
+# @param metadataid  The ID of the material's metadata context.
+# @return A string containing the material section block controls, if any.
+sub _build_section_controls {
+    my $self       = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+    my $userid     = shift;
+    my $metadataid = shift;
+
+    my $canedit = $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.htmlpage.edit") ? "enabled" : "disabled";
+    my $candel  = $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.htmlpage.delete") ? "enabled" : "disabled";
+
+    my $controls  = "";
+    $controls .= $self -> {"template"} -> load_template("feature/materials/matcontrols/edit_${canedit}.tem",
+                                                        {"***sid***"  => $sectionid,
+                                                         "***mid***"  => $materialid,
+                                                         "***type***" => $self -> {"typename"}});
+    $controls .= $self -> {"template"} -> load_template("feature/materials/matcontrols/delete_${candel}.tem",
+                                                        {"***sid***"  => $sectionid,
+                                                         "***mid***"  => $materialid,
+                                                         "***type***" => $self -> {"typename"}});
+
+    return $self -> {"template"} -> load_template("feature/materials/matcontrols.tem", {"***controls***" => $controls }) if($controls);
+    return "";
+}
+
+
+# ============================================================================
 #  API
 
 ## @method private $ _build_api_addform_response()
@@ -82,6 +119,34 @@ sub _build_api_addform_response {
     }
 
     return $self -> {"template"} -> load_template("feature/materials/htmlpage/addform.tem");
+}
+
+
+
+## @method private $ _build_api_view_response()
+# Generate the HTML response to show in the material view popup window.
+#
+# @return A string containing the view data, or a reference to an error hash.
+sub _build_api_view_response {
+    my $self = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $materialid = is_defined_numeric($self -> {"cgi"}, "mid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOMID"));
+
+    my $sectionid = is_defined_numeric($self -> {"cgi"}, "secid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOSID"));
+
+    $self -> log("materials::htmlpage:view", "User viewing html page $materialid in section $sectionid");
+
+    # View permission has already been checked by Feature::Materials::page_display() before calling this.
+    # Get the material data...
+    my $material = $self -> {"htmlpage"} -> get_view_data($self -> {"courseid"}, $sectionid, $materialid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"htmlpage"} -> {"errstr"}}));
+
+    return $self -> {"template"} -> load_template("feature/materials/htmlpage/view.tem",
+                                                  {"***title***"    => $material -> {"title"},
+                                                   "***htmlpage***" => $material -> {"htmldata"} });
 }
 
 
@@ -114,13 +179,32 @@ sub validate_material_fields {
         $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_GENERAL_PERMS")});
     }
 
-    ($args -> {"message"}, $error) = $self -> validate_htmlarea("htmlpage", {"required" => 1,
-                                                                             "minlen"   => 8,
-                                                                             "nicename" => $self -> {"template"} -> replace_langvar("MATERIALS_TYPE_HTMLPAGE"),
-                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
+    ($args -> {"htmlpage"}, $error) = $self -> validate_htmlarea("htmlpage", {"required" => 1,
+                                                                              "minlen"   => 8,
+                                                                              "nicename" => $self -> {"template"} -> replace_langvar("MATERIALS_TYPE_HTMLPAGE"),
+                                                                              "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
     return $errors
+}
+
+
+## @method $ add_material($sectionid, $materialid, $userid, $args)
+# Add any material specific data to the database.
+#
+# @param sectionid  The ID of the section the material is being added to.
+# @param materialid The ID of the material header allocated for the new material.
+# @param userid     The ID of the user adding the material.
+# @param args       A reference to a hash containing the complete material data.
+# @return The new material data id on success, undef on error.
+sub add_material {
+    my $self = shift;
+    my $sectionid = shift;
+    my $materialid = shift;
+    my $userid     = shift;
+    my $args       = shift;
+
+    return $self -> {"htmlpage"} -> add_material($materialid, $userid, $args -> {"htmlpage"});
 }
 
 
@@ -128,27 +212,62 @@ sub validate_material_fields {
 # Produce a string containing any javascript/css directives that need to be included in the
 # page header.
 #
-# @return A strign containing html to include in the page header
+# @return A string containing html to include in the page header
 sub extra_header {
     my $self = shift;
 
-    return $self -> {"template"} -> load_template("feature/materials/extrahead.tem");
+    return $self -> {"template"} -> load_template("feature/materials/htmlpage/extraheader.tem");
 }
 
 
-## @method $ section_display($section)
+## @method $ section_display($sectionid, $materialid, $userid)
 # Produce the string containing this block's 'section fragment' if it has one. By default,
 # this will return a string containing an error message. If section fragment content is
 # needed, this must be overridden in the subclass.
 #
-# @param section A reference to the base section data (subclasses may need to pull in additional
-#                data)
+# @param sectionid  The ID of the section containing the material to display.
+# @param materialid The ID of the material to display.
+# @param userid     The ID of the user viewing the section
 # @return The string containing this block's section content fragment.
 sub section_display {
-    my $self    = shift;
-    my $section = shift;
+    my $self       = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+    my $userid     = shift;
 
-    return "<p class=\"error\">".$self -> {"template"} -> replace_langvar("BLOCK_SECTION_DISPLAY")."</p>";
+    my $material = $self -> {"htmlpage"} -> get_section_data($self -> {"courseid"}, $sectionid, $materialid)
+        or return $self -> {"template"} -> load_template("feature/materials/section_error.tem", {"***message***" => $self -> {"htmlpage"} -> {"errmsg"}});
+
+    my ($user, $mode);
+    # Do the editor and creator match? If so there's no need for an 'edited' message
+    if($material -> {"creator_id"} == $material -> {"editor_id"}) {
+        $user = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($material -> {"creator_id"});
+        $mode = $self -> {"template"} -> load_template("feature/materials/mode_added.tem",
+                                                       {
+                                                           "***time***" => $self -> {"template"} -> fancy_time($material -> {"created"})
+                                                       });
+    } else {
+        $user = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($material -> {"editor_id"});
+        $mode = $self -> {"template"} -> load_template("feature/materials/mode_added.tem",
+                                                       {
+                                                           "***time***" => $self -> {"template"} -> fancy_time($material -> {"edited"})
+                                                       });
+    }
+
+    return $self -> {"template"} -> load_template("feature/materials/section_display.tem",
+                                                  {"***type***"      => $self -> {"typename"},
+                                                   "***title***"     => $material -> {"title"},
+                                                   "***controls***"  => $self -> _build_section_controls($sectionid, $materialid, $userid, $material -> {"metadata_id"}),
+                                                   "***size***"      => $self -> {"template"} -> humanise_bytes($material -> {"length"}),
+                                                   "***addedit***"   => $mode,
+                                                   "***profile***"   => $self -> build_url(block => "profile", pathinfo => [ $user -> {"username"} ]),
+                                                   "***name***"      => $user -> {"fullname"},
+                                                   "***gravhash***"  => $user -> {"gravatar_hash"},
+                                                   "***extradata***" => "",
+                                                   "***sid***"       => $sectionid,
+                                                   "***mid***"       => $materialid,
+                                                   "***type***"      => $self -> {"typename"},
+                                                  });
 }
 
 

@@ -390,6 +390,7 @@ sub get_section_materiallist {
 
     $self -> clear_error();
 
+    print STDERR "get_section_materiallist($courseid, $sectionid, $show_hidden)";
     my $secth = $self -> {"dbh"} -> prepare("SELECT mats.id, mods.module_name
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."` AS mats,
                                                   `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."` AS mods
@@ -492,24 +493,30 @@ sub set_material_dataid {
 }
 
 
-## @method $ get_material($materialid)
+## @method $ get_material($courseid, $sectionid, $materialid)
 # Obtain the header data for a specified material. Note that this does not (indeed,
 # can not!) pull in additional type-secific data.
 #
+# @param courseid   The ID of the course the material is in.
+# @param sectionid  The ID of the section the material is in.
 # @param materialid The ID of the material to fetch the header data for.
 # @return A reference to a hash containing the material data on success,
 #         undef on error.
 sub get_material {
     my $self = shift;
+    my $courseid   = shift;
+    my $sectionid  = shift;
     my $materialid = shift;
 
     $self -> clear_error();
 
     my $math = $self -> {"dbh"} -> prepare("SELECT *
                                             FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
-                                            WHERE id = ?
+                                            WHERE course_id = ?
+                                            AND section_id = ?
+                                            AND id = ?
                                             AND deleted IS NULL");
-    $math -> execute($materialid)
+    $math -> execute($courseid, $sectionid, $materialid)
         or return $self -> self_error("Unable to execute material lookup query: ".$self -> {"dbh"} -> errstr);
 
     return $math -> fetchrow_hashref() || $self -> self_error("Unknown material requested");
@@ -547,8 +554,10 @@ sub load_materials_module {
     my $modname = $modh -> fetchrow_arrayref()
         or return $self -> self_error("Unable to fetch module id for $modulename: entry does not exist");
 
-    my $module = $self -> {"module"} -> load_module($modname -> [0], { courseid  => $self -> {"courseid"},
-                                                                       materials => $self});
+    my $module = $self -> {"module"} -> load_module($modname -> [0],
+                                                    typename  => $modulename,
+                                                    courseid  => $self -> {"courseid"},
+                                                    materials => $self);
 
     # Cache the module if possible
     $self -> {"modulecache"} -> {$modulename} = $module unless($nocache);
@@ -575,6 +584,31 @@ sub get_module_optionlist {
 
     return $modh -> fetchall_arrayref({})
         or $self -> self_error("Unable to fetch materials module list: no modules defined");
+}
+
+
+## @method $ get_material_typeid($type)
+# Given a material type, obtain the ID of the material module implementation for that
+# type.
+#
+# @param type The name of the material type to obtain the ID of.
+# @return The ID of the material type module, or undef on error.
+sub get_material_typeid {
+    my $self = shift;
+    my $type = shift;
+
+    $self -> clear_error();
+
+    my $modh = $self -> {"dbh"} -> prepare("SELECT id
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."`
+                                            WHERE module_name = ?");
+    $modh -> execute($type)
+        or return $self -> self_error("Unable to execute materials module lookup: ".$self -> {"dbh"} -> errstr);
+
+    my $modid = $modh -> fetchrow_arrayref()
+        or return $self -> self_error("Request for non-existent material type $type");
+
+    return $modid -> [0];
 }
 
 

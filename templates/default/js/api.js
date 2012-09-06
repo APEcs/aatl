@@ -43,7 +43,8 @@ function show_spinner(container, position)
     if(!container.spinimg) {
         container.spinimg = new Element('img', {src: spinner_url,
                                                 width: '16',
-                                                height: '16'});
+                                                height: '16',
+                                                'class': 'spinner'});
         container.spinimg.inject(container, position);
         container.spinimg.fade('in');
     }

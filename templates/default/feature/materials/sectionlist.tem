@@ -18,7 +18,8 @@ window.addEvent('domready', function() {
                             draggable: false,
                             overlayAll: true,
                             content: '<div id="popbody"></div>',
-                            zIndex: 8001
+                            zIndex: 8001,
+                            pad: 200,
     });
     ***listsort***
     ckeditlist = Array();

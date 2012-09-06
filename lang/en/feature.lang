@@ -1,3 +1,7 @@
+FEATURE_BY     = by
+FEATURE_ADDED  = Added
+FEATURE_EDITED = Edited
+
 FEATURE_ERR_COURSE_NOACCESS_TITLE   = Permission denied
 FEATURE_ERR_COURSE_NOACCESS_SUMMARY = You do not have access to this course.
 FEATURE_ERR_COURSE_NOACCESS_DESC    = You do not have access to this course at this time. This may be because the course has not started, or you have not been enroled yet. Please ensure the course has started, and if this problem persists contact the support team.

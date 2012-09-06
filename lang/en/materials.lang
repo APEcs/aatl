@@ -6,6 +6,7 @@ FEATURE_MATERIALS_VIEWPERM       = You do not have permission to view the course
 FEATURE_MATERIALS_GENERAL_PERMS  = You do not have permission to perform the requested operation.
 
 FEATURE_MATERIALS_DOADD          = Add
+FEATURE_MATERIALS_CLOSE          = Close
 FEATURE_MATERIALS_DOEDIT         = Edit
 FEATURE_MATERIALS_CANCEL         = Cancel
 FEATURE_MATERIALS_TITLE          = Course Materials
@@ -32,6 +33,8 @@ FEATURE_MATERIALS_DEFAULT_TITLE  = New section
 FEATURE_MATERIALS_SECEDIT        = Edit this section title
 FEATURE_MATERIALS_SECDELETE      = Delete this section (and all its contents!)
 
+FEATURE_MATERIALS_MATEDIT        = Edit this material
+FEATURE_MATERIALS_MATDELETE      = Delete this material (and all its contents!)
 
 FEATURE_MATERIALS_MATADD         = Add a new resource to this section
 FEATURE_MATERIALS_NEWMAT_TITLE   = Name

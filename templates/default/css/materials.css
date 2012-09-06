@@ -149,3 +149,81 @@ div.entry label input {
 div.addform {
     width: 950px;
 }
+
+
+/* Materials inside sections...
+ */
+li.section div.contents ul {
+    padding: 0px;
+    margin: 0px;
+}
+
+li.section div.contents ul > li.material {
+    list-style-type: none;
+    overflow: hidden;
+    border-bottom: 1px dotted #bbb;
+}
+
+li.section div.contents ul > li.material .controls {
+    float: right;
+}
+
+li.section div.contents ul > li.material > dl {
+    margin: 0px;
+}
+
+li.section div.contents ul > li.material > dl > dt {
+    cursor: pointer;
+    font-weight: bold;
+    color: #06A;
+    line-height: 19px;
+    font-size: 16px;
+}
+
+li.section div.contents ul > li.material > dl > dt:hover {
+    color: #666;
+}
+
+li.section div.contents ul > li.material > dl > dd {
+    color: #777;
+    font-size: 10px;
+}
+
+
+
+
+li.section div.contents ul > li.material .controls .control.edit {
+    background-position: 0px -16px;
+}
+
+li.section div.contents ul > li.material:hover .controls .control.edit {
+    background-position: 0px 0px;
+}
+
+li.section div.contents ul > li.material .controls .control.edit:hover {
+    background-position: 0px -32px;
+}
+
+li.section div.contents ul > li.material .controls .control.edit.ctrldisabled {
+    background-position: 0px -16px;
+}
+
+li.section div.contents ul > li.material .controls .control.delete {
+    background-position: -16px -16px;
+}
+
+li.section div.contents ul > li.material:hover .controls .control.delete {
+    background-position: -16px 0px;
+}
+
+li.section div.contents ul > li.material .controls .control.delete:hover {
+    background-position: -16px -32px;
+}
+
+li.section div.contents ul > li.material .controls .control.delete.ctrldisabled {
+    background-position: -16px -16px;
+}
+
+li.section div.contents ul > li.material .controls .control.delete.working {
+    background-position: -16px -48px;
+}

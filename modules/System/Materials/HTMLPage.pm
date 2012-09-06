@@ -75,7 +75,88 @@ sub add_material {
 
     $self -> clear_error();
 
+    my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::material::htmlpage"}."`
+                                            (material_id, previous_id, edited, editor_id, htmldata)
+                                            VALUES(?, ?, UNIX_TIMESTAMP(), ?, ?)");
+    my $result = $newh -> execute($headerid, $previousid, $userid, $pagedata);
+    return $self -> self_error("Unable to perform HTMLPage insert: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("HTMLPage insert failed, no rows inserted") if($result eq "0E0");
 
+    # FIXME: This ties to MySQL, but is more reliable that last_insert_id in general.
+    #        Try to find a decent solution for this mess...
+    my $pageid = $self -> {"dbh"} -> {"mysql_insertid"}
+        or return $self -> self_error("Unable to obtain new section row id");
+
+    return $pageid;
+}
+
+
+## @method $ get_section_data($courseid, $sectionid, $materialid)
+# Obtain the information required to display the material section block. This
+# pulls the data needed to build the section display block for the specified
+# material from the database, and returns a reference to a hash containing the
+# data.
+#
+# @param courseid   The ID of the course the material is in.
+# @param sectionid  The ID of the section the material is in.
+# @param materialid The ID of the material to get the section block data for.
+# @return A reference to a hash containing the material's section block data on
+#         success, undef on error.
+sub get_section_data {
+    my $self       = shift;
+    my $courseid   = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+
+    # First, get the material header via materials
+    my $material = $self -> {"materials"} -> get_material($courseid, $sectionid, $materialid)
+        or return $self -> self_error("Unable to fetch material data: ".$self -> {"materials"} -> {"errstr"});
+
+    # Now grab the additional data needed
+    my $addh = $self -> {"dbh"} -> prepare("SELECT editor_id, edited, CHAR_LENGTH(htmldata) as length
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material::htmlpage"}."`
+                                            WHERE id = ?");
+    $addh -> execute($material -> {"type_data_id"})
+        or return $self -> self_error("Unable to execute material data lookup query: ".$self -> {"dbh"} -> errstr);
+
+    my $add = $addh -> fetchrow_hashref() || {};
+
+    # Return the union of the two hashes.
+    return { %$material, %$add};
+}
+
+
+## @method $ get_view_data($courseid, $sectionid, $materialid)
+# Obtain the information required to display the material to the user. This
+# pulls the data needed to build the view for the specified material from
+# the database, and returns a reference to a hash containing the data.
+#
+# @param courseid   The ID of the course the material is in.
+# @param sectionid  The ID of the section the material is in.
+# @param materialid The ID of the material to get the view data for.
+# @return A reference to a hash containing the material's view data on
+#         success, undef on error.
+sub get_view_data {
+    my $self       = shift;
+    my $courseid   = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+
+    # First, get the material header via materials
+    my $material = $self -> {"materials"} -> get_material($courseid, $sectionid, $materialid)
+        or return $self -> self_error("Unable to fetch material data: ".$self -> {"materials"} -> {"errstr"});
+
+    # Now grab the additional data needed
+    my $addh = $self -> {"dbh"} -> prepare("SELECT *, CHAR_LENGTH(htmldata) as length
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material::htmlpage"}."`
+                                            WHERE id = ?");
+    $addh -> execute($material -> {"type_data_id"})
+        or return $self -> self_error("Unable to execute material data lookup query: ".$self -> {"dbh"} -> errstr);
+
+    my $add = $addh -> fetchrow_hashref() || {};
+
+    # Return the union of the two hashes.
+    return { %$material, %$add};
 }
 
 1;

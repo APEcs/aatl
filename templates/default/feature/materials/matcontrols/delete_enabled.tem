@@ -1,0 +1,1 @@
+<li><div class="control delete" id="delmat-***mid***" onclick="delete_mat('***sid***', '***mid***', '***type***');" title="{L_FEATURE_MATERIALS_MATDELETE}"></div></li>

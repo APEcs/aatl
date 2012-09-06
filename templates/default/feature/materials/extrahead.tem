@@ -4,6 +4,7 @@
 
     <script type="text/javascript">
         addbtn_name = "{L_FEATURE_MATERIALS_DOADD}";
+        closebtn_name = "{L_FEATURE_MATERIALS_CLOSE}";
         cancelbtn_name = "{L_FEATURE_MATERIALS_CANCEL}";
         editbtn_name = "{L_FEATURE_MATERIALS_DOEDIT}";
         spinner_url  = "{V_[templatepath]}images/spinner.gif";

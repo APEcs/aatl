@@ -194,3 +194,9 @@ div.editbox {
 .hidden {
     display: none;
 }
+
+img.spinner {
+    padding: 0px;
+    margin: 0px;
+    border: none;
+}

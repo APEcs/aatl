@@ -191,7 +191,7 @@ div#answerform > h3 {
 }
 
 div.rateup {
-    width: 80ox;
+    width: 80px;
     height: 32px;
     background: url('../images/qaforums/rateup_off.png') center center no-repeat;
     cursor: pointer;
@@ -202,7 +202,7 @@ div.rateup.rated {
 }
 
 div.ratedown {
-    width: 80ox;
+    width: 80px;
     height: 32px;
     background: url('../images/qaforums/ratedown_off.png') center center no-repeat;
     cursor: pointer;
@@ -213,7 +213,7 @@ div.ratedown.rated {
 }
 
 div.best {
-    width: 80ox;
+    width: 80px;
     height: 32px;
     background: url('../images/qaforums/best_off.png') center center no-repeat;
     cursor: pointer;

@@ -1,5 +1,6 @@
-var addlock = false;
-var dellock = false;
+var addlock  = false;
+var dellock  = false;
+var viewlock = false;
 
 /** Add a new materials section to the current course. This asks the server to
  *  create a new section in the current course, and adds the resulting section
@@ -344,10 +345,15 @@ function do_add_material(sectionid)
                                          errbox.open();
                                          popbox.buttons[0].disabled = false;
                                      } else {
+                                         clear_newmat_body($('matform'));
                                          popbox.close();
 
                                          var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+                                         tmp.setStyle('display', 'none');
 
+                                         $('secdata-'+sectionid).adopt(tmp);
+                                         tmp.reveal();
                                      }
                                  }
                                });
@@ -433,6 +439,42 @@ function select_newmat_type()
     }
 }
 
+
+function view_mat(sectionid, materialid, type)
+{
+    var req = new Request.HTML({ url: api_request_path("materials", "view/"+type ),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('matview-'+materialid).removeEvents('click');
+                                     $('matview-'+materialid).addClass('disabled');
+                                     show_spinner($('matview-'+materialid));
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     hide_spinner($('matview-'+materialid));
+                                     var err = respHTML.match(/^<div id="apierror"/);
+
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+
+                                         var title = tmp.getElement('div.title').get('text');
+
+                                         $('poptitle').set('text', title);
+                                         $('popbody').empty().grab(tmp);
+                                         popbox.setButtons([{title: closebtn_name, color: 'blue', event: function() { popbox.close(); }}]);
+                                         popbox.open();
+                                     }
+
+                                     $('matview-'+materialid).addEvent('click', function() { view_mat(sectionid, materialid, type); });
+                                     $('matview-'+materialid).removeClass('disabled');
+                                 }
+                              });
+    req.post({cid: courseid,
+              secid: sectionid,
+              mid: materialid});
+}
 
 window.addEvent('domready', function() {
     $$('ul#sectionlist li').each(function(element) { toggle_body(element); });
