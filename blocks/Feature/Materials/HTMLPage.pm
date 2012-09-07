@@ -122,7 +122,6 @@ sub _build_api_addform_response {
 }
 
 
-
 ## @method private $ _build_api_view_response()
 # Generate the HTML response to show in the material view popup window.
 #

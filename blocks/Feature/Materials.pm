@@ -584,7 +584,7 @@ sub _build_api_addmatform_response {
                                                                  $userid,
                                                                  "materials.addmaterials");
     if(!$addmaterial) {
-        $self -> log("error:materials::addform", "Permission denied when attempting add a new material");
+        $self -> log("error:materials:addform", "Permission denied when attempting add a new material");
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDMAT_PERMS"));
     }
 
@@ -596,7 +596,12 @@ sub _build_api_addmatform_response {
 }
 
 
-
+## @method private $ _build_api_addmat_response()
+# Add a material to the appropriate section in the current course. This adds a material
+# header, and calls the appropriate materials module to add the material-specific data
+# to the database.
+#
+# @return A string or hash containing the API response.
 sub _build_api_addmat_response {
     my $self = shift;
     my $userid = $self -> {"session"} -> get_session_userid();
@@ -611,7 +616,7 @@ sub _build_api_addmat_response {
                                                                  $userid,
                                                                  "materials.addmaterials");
     if(!$addmaterial) {
-        $self -> log("error:materials::addform", "Permission denied when attempting add a new material");
+        $self -> log("error:materials:addmat", "Permission denied when attempting add a new material");
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDMAT_PERMS"));
     }
 
@@ -633,6 +638,43 @@ sub _build_api_addmat_response {
     $self -> log("materials:addmat", "User add material with title '".$args -> {"title"}."' to section $sectionid");
 
     return $module -> section_display($sectionid, $materialid, $userid);
+}
+
+
+## @method private $ _build_api_deletemat_response()
+# Delete a material from the system. This actually just marks the material as deleted,
+# rather than actually deleting it.
+#
+# @return A string or hash containing the API response.
+sub _build_api_deletemat_response {
+    my $self   = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $materialid = is_defined_numeric($self -> {"cgi"}, "mid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOMID"));
+
+    my $sectionid = is_defined_numeric($self -> {"cgi"}, "secid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOSID"));
+
+    $self -> log("materials:delmat", "User attempting delete of $materialid in section $sectionid");
+
+    my $material = $self -> {"materials"} -> get_material($self -> {"courseid"}, $sectionid, $materialid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    my $delmaterial = $self -> {"materials"} -> check_permission($material -> {"metadata_id"},
+                                                                 $userid,
+                                                                 "materials.addmaterials");
+    if(!$delmaterial) {
+        $self -> log("error:materials:delmat", "Permission denied when attempting delete material $materialid");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIDELMAT_PERMS"));
+    }
+
+    $self -> {"materials"} -> delete_material($self -> {"courseid"}, $sectionid, $materialid, $userid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    $self -> log("materials:delmat", "Material delete complete");
+
+    return { "response" => {"delete" => "ok"} };
 }
 
 
@@ -763,6 +805,8 @@ sub page_display {
                 return $self -> api_html_response($self -> _build_api_addmatform_response());
             } elsif($apiop eq "addmat") {
                 return $self -> api_html_response($self -> _build_api_addmat_response());
+            } elsif($apiop eq "delmat") {
+                return $self -> api_response($self -> _build_api_deletemat_response());
             } else {
                 return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                          $self -> {"template"} -> replace_langvar("API_BAD_OP")))

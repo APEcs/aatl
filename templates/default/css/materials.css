@@ -190,10 +190,10 @@ li.section div.contents ul > li.material > dl > dd {
 }
 
 
-
-
+/* material operations icons, supporting material rollover
+ */
 li.section div.contents ul > li.material .controls .control.edit {
-    background-position: 0px -16px;
+    background-position: 0px -48px;
 }
 
 li.section div.contents ul > li.material:hover .controls .control.edit {
@@ -209,7 +209,7 @@ li.section div.contents ul > li.material .controls .control.edit.ctrldisabled {
 }
 
 li.section div.contents ul > li.material .controls .control.delete {
-    background-position: -16px -16px;
+    background-position: -16px -48px;
 }
 
 li.section div.contents ul > li.material:hover .controls .control.delete {

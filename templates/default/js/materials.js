@@ -67,7 +67,7 @@ function delete_section(sectionid)
                                     $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
                                     errbox.open();
 
-                                // No error, answer was deleted
+                                // No error, section was deleted
                                 } else {
                                     if(listsort) listsort.removeItems($('section-'+sectionid));
 
@@ -475,6 +475,42 @@ function view_mat(sectionid, materialid, type)
               secid: sectionid,
               mid: materialid});
 }
+
+
+/** Delete a material from the page. This will ask the server to remove a material from the
+ *  materials page, and if it succeeds the material is deleted from the page the user sees.
+ */
+function delete_mat(sectionid, materialid)
+{
+    var req = new Request({ url: api_request_path("materials", "delmat"),
+                            method: 'post',
+                            onRequest: function() {
+                                $('delmat-'+materialid).addClass('working');
+                                show_spinner($('delmat-'+materialid));
+                            },
+                            onSuccess: function(respText, respXML) {
+                                hide_spinner($('delmat-'+materialid));
+                                $('delmat-'+materialid).removeClass('working');
+
+                                var err = respXML.getElementsByTagName("error")[0];
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+
+                                // No error, material was deleted
+                                } else {
+                                //    if(listsort) listsort.removeItems($('section-'+sectionid));
+
+                                    $('mat-'+materialid).nix();
+                                }
+                            }
+                          });
+    req.post({ cid: courseid,
+               secid: sectionid,
+               mid: materialid
+             });
+}
+
 
 window.addEvent('domready', function() {
     $$('ul#sectionlist li').each(function(element) { toggle_body(element); });

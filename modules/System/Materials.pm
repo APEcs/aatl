@@ -461,6 +461,38 @@ sub add_material {
 }
 
 
+## @method $ delete_material($courseid, $sectionid, $materialid, $userid)
+# Mark the specified material as deleted by the provided user, if it is not already
+# deleted.
+#
+# @param courseid   The ID of the course containing the section to delete.
+# @param sectionid  The ID of the section containing the material to mark as deleted.
+# @param materialid The ID of the material to mark as deleted.
+# @param userid     The ID of the user doing the deletion.
+# @return true on success, undef on error.
+sub delete_material {
+    my $self       = shift;
+    my $courseid   = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+    my $userid     = shift;
+
+    $self -> clear_error();
+
+    my $nukeh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                             SET deleted = UNIX_TIMESTAMP(), deleted_id = ?
+                                             WHERE course_id = ?
+                                             AND section_id = ?
+                                             AND id = ?
+                                             AND deleted IS NULL");
+    my $result = $nukeh -> execute($userid, $courseid, $sectionid, $materialid);
+    return $self -> self_error("Unable to perform material delete: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Material delete failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
+}
+
+
 ## @method $ set_material_dataid($courseid, $sectionid, $materialid, $dataid)
 # Update the data ID associated with the specified material. The ID is a free index
 # into any data table the material module may manage.

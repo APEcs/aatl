@@ -18,6 +18,7 @@ FEATURE_MATERIALS_APIEDITSEC_PERMS = You do not have permission to edit material
 FEATURE_MATERIALS_APIVISSEC_PERMS  = You do not have permission to change the visibility of material sections in this course.
 FEATURE_MATERIALS_APISORTSEC_PERMS = You do not have permission to sort materials in this course.
 FEATURE_MATERIALS_APIADDMAT_PERMS  = You do not have permission to add this sort of material to this course.
+FEATURE_MATERIALS_APIDELMAT_PERMS  = You do not have permission to delete this sort of material from this course.
 
 FEATURE_MATERIALS_APIDELSEC_NOID   = No section ID passed to the API.
 
