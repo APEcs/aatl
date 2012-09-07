@@ -4,7 +4,7 @@
                         <span class="togglevis">&nbsp;</span><h3 id="title-***id***">***title***</h3>
                     </div>
                     <div class="contents">
-                        <ul id="secdata-***id***">
+                        <ul class="materials" id="secdata-***id***">
                             <li class="hidden"><!-- section contents --></li>
                             ***content***
                         </ul>

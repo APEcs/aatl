@@ -31,7 +31,7 @@ function add_section()
                                          tmp.setStyle("display", "none");
                                          tmp.inject($('addsection'), 'before');
 
-                                         if(listsort) listsort.addItems(tmp);
+                                         if(sectionsort) sectionsort.addItems(tmp);
                                          toggle_body(tmp);
 
 
@@ -69,7 +69,7 @@ function delete_section(sectionid)
 
                                 // No error, section was deleted
                                 } else {
-                                    if(listsort) listsort.removeItems($('section-'+sectionid));
+                                    if(sectionsort) sectionsort.removeItems($('section-'+sectionid));
 
                                     $('section-'+sectionid).nix();
                                 }
@@ -86,7 +86,7 @@ function delete_section(sectionid)
  */
 function save_section_order()
 {
-    var idlist = listsort.serialize(0, function(element, index) {
+    var idlist = sectionsort.serialize(0, function(element, index) {
                                         if(element.getProperty('id')) {
                                             return element.getProperty('id').replace('item_','') + '=' + index;
                                         } else {
@@ -499,7 +499,7 @@ function delete_mat(sectionid, materialid)
 
                                 // No error, material was deleted
                                 } else {
-                                //    if(listsort) listsort.removeItems($('section-'+sectionid));
+                                //    if(sectionsort) sectionsort.removeItems($('section-'+sectionid));
 
                                     $('mat-'+materialid).nix();
                                 }
