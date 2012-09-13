@@ -55,6 +55,10 @@ ul#sectionlist li > h3 a:visited {
     color: #666;
 }
 
+ul#sectionlist li.sortable > .header h3 {
+    cursor: move;
+}
+
 ul#sectionlist .contents {
     background: #f4f4f4;
     border-bottom-left-radius: 4px;
@@ -161,6 +165,12 @@ li.section div.contents ul {
 li.section div.contents ul > li.material {
     list-style-type: none;
     overflow: hidden;
+    border-bottom: 1px dotted #bbb;
+}
+
+li.section div.contents ul > li.hidden {
+    list-style-type: none;
+    border-top: 1px dotted #bbb;
     border-bottom: 1px dotted #bbb;
 }
 
