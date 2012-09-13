@@ -2,7 +2,7 @@
                                                     handle: 'div.header h3',
                                                     revert: true,
                                                     opacity: 0.7,
-                                                    onComplete: function() { save_section_order() }
+                                                    onComplete: function() { save_section_order(); }
                                                });
     sectionsort.removeItems($('sl-end')); // no need to include the hidden end element in the list
 
@@ -14,7 +14,7 @@
     materialsort = new Sortables('ul.materials', { clone: true,
                                                    revert: true,
                                                    opacity: 0.7,
+                                                   onStart: function() { start_material_order(); },
+                                                   onComplete: function() { save_material_order(); }
                                                  });
     materialsort.removeItems($$('materials li.hidden')); // no need to include the hidden elements in the list
-
-/* http://jsfiddle.net/VyxvB/8/ */

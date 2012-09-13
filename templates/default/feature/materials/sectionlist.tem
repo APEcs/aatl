@@ -5,6 +5,7 @@
                 <li id="sl-end" class="hidden"><!-- End of section list --></li>
             </ul>
             <script type="text/javascript">
+// <![CDATA[
 window.addEvent('domready', function() {
     errbox = new LightFace({title: '{L_FEATURE_MATERIALS_ERROR}',
                             draggable: false,
@@ -24,4 +25,5 @@ window.addEvent('domready', function() {
     ***listsort***
     ckeditlist = Array();
 });
+// ]]>
             </script>

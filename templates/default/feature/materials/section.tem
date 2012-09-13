@@ -1,11 +1,11 @@
-                <li id="section-***id***" class="section***class***">
+                <li id="section-***id***" class="section***class******sortable***">
                     <div class="header">
                         ***admin***
                         <span class="togglevis">&nbsp;</span><h3 id="title-***id***">***title***</h3>
                     </div>
                     <div class="contents">
                         <ul class="materials" id="secdata-***id***">
-                            <li class="hidden"><!-- section contents --></li>
+                            <li id="anch-***id***" class="hidden"><!-- section contents --></li>
                             ***content***
                         </ul>
                         ***controls***

@@ -1,1 +1,1 @@
-<li><div class="control delete" id="delsec-***id***" onclick="delete_section('***id***')" title="{L_FEATURE_MATERIALS_SECDELETE}" /></div></li>
+<li><div class="control delete" id="delsec-***id***" onclick="delete_section('***id***')" title="{L_FEATURE_MATERIALS_SECDELETE}"></div></li>
