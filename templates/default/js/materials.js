@@ -108,6 +108,49 @@ function save_section_order()
 }
 
 
+function start_material_order()
+{
+    $$('li.section div.contents ul').each(function(element) {
+        var list = element.getChildren();
+        if(list.length == 1) {
+            list[0].reveal();
+        }
+    });
+}
+
+
+/** Save the ordering of the materials in the materials page. This is called when the
+ *  user finishes dragging materials to automatically save the current order.
+ */
+function save_material_order()
+{
+    $$('li.section div.contents ul > li.hidden').dissolve();
+
+    var serial = materialsort.serialize();
+    var order = new Array();
+
+    for(level1 = 0; level1 < serial.length; ++level1) {
+        for(level2 = 0; level2 < serial[level1].length; ++level2) {
+            if(serial[level1][level2])
+                order.push(materialsort.lists[level1].get('id')+"-"+serial[level1][level2]);
+        }
+    }
+    var idlist = order.join('&');
+
+    var req = new Request({ url: api_request_path("materials", "materialorder"),
+                            onSuccess: function(respText, respXML) {
+                                var err = respXML.getElementsByTagName("error")[0];
+
+                                if(err) {
+                                    $('errboxmsg').set('html', '<p class="error">'+err.getAttribute('info')+'</p>');
+                                    errbox.open();
+                                }
+                            }
+                          });
+    req.send("cid="+courseid+"&"+idlist);
+}
+
+
 /** Save the title set for the specified section
  *
  */
