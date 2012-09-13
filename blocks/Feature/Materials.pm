@@ -172,7 +172,7 @@ sub _build_section {
             $self -> {"materials"} -> load_materials_module($material -> {"module_name"})
             or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Unsupported material module '"..$material -> {"module_name"}."'");
 
-        $contents .= $matmodule -> section_display($section -> {"id"}, $material -> {"id"}, $userid);
+        $contents .= $matmodule -> section_display($section -> {"id"}, $material -> {"id"}, $userid, $permcache -> {"sortlist"});
     }
 
     # Section admin bar and controls
@@ -195,6 +195,7 @@ sub _build_section {
                                                       "***title***"    => $section -> {"title"},
                                                       "***content***"  => $contents,
                                                       "***controls***" => $controls,
+                                                      "***sortable***" => $permcache -> {"sortlist"} ? " sortable" : "",
                                                      });
 }
 
@@ -409,9 +410,12 @@ sub _build_api_sectionorder_response {
     foreach my $section (@{$sections}) {
         my $pos = is_defined_numeric($self -> {"cgi"}, "section-".$section -> {"id"});
 
-        if($pos) {
+        if(defined($pos)) {
+            $self -> log("materials:sectionorder", "Set section ".$section -> {"id"}." to position $pos");
             $self -> {"materials"} -> set_section_order($self -> {"courseid"}, $section -> {"id"}, $pos)
                 or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}))
+        } else {
+            $self -> log("error:materials:sectionorder", "No position set for section ".$section -> {"id"});
         }
     }
     $self -> log("materials:sectionorder", "Section reorder complete");
