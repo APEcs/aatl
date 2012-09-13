@@ -390,7 +390,6 @@ sub get_section_materiallist {
 
     $self -> clear_error();
 
-    print STDERR "get_section_materiallist($courseid, $sectionid, $show_hidden)";
     my $secth = $self -> {"dbh"} -> prepare("SELECT mats.id, mods.module_name
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."` AS mats,
                                                   `".$self -> {"settings"} -> {"database"} -> {"feature::material_modules"}."` AS mods
