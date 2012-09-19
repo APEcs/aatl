@@ -136,7 +136,7 @@ sub destroy {
 
     # Call any objects that need to do cleanup
     foreach my $obj (@{$self -> {"ondestroy"}}) {
-        $obj -> on_metadata_destroy($metadataid);
+        $obj -> on_metadata_destroy($metadataid) if($obj -> can("on_metadata_destroy"));
     }
 
     return 1;
@@ -214,6 +214,43 @@ sub parentid {
 }
 
 
+## @method $ reparent($metadataid, $newparentid)
+# Detatch the specified metadata context from its current parent (if possible) and
+# reattach it to a different parent. This will handle ensuring that reference
+# counters are changed appropriately, and links are maintained.
+#
+# @param metadataid The ID of the metadata context to reparent.
+# @param newparentid The ID of the metadata context to set as the new parent.
+# @return true on success, undef on error.
+sub reparent {
+    my $self        = shift;
+    my $metadataid  = shift;
+    my $newparentid = shift;
+
+    print STDERR "Reparenting $metadataid to have parent $newparentid\n";
+
+    my $parentid = $self -> parentid($metadataid);
+    return undef if(!defined($parentid));
+
+    print STDERR "$metadataid old parent id: $parentid\n";
+
+    my $refcount = $self -> detach($parentid);
+    return undef if(!defined($refcount));
+
+    print STDERR "Detached, updating parent ref\n";
+
+    $self -> _set_metadata_parentid($metadataid, $newparentid)
+        or return undef;
+
+    print STDERR "Updating refcount for $newparentid\n";
+
+    $self -> attach($newparentid)
+        or return undef;
+
+    return 1;
+}
+
+
 # ==============================================================================
 # Private methods
 
@@ -288,7 +325,7 @@ sub _update_metadata_refcount {
     my $refcount = $self -> _fetch_metadata_refcount($metadataid);
     return undef if(!defined($refcount));
 
-    return $self -> self_error("Metadata refcount update failed: attempt to set refcount out of range")
+    return $self -> self_error("Metadata refcount update failed: attempt to set refcount for $metadataid out of range (old: $refcount, mode is ".($increment ? "inc)" : "dec)"))
         if((!$increment && $refcount == 0) || ($increment && $refcount == $self -> {"max_refcount"}));
 
     # Update is safe, do the operation.
@@ -308,6 +345,33 @@ sub _update_metadata_refcount {
     # Work out what the new refcount is and return it
     $refcount = ($increment ? $refcount + 1 : $refcount - 1);
     return $refcount;
+}
+
+
+## @method private $ _set_metadata_parentid($metadataid, $parentid)
+# Set the parent ID of the specified metadata context.
+#
+# @param metadataid The ID of the metadata context to set the parent for.
+# @param parentid   The ID of the metadata context's new parent.
+# @return true on success, undef on error.
+sub _set_metadata_parentid {
+    my $self       = shift;
+    my $metadataid = shift;
+    my $parentid   = shift;
+
+    my $seth = $self -> {"dbh"} -> prepare("UPDATE ".$self -> {"settings"} -> {"database"} -> {"metadata"}."
+                                            SET parent_id = ?
+                                            WHERE id = ?");
+    my $result = $seth -> execute($parentid, $metadataid);
+
+    # Detect and handle errors
+    return $self -> self_error("Unable to update metadata parent: ".$self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Metadata parent update failed: no rows updated. This should not happen!") if($result eq "0E0");
+
+    # Cache the parent
+    $self -> {"cache"} -> {"metadata"} -> {$metadataid} -> {"parent_id"} = $parentid;
+
+    return 1;
 }
 
 1;

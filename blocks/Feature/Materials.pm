@@ -411,7 +411,7 @@ sub _build_api_sectionorder_response {
         my $pos = is_defined_numeric($self -> {"cgi"}, "section-".$section -> {"id"});
 
         if(defined($pos)) {
-            $self -> log("materials:sectionorder", "Set section ".$section -> {"id"}." to position $pos");
+#            $self -> log("materials:sectionorder", "Set section ".$section -> {"id"}." to position $pos");
             $self -> {"materials"} -> set_section_order($self -> {"courseid"}, $section -> {"id"}, $pos)
                 or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}))
         } else {
@@ -682,6 +682,43 @@ sub _build_api_deletemat_response {
 }
 
 
+## @method $ _build_api_materialorder_response()
+# Reorder the sections in the materials page for the current course, if permitted.
+#
+# @return A reference to a hash containing the API response.
+sub _build_api_materialorder_response {
+    my $self = shift;
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    # Check that the user even has permission to sort.
+    $self -> log("materials:materialorder", "User attempting to reorder materials");
+
+    my $metadataid = $self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"});
+    if(!$self -> {"materials"} -> check_permission($metadataid, $userid, "materials.sortlist")) {
+        $self -> log("error:materials:sectionorder", "Permission denied when attempting to reorder materials");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APISORTSEC_PERMS"));
+    }
+    my $viewhidden = $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.viewhidden");
+
+    # sort out the id list
+    my $idlist = $self -> {"cgi"} -> param("idlist");
+    my @ids = split(/,/, $idlist);
+    foreach my $id (@ids) {
+        # Pull the section and material out of the list
+        my ($secid, $matid, $pos) = $id =~ /^secdata-(\d+)-mat-(\d+)-pos-(\d+)$/;
+        next unless(defined($secid) && defined($matid) && defined($pos));
+
+        $self -> log("materials:materialorder", "Set material $matid to position $pos in section $secid");
+        $self -> {"materials"} -> set_material_order($self -> {"courseid"}, $secid, $matid, $pos)
+            or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+    }
+
+    $self -> log("materials:materialorder", "Material reorder complete");
+
+    return { "response" => {"sort" => "ok"} };
+}
+
+
 # ============================================================================
 #  Interface
 
@@ -811,6 +848,8 @@ sub page_display {
                 return $self -> api_html_response($self -> _build_api_addmat_response());
             } elsif($apiop eq "delmat") {
                 return $self -> api_response($self -> _build_api_deletemat_response());
+            } elsif($apiop eq "materialorder") {
+                return $self -> api_response($self -> _build_api_materialorder_response());
             } else {
                 return $self -> api_html_response($self -> api_errorhash('bad_op',
                                                                          $self -> {"template"} -> replace_langvar("API_BAD_OP")))

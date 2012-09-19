@@ -132,10 +132,10 @@ function save_material_order()
     for(level1 = 0; level1 < serial.length; ++level1) {
         for(level2 = 0; level2 < serial[level1].length; ++level2) {
             if(serial[level1][level2])
-                order.push(materialsort.lists[level1].get('id')+"-"+serial[level1][level2]);
+                order.push(materialsort.lists[level1].get('id')+"-"+serial[level1][level2]+"-pos-"+(level2 + 1));
         }
     }
-    var idlist = order.join('&');
+    var idlist = order.join(',');
 
     var req = new Request({ url: api_request_path("materials", "materialorder"),
                             onSuccess: function(respText, respXML) {
@@ -147,7 +147,7 @@ function save_material_order()
                                 }
                             }
                           });
-    req.send("cid="+courseid+"&"+idlist);
+    req.send("cid="+courseid+"&idlist="+idlist);
 }
 
 

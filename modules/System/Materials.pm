@@ -144,6 +144,9 @@ sub add_section {
     return $self -> self_error("Unable to perform section insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Section insert failed, no rows inserted") if($result eq "0E0");
 
+    $self -> {"metadata"} -> attach($metadataid)
+        or return $self -> self_error("Unable to attach to new metadata context: ".$self -> {"metadata"} -> {"errstr"});
+
     # FIXME: This ties to MySQL, but is more reliable that last_insert_id in general.
     #        Try to find a decent solution for this mess...
     my $sectionid = $self -> {"dbh"} -> {"mysql_insertid"}
@@ -451,6 +454,9 @@ sub add_material {
     return $self -> self_error("Unable to perform material insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("Material insert failed, no rows inserted") if($result eq "0E0");
 
+    $self -> {"metadata"} -> attach($metadataid)
+        or return $self -> self_error("Unable to attach to new metadata context: ".$self -> {"metadata"} -> {"errstr"});
+
     # FIXME: This ties to MySQL, but is more reliable that last_insert_id in general.
     #        Try to find a decent solution for this mess...
     my $materialid = $self -> {"dbh"} -> {"mysql_insertid"}
@@ -486,7 +492,7 @@ sub delete_material {
                                              AND deleted IS NULL");
     my $result = $nukeh -> execute($userid, $courseid, $sectionid, $materialid);
     return $self -> self_error("Unable to perform material delete: ". $self -> {"dbh"} -> errstr) if(!$result);
-    return $self -> self_error("Material delete failed, no rows inserted") if($result eq "0E0");
+    return $self -> self_error("Material delete failed, no rows changed") if($result eq "0E0");
 
     return 1;
 }
@@ -518,14 +524,14 @@ sub set_material_dataid {
                                               AND deleted IS NULL");
     my $result = $titleh -> execute($dataid, $materialid, $courseid, $sectionid);
     return $self -> self_error("Unable to perform material dataid update: ". $self -> {"dbh"} -> errstr) if(!$result);
-    return $self -> self_error("Material dataid update failed, no rows inserted") if($result eq "0E0");
+    return $self -> self_error("Material dataid update failed, no rows changed") if($result eq "0E0");
 
     return 1;
 }
 
 
 ## @method $ get_material($courseid, $sectionid, $materialid)
-# Obtain the header data for a specified material. Note that this does not (indeed,
+## Obtain the header data for a specified material. Note that this does not (indeed,
 # can not!) pull in additional type-secific data.
 #
 # @param courseid   The ID of the course the material is in.
@@ -551,6 +557,66 @@ sub get_material {
         or return $self -> self_error("Unable to execute material lookup query: ".$self -> {"dbh"} -> errstr);
 
     return $math -> fetchrow_hashref() || $self -> self_error("Unknown material requested");
+}
+
+
+## @method $ set_material_order($courseid, $sectionid, $materialid, $position)
+# Set the specified material to a position in the section. This will move materials
+# between sections (including fixing up the metadata) if needed.
+#
+# @param courseid   The ID of the course the material is in.
+# @param sectionid  The ID of the section the material should be in (if the material
+#                   is not in this section, it will be moved there.
+# @param materialid The Id of th ematerial to set the position of.
+# @param position   The position to set.
+# @return true on success, undef on error.
+sub set_material_order {
+    my $self       = shift;
+    my $courseid   = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+    my $position   = shift;
+
+    # Get the material, to make sure it is valid. Can't use get_material as that
+    # expects the sectionid to be the section the material is in, not where it should be.
+    $self -> clear_error();
+    my $math = $self -> {"dbh"} -> prepare("SELECT *
+                                            FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                            WHERE course_id = ?
+                                            AND id = ?
+                                            AND deleted IS NULL");
+    $math -> execute($courseid, $materialid)
+        or return $self -> self_error("Unable to execute material lookup query: ".$self -> {"dbh"} -> errstr);
+
+    my $material = $math -> fetchrow_hashref()
+        or return $self -> self_error("Unknown material requested");
+
+    # does the material need to be moved to another section?
+    if($material -> {"section_id"} != $sectionid) {
+        my $secparent = $self -> get_section_metadataid($courseid, $sectionid)
+            or return undef;
+
+        $self -> {"metadata"} -> reparent($material -> {"metadata_id"}, $secparent)
+            or return $self -> self_error("Error while changing material metadata: ".$self -> {"metadata"} -> {"errstr"});
+
+        my $moveh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                                 SET section_id = ?, sort_position = ?
+                                                 WHERE id = ?");
+        my $result = $moveh -> execute($sectionid, $position, $materialid);
+        return $self -> self_error("Unable to perform material update: ". $self -> {"dbh"} -> errstr) if(!$result);
+        return $self -> self_error("Material update failed, no rows changed") if($result eq "0E0");
+
+    # No section move required, just update the position
+    } else {
+        my $moveh = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                                 SET sort_position = ?
+                                                 WHERE id = ?");
+        my $result = $moveh -> execute($position, $materialid);
+        return $self -> self_error("Unable to perform material update: ". $self -> {"dbh"} -> errstr) if(!$result);
+        return $self -> self_error("Material update failed, no rows changed") if($result eq "0E0");
+    }
+
+    return 1;
 }
 
 
