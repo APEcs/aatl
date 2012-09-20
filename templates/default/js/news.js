@@ -119,6 +119,9 @@ function make_editable(postid, config)
 
 function do_editable(postid)
 {
+    var oldSticky = $('post-'+postid).hasClass('sticky');
+    var newSticky = $('editstick-'+postid).checked;
+
     var req = new Request.HTML({ url: api_request_path("news", "edit"),
                                  method: 'post',
                                  onRequest: function() {
@@ -140,14 +143,17 @@ function do_editable(postid)
                                      // No error, post was edited, the element provided should
                                      // be the updated <li>...
                                      } else {
-                                         var tmp = new Element('div').adopt(respTree);
-                                         tmp = tmp.getChildren()[0];
+                                         if(oldSticky == newSticky) {
+                                             var tmp = new Element('div').adopt(respTree);
+                                             tmp = tmp.getChildren()[0];
 
-                                         var oldElem = $('post-'+postid);
-                                         oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-'+postid].destroy();
-                                                                                             tmp.replaces(oldElem).reveal();
-                                                                                             oldElem.destroy(); });
-
+                                             var oldElem = $('post-'+postid);
+                                             oldElem.dissolve().get('reveal').chain(function() { CKEDITOR.instances['editmsg-'+postid].destroy();
+                                                                                                 tmp.replaces(oldElem).reveal();
+                                                                                                 oldElem.destroy(); });
+                                         } else {
+                                             location.reload();
+                                         }
                                      }
                                  }
                                });
