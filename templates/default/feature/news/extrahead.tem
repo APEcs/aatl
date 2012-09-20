@@ -5,4 +5,5 @@
     <script type="text/javascript">
         editbtn_name = "{L_FEATURE_NEWS_DOEDIT}";
         spinner_url  = "{V_[templatepath]}images/spinner.gif";
+        sticky_name  = "{L_FEATURE_NEWS_STICKY}";
     </script>

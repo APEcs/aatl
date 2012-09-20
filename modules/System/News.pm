@@ -89,7 +89,7 @@ sub check_permission {
 # ============================================================================
 #  Creation and editing
 
-## @method $ create_post($courseid, $userid, $subject, $message)
+## @method $ create_post($courseid, $userid, $subject, $message, $sticky)
 # Create a new news entry using the values provided. This will create a new news
 # post at the current time.
 #
@@ -97,6 +97,7 @@ sub check_permission {
 # @param userid   The ID of the user creating the post.
 # @param subject  The post subject.
 # @param message  The message to show in the post body.
+# @param sticky   Should the message appear at the top of the news page at all times?
 # @return True on success, undef on error.
 sub create_post {
     my $self     = shift;
@@ -104,6 +105,7 @@ sub create_post {
     my $userid   = shift;
     my $subject  = shift;
     my $message  = shift;
+    my $sticky   = shift;
 
     $self -> clear_error();
 
@@ -118,7 +120,7 @@ sub create_post {
     my $now = time();
 
     # Make a new news post, with no postid
-    my $newsid = $self -> _new_news($metadataid, $courseid, $userid, $now)
+    my $newsid = $self -> _new_news($metadataid, $courseid, $userid, $now, $sticky)
         or return undef;
 
     # Set the news post.
@@ -126,14 +128,15 @@ sub create_post {
 }
 
 
-## @method $ edit_post($newsid, $userid, $subject, $message)
+## @method $ edit_post($newsid, $userid, $subject, $message, $sticky)
 # Create a new post and attach it to an existing news entry, replacing the old
 # post for that entry.
 #
-# @param newsid The ID of the news entry to attach a new post to.
-# @param userid The ID of the user creating the new post.
-# @param subject  The post subject.
-# @param message  The message to show in the post body.
+# @param newsid  The ID of the news entry to attach a new post to.
+# @param userid  The ID of the user creating the new post.
+# @param subject The post subject.
+# @param message The message to show in the post body.
+# @param sticky  Should the message appear at the top of the news page at all times?
 # @return True on success, undef on error.
 sub edit_post {
     my $self    = shift;
@@ -141,11 +144,16 @@ sub edit_post {
     my $userid  = shift;
     my $subject = shift;
     my $message = shift;
+    my $sticky  = shift;
 
     $self -> clear_error();
 
     # Make a new post body
     my $postid = $self -> _new_post($newsid, $userid, $subject, $message)
+        or return undef;
+
+    # Update the sticky mode
+    $self -> _set_sticky($newsid, $sticky)
         or return undef;
 
     # Update the news post postid
@@ -190,52 +198,43 @@ sub get_post {
 }
 
 
-## @method $ get_news_posts($courseid, $postid, $count)
+## @method $ get_news_posts($courseid, $offset, $count)
 # Obtain a list of at most $count news posts from the specified course, starting
-# with the post id specified. This will pull a number of news posts, newest first,
-# made in the specified course, and return them in an array of hashrefs. If count
-# is 1, only the news post with the specified postid is fetched, otherwise up to
-# count posts are returned sorted in reverse chronological order of initial posting.
+# with from the specified offset. This will pull a number of news posts, newest first,
+# made in the specified course, and return them in an array of hashrefs.
 #
 # @param courseid The ID of the course to fetch news posts from.
-# @param postid   The ID of the post to begin fetching from. If omitted, the latest
-#                 post is used as the start.
+# @param offset   The offset from the start of the posts list to start fetching from.
+#                 (0 = from the beginning).
 # @param count    The number of posts to fetch.
 # @return A reference to an array of post data hashes on success, undef on error.
 sub get_news_posts {
     my $self      = shift;
     my $courseid  = shift;
-    my $startid   = shift;
+    my $offset    = shift;
     my $count     = shift;
-    my $starttime = time();
 
     $self -> clear_error();
 
-    # Get the posted timestamp of the initial post
-    if($startid) {
-        my $timeh = $self -> {"dbh"} -> prepare("SELECT created FROM `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."`
-                                                 WHERE id = ?");
-        $timeh -> execute($startid)
-            or return $self -> self_error("Unable to fetch post create time ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
+    # Offset must be a non-negative int
+    return $self -> self_error("Illegal offset specified in call to get_news_posts()")
+        unless(defined($offset) && $offset =~ /^\d+$/);
 
-        my $time = $timeh -> fetchrow_arrayref()
-            or return $self -> self_error("Attempt to fetch creation time for non-existent news post $startid");
-
-        $starttime = $time -> [0];
-    }
+    # Count must be a positive, non-zero int
+    return $self -> self_error("Illegal count specified in call to get_news_posts()")
+        unless($count && $count =~ /^\d+$/);
 
     # Build a query to fetch news posts, and the post text.
     my $posth = $self -> {"dbh"} -> prepare("SELECT *
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."` AS n,
                                                   `".$self -> {"settings"} -> {"database"} -> {"feature::news_posts"}."` AS p
                                              WHERE n.course_id = ?
-                                             AND n.created <= ?
                                              AND n.deleted IS NULL
                                              AND p.post_id = n.post_id
-                                             ORDER BY n.created DESC
-                                             LIMIT $count");
-    $posth -> execute($courseid, $starttime)
-        or return $self -> self_error("Unable to fetch post list ($courseid, $startid, $count): ".$self -> {"dbh"} -> errstr);
+                                             ORDER BY n.sticky DESC, n.created DESC
+                                             LIMIT $offset, $count");
+    $posth -> execute($courseid)
+        or return $self -> self_error("Unable to fetch post list ($courseid, $offset, $count): ".$self -> {"dbh"} -> errstr);
 
     # Happily, fetchall should do the job here...
     return $posth -> fetchall_arrayref({});
@@ -299,6 +298,7 @@ sub _get_news_entry {
 # @param metadataid The ID of the metadata context to associate with the news post.
 # @param courseid   The ID of the course the post is being made in (may be undef).
 # @param userid     The ID of the user creating the post.
+# @param sticky     Should the post stick at the top of the news list?
 # @param timestamp  Optional unix typestamp to set for the entry. If not provided,
 #                   the current time is used.
 # @return The new post id on success, undef on error.
@@ -307,15 +307,16 @@ sub _new_news {
     my $metadataid = shift;
     my $courseid   = shift;
     my $userid     = shift;
+    my $sticky     = shift;
     my $timestamp  = shift || time();
 
     $self -> clear_error();
 
     # Query to create a new news header
     my $newh = $self -> {"dbh"} -> prepare("INSERT INTO `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."`
-                                            (metadata_id, course_id, created, creator_id)
-                                            VALUES(?, ?, ?, ?)");
-    my $result = $newh -> execute($metadataid, $courseid, $timestamp, $userid);
+                                            (metadata_id, course_id, created, creator_id, sticky)
+                                            VALUES(?, ?, ?, ?, ?)");
+    my $result = $newh -> execute($metadataid, $courseid, $timestamp, $userid, $sticky);
     return $self -> self_error("Unable to perform news insert: ". $self -> {"dbh"} -> errstr) if(!$result);
     return $self -> self_error("News insert failed, no rows inserted") if($result eq "0E0");
 
@@ -399,6 +400,30 @@ sub _set_news_current_postid {
     return $self -> self_error("News post update failed, no rows inserted") if($result eq "0E0");
 
     return $self -> _get_news_entry($newsid);
+}
+
+
+## @method $ _set_sticky($newsid, $state)
+# Set the stickiness of the specified news entry.
+#
+# @param newsid The ID of the news entry to set the stickiness of.
+# @param state  The new sticky state, should be 0 or 1.
+# @return True on success, undef on error
+sub _set_sticky {
+    my $self   = shift;
+    my $newsid = shift;
+    my $state  = shift;
+
+    $self -> clear_error();
+
+    my $seth = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::news"}."`
+                                            SET sticky = ?
+                                            WHERE id = ?");
+    my $result = $seth -> execute($state, $newsid);
+    return $self -> self_error("Unable to perform news sticky state update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("News sticky state update failed, no rows inserted") if($result eq "0E0");
+
+    return 1;
 }
 
 

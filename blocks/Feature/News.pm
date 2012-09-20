@@ -105,6 +105,8 @@ sub _validate_fields {
                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
     $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
 
+    $args -> {"sticky"} = is_defined_numeric($self -> {"cgi"}, "sticky");
+
     return $errors ? $errors : undef;
 }
 
@@ -145,7 +147,8 @@ sub validate_news_post {
     my $post = $self -> {"news"} -> create_post($self -> {"courseid"},
                                                 $self -> {"session"} -> get_session_userid(),
                                                 $args -> {"subject"},
-                                                $args -> {"message"})
+                                                $args -> {"message"},
+                                                $args -> {"sticky"})
         or return ($self -> {"template"} -> load_template("error_list.tem",
                                                    {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
                                                     "***errors***"  => $self -> {"template"} -> process_template($errtem,
@@ -221,88 +224,74 @@ sub build_post_controls {
 # Generate the body of a post to show in the news post list.
 #
 # @param post     A reference to a hash containing the post to generate.
-# @param temcache A reference to a hash containing the templates used to generate
-#                 the post block.
 # @return A string containing the post HTML.
 sub _build_post {
     my $self     = shift;
     my $post     = shift;
-    my $temcache = shift;
 
     # Obtain the details of the poster and possible editor
     my $poster = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"creator_id"});
     my $editor = $self -> {"session"} -> {"auth"} -> {"app"} -> get_user_byid($post -> {"editor_id"});
 
     # Generate the body of the post
-    my $content = $self -> {"template"} -> process_template($temcache -> {"contenttem"}, {"***message***" => $post -> {"message"}});
+    my $content = $self -> {"template"} -> load_template("feature/news/post_content.tem", {"***message***" => $post -> {"message"}});
+
+    my $edited = (($post -> {"creator_id"} != $post -> {"editor_id"}) || ($post -> {"created"} != $post -> {"edited"})) ? "enabled" : "disabled";
 
     # Determine whether the post has been edited
-    my $editby = $self -> {"template"} -> process_template($temcache -> {"edittem"} -> [(($post -> {"creator_id"} != $post -> {"editor_id"}) ||
-                                                                                         ($post -> {"created"} != $post -> {"edited"}))],
-                                                           {"***edited***"   => $self -> {"template"} -> fancy_time($post -> {"edited"}),
-                                                            "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"}, "showhist" => "t" }),
-                                                            "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $editor -> {"username"} ]),
-                                                            "***name***"     => $editor -> {"fullname"},
-                                                            "***gravhash***" => $editor -> {"gravatar_hash"},
-                                                           });
+    my $editby = $self -> {"template"} -> load_template("feature/news/editby_$edited.tem",
+                                                        {"***edited***"   => $self -> {"template"} -> fancy_time($post -> {"edited"}),
+                                                         "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"}, "showhist" => "t" }),
+                                                         "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $editor -> {"username"} ]),
+                                                         "***name***"     => $editor -> {"fullname"},
+                                                         "***gravhash***" => $editor -> {"gravatar_hash"},
+                                                        });
     # And return the fillled-in post.
-    return $self -> {"template"} -> process_template($temcache -> {"entrytem"},
-                                                     {"***postid***"   => $post -> {"id"},
-                                                      "***posted***"   => $self -> {"template"} -> fancy_time($post -> {"created"}),
-                                                      "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
-                                                      "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
-                                                      "***name***"     => $poster -> {"fullname"},
-                                                      "***gravhash***" => $poster -> {"gravatar_hash"},
-                                                      "***title***"    => $post -> {"subject"},
-                                                      "***content***"  => $content,
-                                                      "***editby***"   => $editby,
-                                                      "***controls***" => $self -> build_post_controls($post)});
+    return $self -> {"template"} -> load_template("feature/news/post.tem",
+                                                  {"***postid***"   => $post -> {"id"},
+                                                   "***posted***"   => $self -> {"template"} -> fancy_time($post -> {"created"}),
+                                                   "***posturl***"  => $self -> build_url(block => "news", params => { "postid" => $post -> {"id"} }),
+                                                   "***profile***"  => $self -> build_url(block => "profile", pathinfo => [ $poster -> {"username"} ]),
+                                                   "***name***"     => $poster -> {"fullname"},
+                                                   "***gravhash***" => $poster -> {"gravatar_hash"},
+                                                   "***title***"    => $post -> {"subject"},
+                                                   "***content***"  => $content,
+                                                   "***editby***"   => $editby,
+                                                   "***controls***" => $self -> build_post_controls($post),
+                                                   "***sticky***"   => $post -> {"sticky"} ? "sticky" : ""});
 }
 
 
-## @method $ build_post_list($starid, $count, $show_fetchmore)
+## @method $ build_post_list($offset, $count, $show_fetchmore)
 # Generate a list of posts to show in the news list.
 #
-# @param startid The ID of the post to start showing entries from. If
-#                omitted, the first post is the latest one.
+# @param offset  The offset from the start of the post list, in posts. Defaults to 0.
 # @param count   The number of posts to retrieve. If omitted, the default set in
 #                the Feature::News::post_count setting variable is used instead.
 # @param show_fetchmore If set, and there are more than `count` posts left to
 #                show, this will add the 'fetch more' button to the end of the
-#                list.
+#                list. Defaults to true.
 # @return A string containing the list of news posts.
 sub build_post_list {
-    my $self    = shift;
-    my $startid = shift;
-    my $count   = shift || $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"};
-    my $show_fetchmore = shift;
+    my $self           = shift;
+    my $offset         = shift || 0;
+    my $count          = shift || $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"};
+    my $show_fetchmore = shift || 1;
 
-    # Fetch the list of posts. If the count is 1, only a single post is being shown, so there's no need to
-    # determine whether there are more entries available even if show_fetchmore is set. If the count is
-    # over 1, and show_fetchmore is set, fetch an extra post if possible, to determine whether there are
-    # more posts to show.
-    my $posts = $self -> {"news"} -> get_news_posts($self -> {"courseid"}, $startid, $count + ($count > 1 ? $show_fetchmore : 0))
+    # Fetch the list of posts.
+    my $posts = $self -> {"news"} -> get_news_posts($self -> {"courseid"}, $offset, $count + $show_fetchmore)
         or $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Unable to fetch news posts: ".$self -> {"news"} -> {"errstr"});
-
-    my $temcache = {
-        "entrytem"   => $self -> {"template"} -> load_template("feature/news/post.tem"),
-        "contenttem" => $self -> {"template"} -> load_template("feature/news/post_content.tem"),
-        "edittem"    => [
-                          $self -> {"template"} -> load_template("feature/news/editby_disabled.tem"),
-                          $self -> {"template"} -> load_template("feature/news/editby_enabled.tem")
-                        ]
-    };
 
     my $entry = 0;
     my $entrylist = "";
 
     foreach my $post (@{$posts}) {
-        $entrylist .= $self -> _build_post($post, $temcache);
+        $entrylist .= $self -> _build_post($post);
         last if(++$entry == $count);
     }
 
     $entrylist .= $self -> {"template"} -> load_template("feature/news/fetchmore.tem",
-                                                         {"***url***" => $posts -> [$entry] -> {"id"}})
+                                                         {"***offset***" => $offset + $count})
         if($show_fetchmore && scalar(@{$posts}) > $count);
 
     return $entrylist;
@@ -328,22 +317,20 @@ sub build_news_list {
 
     # Has the user requested a specific post id to show?
     my $postid = is_defined_numeric($self -> {"cgi"}, "postid");
-
-    # How many posts to show in the page?
-    my $count  = $postid ? 1 : $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"};
-
     my $returntem  = $postid ? "returnlink.tem" : "noreturnlink.tem";
     my $returnlink = $self -> {"template"} -> load_template("feature/news/$returntem", {"***url***" => $self -> build_url(block => "news")});
 
-    $self -> log("news:view", "Viewing $count posts from ".($postid ? "post $postid" : "latest"));
+    if(!$postid) {
+        $self -> log("news:view", "Viewing posts list");
 
-    return ($self -> {"template"} -> load_template("feature/news/postlist.tem",
-                                                   {"***returnlink***" => $returnlink,
-                                                    "***error***"      => $error,
-                                                    "***entries***"    => $self -> build_post_list($postid, $count, 1),
-                                                    "***postform***"   => $self -> build_newpost_form($args),
-                                                   }),
-            $self -> {"template"} -> load_template("feature/news/extrahead.tem"));
+        return ($self -> {"template"} -> load_template("feature/news/postlist.tem",
+                                                       {"***returnlink***" => $returnlink,
+                                                        "***error***"      => $error,
+                                                        "***entries***"    => $self -> build_post_list(),
+                                                        "***postform***"   => $self -> build_newpost_form($args),
+                                                       }),
+                $self -> {"template"} -> load_template("feature/news/extrahead.tem"));
+    }
 }
 
 
@@ -363,12 +350,12 @@ sub build_api_more_response {
     my $posts;
 
     # Has the user requested a specific post id to show?
-    my $postid = is_defined_numeric($self -> {"cgi"}, "postid");
+    my $offset = is_defined_numeric($self -> {"cgi"}, "offset");
 
-    $self -> log("news:more", "Requested more from ".($postid ? "post $postid" : "latest"));
+    $self -> log("news:more", "Requested more from ".($offset ? "offset $offset" : "latest"));
 
     # Try to build the post list, give up with an error if it doesn't work
-    eval { $posts = $self -> build_post_list($postid, $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"}, 1) };
+    eval { $posts = $self -> build_post_list($offset, $self -> {"settings"} -> {"config"} -> {"Feature::News::post_count"}, 1) };
     return $self -> api_errorhash("list_failed", $@)
         if($@);
 
@@ -450,7 +437,7 @@ sub build_api_edit_response {
         if($errors);
 
     # Edit the post...
-    if($self -> {"news"} -> edit_post($postid, $userid, $args -> {"subject"}, $args -> {"message"})) {
+    if($self -> {"news"} -> edit_post($postid, $userid, $args -> {"subject"}, $args -> {"message"}, $args -> {"sticky"})) {
         $post = $self -> {"news"} -> get_post($postid)
             or return $self -> api_errorhash("bad_postid", $self -> {"template"} -> replace_langvar("FEATURE_NEWS_APIEDIT_FAILED", {"***error***" => $self -> {"news"} -> {"errstr"}}));
 

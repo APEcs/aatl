@@ -11,6 +11,7 @@ FEATURE_NEWS_MSG      = Enter your news message here
 FEATURE_NEWS_POST     = Post news entry
 FEATURE_NEWS_BACKLINK = Show all news posts
 FEATURE_NEWS_SHOWMORE = Show more
+FEATURE_NEWS_STICKY   = Stay at the top of the news page
 
 FEATURE_NEWS_EDIT     = Edit this post
 FEATURE_NEWS_DOEDIT   = Save edit

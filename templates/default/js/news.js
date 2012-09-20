@@ -3,9 +3,9 @@
  *  does a HTML request to the server requesting more posts to show
  *  in the news post list.
  *
- * @param postid The ID of the first post to show in the list.
+ * @param offset The offset to the first item to fetch
  */
-function do_fetchmore(postid)
+function do_fetchmore(offset)
 {
     var req = new Request.HTML({ url: api_request_path("news", "more"),
                                  onRequest: function() {
@@ -19,7 +19,7 @@ function do_fetchmore(postid)
                                      $('postlist').adopt(respTree);
                                  }
                                });
-    req.send("cid="+courseid+"&postid="+postid);
+    req.send("cid="+courseid+"&offset="+offset);
 }
 
 
@@ -82,9 +82,19 @@ function make_editable(postid, config)
                                                                         html: $('msg-'+postid).innerHTML,
                                                                         id: 'editmsg-'+postid
                                                                       }));
+    var sticky = new Element('label', {'class': 'sticky',
+                                       'for': 'editstick-'+postid,
+                                      }).adopt([new Element('input', {type: 'checkbox',
+                                                                      id: 'editstick-'+postid,
+                                                                      name: 'editstick-'+postid,
+                                                                      checked: $('post-'+postid).hasClass('sticky')}),
+                                                new Element('span', {html: sticky_name})
+                                               ]);
+
     var submit = new Element('div',
                              { 'class': 'newpost formsubmit'
-                             }).adopt([new Element('img', { id: 'workspin-'+postid,
+                             }).adopt([sticky,
+                                       new Element('img', { id: 'workspin-'+postid,
                                                             style: 'opacity: 0',
                                                             src: spinner_url,
                                                             height: '16',
@@ -144,6 +154,7 @@ function do_editable(postid)
     req.post({cid: courseid,
               postid: postid,
               subject: $('editsub-'+postid).get('value'),
-              message: CKEDITOR.instances['editmsg-'+postid].getData()
+              message: CKEDITOR.instances['editmsg-'+postid].getData(),
+              sticky: $('editstick-'+postid).checked ? "1" : "0"
              });
 }

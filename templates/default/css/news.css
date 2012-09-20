@@ -39,3 +39,7 @@ ul.boxes div.editinfo ul.boxmeta li a:hover {
     text-decoration: none;
     color: #666;
 }
+
+label.sticky {
+    float: left;
+}

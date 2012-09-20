@@ -2,7 +2,10 @@
                         <div class="input"><input type="text" name="subject" id="new-subject" size="70" maxlength="100" title="{L_FEATURE_NEWS_SUBJECT}" value="***subject***"/></div>
                         <div class="contents">
                             <div class="textwrapper"><textarea name="message" id="new-message" rows="3" cols="80">***message***</textarea></div>
-                            <div class="newpost formsubmit"><input type="submit" id="newpost" name="newpost" class="button blue" value="{L_FEATURE_NEWS_POST}" /></div>
+                            <div class="newpost formsubmit">
+                                <label id="newsticklabel" for="newsticky" class="sticky"><input type="checkbox" value="1" id="newsticky" name="sticky" ***checked***> {L_FEATURE_NEWS_STICKY}</label>
+                                <input type="submit" id="newpost" name="newpost" class="button blue" value="{L_FEATURE_NEWS_POST}" />
+                            </div>
                         </div>
                     </form>
                     <script type="text/javascript">

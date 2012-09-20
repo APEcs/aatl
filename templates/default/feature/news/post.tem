@@ -1,4 +1,4 @@
-                <li id="post-***postid***"><ul class="boxmeta">
+                <li id="post-***postid***" class="***sticky***"><ul class="boxmeta">
                         <li>{L_FEATURE_NEWS_POSTED} ***posted***</li>
                         <li class="iconlink">
                             <a href="***profile***">***name***
