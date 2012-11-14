@@ -1,6 +1,6 @@
                     <div class="editinfo">
                     <ul class="boxmeta">
-                        <li>{L_FEATURE_NEWS_EDITED} <a href="***posturl***">***edited***</a></li>
+                        <li>{L_FEATURE_NEWS_EDITED} ***edited***</li>
                         <li class="iconlink">
                             <a href="***profile***">***name***
                                 <img alt="" src="https://www.gravatar.com/avatar/***gravhash***?s=16&amp;d=mm&amp;r=g" class="avatar avatar-16" height="16" width="16" />

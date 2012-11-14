@@ -1,7 +1,4 @@
 # News page
-FEATURE_NEWS_ERROR    = Error
-FEATURE_NEWS_ERROROK  = Continue
-
 FEATURE_NEWS_TITLE    = News
 FEATURE_NEWS_POSTED   = Posted
 FEATURE_NEWS_EDITED   = Edited

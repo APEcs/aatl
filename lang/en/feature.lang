@@ -10,6 +10,9 @@ FEATURE_ERR_NOCOURSE_TITLE          = No course specified
 FEATURE_ERR_NOCOURSE_SUMMARY        = Course ID missing from session.
 FEATURE_ERR_NOCOURSE_DESC           = The system has not been able to determine which course you are attempting to view. This should, generally, never happen unless you attempt to access a course that does not exist - if you see this, please report it to the support team with details of what you were doing before encountering this error.
 
+FEATURE_ERROR    = Error
+FEATURE_ERROROK  = Continue
+
 NAVBOX_FIRST  = First
 NAVBOX_PREV   = Prev
 NAVBOX_NEXT   = Next
