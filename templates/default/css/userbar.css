@@ -14,7 +14,7 @@
     left: 0;
     width: 100%;
     min-width: 900px; /* must match min-width in site.css */
-    z-index: 32767;   /* WP uses 99999 here, but some sources claim int16 is safer */
+    z-index: 2317;    /* /o\ */
 
     background-color: #464646; /* Fallback */
     background-image: -ms-linear-gradient(bottom, #373737, #464646 5px); /* IE10 */
