@@ -1,0 +1,32 @@
+* Tagging
+      - per-resource tag management UI
+      - tag list page
+      - active tags
+
+* Profile controls
+      - set name, email, password, other data?
+      - password recovery process
+      - change settings
+        - notification settings?
+        - ?
+
+* Forums
+      - FAQ marking mechanism
+      - comment help (markdown, etc)
+
+* Materials
+      - file uploads
+      - integrate/turn on video stuff
+
+* Enrolment mechanism
+      - enrolment plugin structure
+      - enrolment setup
+      - timed enrolment stuff
+
+* Quizzes
+
+* Feedback and student analysis
+
+* MediaWiki integration
+
+* Course about/FAQ page
