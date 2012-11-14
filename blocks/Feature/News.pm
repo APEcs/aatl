@@ -91,19 +91,17 @@ sub _validate_fields {
     my $args = shift;
     my ($errors, $error) = ("", "");
 
-    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
-
     ($args -> {"subject"}, $error) = $self -> validate_string("subject", {"required" => 1,
                                                                           "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_SUBJECT"),
                                                                           "minlen"   => 1,
                                                                           "maxlen"   => 255});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+    $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $error}) if($error);
 
     ($args -> {"message"}, $error) = $self -> validate_htmlarea("message", {"required" => 1,
                                                                             "minlen"   => 8,
                                                                             "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_NEWS_MESSAGE"),
                                                                             "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+    $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $error}) if($error);
 
     $args -> {"sticky"} = is_defined_numeric($self -> {"cgi"}, "sticky");
 
@@ -122,15 +120,13 @@ sub validate_news_post {
     my $self = shift;
     my ($args, $errors, $error) = ({}, "", "");
 
-    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
-
     # Exit with a permission error unless the user has permission to post
     my $canpost = $self -> {"news"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
                                                         $self -> {"session"} -> get_session_userid(),
                                                         "news.post");
     return ($self -> {"template"} -> load_template("error_list.tem",
                                                    {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
-                                                    "***errors***"  => $self -> {"template"} -> process_template($errtem,
+                                                    "***errors***"  => $self -> {"template"} -> load_template("error_item.tem",
                                                                                                                  {"***error***" => "{L_FEATURE_NEWS_ERR_POSTPERM}"})}),
             $args) unless($canpost);
 
@@ -151,7 +147,7 @@ sub validate_news_post {
                                                 $args -> {"sticky"})
         or return ($self -> {"template"} -> load_template("error_list.tem",
                                                    {"***message***" => "{L_FEATURE_NEWS_ERR_POSTFAIL}",
-                                                    "***errors***"  => $self -> {"template"} -> process_template($errtem,
+                                                    "***errors***"  => $self -> {"template"} -> load_template("error_item.tem",
                                                                                                                  {"***error***" => $self -> {"news"} -> {"errstr"}})}),
                    $args);
 
