@@ -24,6 +24,7 @@ use strict;
 use base qw(Feature);
 use System::News;
 use Utils qw(is_defined_numeric);
+use v5.12;
 
 # ============================================================================
 #  Constructor

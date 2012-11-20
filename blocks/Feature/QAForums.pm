@@ -28,6 +28,7 @@ use POSIX qw(ceil);
 use HTML::Scrubber;
 use Text::Markdown 'markdown';
 use Data::Dumper;
+use v5.12;
 
 # ============================================================================
 #  Constructor

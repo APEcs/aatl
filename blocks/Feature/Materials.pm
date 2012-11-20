@@ -24,6 +24,7 @@ use strict;
 use base qw(Feature);
 use Utils qw(is_defined_numeric);
 use System::Materials;
+use v5.12;
 
 # ============================================================================
 #  Constructor

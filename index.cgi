@@ -6,7 +6,7 @@ use strict;
 use lib qw(/var/www/webperl);
 use lib qw(modules);
 use utf8;
-use 5.12;
+use v5.12;
 
 # System modules
 use CGI::Carp qw(fatalsToBrowser set_message); # Catch as many fatals as possible and send them to the user as well as stderr

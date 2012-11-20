@@ -26,6 +26,7 @@ package Feature::Userbar;
 
 use strict;
 use base qw(Feature);
+use v5.12;
 
 # ==============================================================================
 #  Bar generation
@@ -85,6 +86,34 @@ sub block_display {
                                                                           "***coursetools***"   => $coursetools,
                                                                           "***userprofile***"   => $userprofile,
                                                                           "***feedbackstate***" => $hasfeedback});
+}
+
+
+## @method $ page_display()
+# Produce the string containing this block's full page content. This is primarily provided for
+# API operations that allow the user to change their profile and settings.
+#
+# @return The string containing this block's page content.
+sub page_display {
+    my $self = shift;
+    my ($content, $extrahead, $title);
+
+    if(!$self -> {"session"} -> anonymous_session()) {
+        my $user = $self -> {"session"} -> get_user_byid()
+            or return '';
+
+        my $apiop = $self -> is_api_operation();
+        if(defined($apiop)) {
+            given($apiop) {
+                default {
+                    return $self -> api_html_response($self -> api_errorhash('bad_op',
+                                                                             $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+                }
+            }
+        }
+    }
+
+    return "<p class=\"error\">".$self -> {"template"} -> replace_langvar("BLOCK_PAGE_DISPLAY")."</p>";
 }
 
 1;
