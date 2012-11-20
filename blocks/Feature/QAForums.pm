@@ -1699,31 +1699,23 @@ sub page_display {
     # Is this an API call, or a normal news page call?
     my $apiop = $self -> is_api_operation();
     if(defined($apiop)) {
-        if($apiop eq "rup" || $apiop eq "rdn") {
-            return $self -> api_response($self -> _build_api_rating_response($apiop));
-        } elsif($apiop eq "best") {
-            return $self -> api_response($self -> _build_api_best_response());
-        } elsif($apiop eq "editq") {
-            return $self -> api_html_response($self -> _build_api_edit_question_response());
-        } elsif($apiop eq "deleteq") {
-            return $self -> api_response($self -> _build_api_delete_question_response());
-        } elsif($apiop eq "answer") {
-            return $self -> api_html_response($self -> _build_api_answer_add_response());
-        } elsif($apiop eq "edita") {
-            return $self -> api_html_response($self -> _build_api_edit_answer_response());
-        } elsif($apiop eq "deletea") {
-            return $self -> api_response($self -> _build_api_delete_answer_response());
-        } elsif($apiop eq "comment") {
-            return $self -> api_html_response($self -> _build_api_comment_add_response());
-        } elsif($apiop eq "chelpful") {
-            return $self -> api_response($self -> _build_api_helpful_comment_response());
-        } elsif($apiop eq "deletec") {
-            return $self -> api_response($self -> _build_api_delete_comment_response());
-        } elsif($apiop eq "flag") {
-            return $self -> api_html_response($self -> _build_api_flag_response());
-        } else {
-            return $self -> api_html_response($self -> api_errorhash('bad_op',
-                                                                     $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+        given($apiop) {
+            when(["rup",
+                  "rdn"])    { return $self -> api_response($self -> _build_api_rating_response($apiop)); }
+            when("best")     { return $self -> api_response($self -> _build_api_best_response()); }
+            when("editq")    { return $self -> api_html_response($self -> _build_api_edit_question_response()); }
+            when("deleteq")  { return $self -> api_response($self -> _build_api_delete_question_response()); }
+            when("answer")   { return $self -> api_html_response($self -> _build_api_answer_add_response()); }
+            when("edita")    { return $self -> api_html_response($self -> _build_api_edit_answer_response()); }
+            when("deletea")  { return $self -> api_response($self -> _build_api_delete_answer_response()); }
+            when("comment")  { return $self -> api_html_response($self -> _build_api_comment_add_response()); }
+            when("chelpful") { return $self -> api_response($self -> _build_api_helpful_comment_response()); }
+            when("deletec")  { return $self -> api_response($self -> _build_api_delete_comment_response()); }
+            when("flag")     { return $self -> api_html_response($self -> _build_api_flag_response()); }
+            default {
+                return $self -> api_html_response($self -> api_errorhash('bad_op',
+                                                                         $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+            }
         }
 
     } else {
@@ -1731,22 +1723,22 @@ sub page_display {
 
         # Note that the mode parameters to show_question_list() could conceivably
         # be set straight from $pathinfo[0] when appropriate, that has Tainting Issues.
-        if(!scalar(@pathinfo) || $pathinfo[0] eq "updated") {
-            ($title, $content, $extrahead) = $self -> _show_question_list("updated"   , $pathinfo[1]);
-        } elsif($pathinfo[0] eq "created") {
-            ($title, $content, $extrahead) = $self -> _show_question_list("created"   , $pathinfo[1]);
-        } elsif($pathinfo[0] eq "rating") {
-            ($title, $content, $extrahead) = $self -> _show_question_list("rating"    , $pathinfo[1]);
-        } elsif($pathinfo[0] eq "unanswered") {
-            ($title, $content, $extrahead) = $self -> _show_question_list("unanswered", $pathinfo[1]);
-        } elsif($pathinfo[0] eq "flagged") {
-            ($title, $content, $extrahead) = $self -> _show_question_list("flagged_count", $pathinfo[1]);
-        } elsif($pathinfo[0] eq "ask") {
-            ($title, $content, $extrahead) = $self -> _ask_question();
-        } elsif($pathinfo[0] eq "question") {
-            ($title, $content, $extrahead) = $self -> _show_question($pathinfo[1]);
+        if(!scalar(@pathinfo)) {
+            ($title, $content, $extrahead) = $self -> _show_question_list("updated" , $pathinfo[1]);
+        } else {
+            given($pathinfo[0]) {
+                when("updated")    { ($title, $content, $extrahead) = $self -> _show_question_list("updated"   , $pathinfo[1]); }
+                when("created")    { ($title, $content, $extrahead) = $self -> _show_question_list("created"   , $pathinfo[1]); }
+                when("rating")     { ($title, $content, $extrahead) = $self -> _show_question_list("rating"    , $pathinfo[1]); }
+                when("unanswered") { ($title, $content, $extrahead) = $self -> _show_question_list("unanswered", $pathinfo[1]); }
+                when("flagged")    { ($title, $content, $extrahead) = $self -> _show_question_list("flagged_count", $pathinfo[1]); }
+                when("ask")        { ($title, $content, $extrahead) = $self -> _ask_question(); }
+                when("question")   { ($title, $content, $extrahead) = $self -> _show_question($pathinfo[1]); }
+                default {
+                    ($title, $content, $extrahead) = $self -> _show_question_list("updated" , $pathinfo[1]);
+                }
+            }
         }
-
         # User has access, generate the news page for the course.
         return $self -> generate_course_page($title, $content, $extrahead);
     }

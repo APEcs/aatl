@@ -475,15 +475,14 @@ sub page_display {
     # Is this an API call, or a normal news page call?
     my $apiop = $self -> is_api_operation();
     if(defined($apiop)) {
-        if($apiop eq "more") {
-            return $self -> api_html_response($self -> build_api_more_response());
-        } elsif($apiop eq "delete") {
-            return $self -> api_response($self -> build_api_delete_response());
-        } elsif($apiop eq "edit") {
-            return $self -> api_html_response($self -> build_api_edit_response());
-        } else {
-            return $self -> api_html_response($self -> api_errorhash('bad_op',
-                                                                     $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+        given($apiop) {
+            when("more")   { return $self -> api_html_response($self -> build_api_more_response()); }
+            when("edit")   { return $self -> api_html_response($self -> build_api_edit_response()); }
+            when("delete") { return $self -> api_response($self -> build_api_delete_response()); }
+            default {
+                return $self -> api_html_response($self -> api_errorhash('bad_op',
+                                                                         $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+            }
         }
     } else {
 

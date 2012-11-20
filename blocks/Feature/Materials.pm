@@ -830,29 +830,21 @@ sub page_display {
 
         # Otherwise it's a Materials-page ajax call. Dispatch to appropriate handlers.
         } else {
-            if($apiop eq "addsection") {
-                return $self -> api_html_response($self -> _build_api_addsection_response());
-            } elsif($apiop eq "delsection") {
-                return $self -> api_response($self -> _build_api_delsection_response());
-            } elsif($apiop eq "editsection") {
-                return $self -> api_response($self -> _build_api_editsection_response());
-            } elsif($apiop eq "sectionorder") {
-                return $self -> api_response($self -> _build_api_sectionorder_response());
-            } elsif($apiop eq "defvis") {
-                return $self -> api_response($self -> _build_api_defaultvisible_response());
-            } elsif($apiop eq "defopen") {
-                return $self -> api_response($self -> _build_api_defaultopen_response());
-            } elsif($apiop eq "addmatform") {
-                return $self -> api_html_response($self -> _build_api_addmatform_response());
-            } elsif($apiop eq "addmat") {
-                return $self -> api_html_response($self -> _build_api_addmat_response());
-            } elsif($apiop eq "delmat") {
-                return $self -> api_response($self -> _build_api_deletemat_response());
-            } elsif($apiop eq "materialorder") {
-                return $self -> api_response($self -> _build_api_materialorder_response());
-            } else {
-                return $self -> api_html_response($self -> api_errorhash('bad_op',
-                                                                         $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+            given($apiop) {
+                when("addsection")    { return $self -> api_html_response($self -> _build_api_addsection_response()); }
+                when("addmatform")    { return $self -> api_html_response($self -> _build_api_addmatform_response()); }
+                when("addmat")        { return $self -> api_html_response($self -> _build_api_addmat_response()); }
+                when("delsection")    { return $self -> api_response($self -> _build_api_delsection_response()); }
+                when("editsection")   { return $self -> api_response($self -> _build_api_editsection_response()); }
+                when("sectionorder")  { return $self -> api_response($self -> _build_api_sectionorder_response()); }
+                when("defvis")        { return $self -> api_response($self -> _build_api_defaultvisible_response()); }
+                when("defopen")       { return $self -> api_response($self -> _build_api_defaultopen_response()); }
+                when("delmat")        { return $self -> api_response($self -> _build_api_deletemat_response()); }
+                when("materialorder") { return $self -> api_response($self -> _build_api_materialorder_response()); }
+                default {
+                    return $self -> api_html_response($self -> api_errorhash('bad_op',
+                                                                             $self -> {"template"} -> replace_langvar("API_BAD_OP")))
+                }
             }
         }
     } else {
