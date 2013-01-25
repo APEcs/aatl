@@ -51,6 +51,7 @@
     border: none;
     text-decoration: none;
     background: none;
+    cursor: pointer;
 }
 
 #userbar .menu-wrapper, #userbar ul, #userbar ul li {

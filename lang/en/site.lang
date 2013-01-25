@@ -26,3 +26,6 @@ TIMES_YEARS   = %t years ago
 
 BLOCK_BLOCK_DISPLAY   = Direct call to unimplemented block_display()
 BLOCK_SECTION_DISPLAY = Direct call to unimplemented section_display()
+
+COURSE_ERROR = Error
+COURSE_POPUP = Information

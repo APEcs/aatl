@@ -1,40 +1,10 @@
 @charset "utf-8";
+@import url('body.css');       /* global base body styles              */
 @import url('notebox.css');    /* pull in warning/important box styles */
 @import url('shadowbox.css');  /* and support for shadowed divs        */
 @import url('messagebox.css'); /* support for message boxes            */
 @import url('button.css');     /* button rules (okay?)                 */
 @import url('inputglow.css');  /* make input boxes glow when active    */
-
-body  {
-    font: 100% Verdana, Arial, Helvetica, sans-serif;
-    color: #000;
-    font-size: 13px;
-    min-width: 900px;
-    background-color: #eee;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-}
-
-body, h1, h2, h3, h4, h5 {
-    margin: 0;
-    padding: 0;
-}
-
-a {
-    text-decoration: none;
-    color: #0645ad;
-    background: none;
-}
-a:visited {
-    color: #0b0080;
-}
-a:active {
-    color: #faa700;
-}
-a:hover, a:focus {
-    text-decoration: underline;
-}
 
 #logincore {
     margin: 0px auto;
@@ -50,12 +20,6 @@ a:hover, a:focus {
     margin: 0px auto;
 }
 
-textarea:focus {
-    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
-}
-
 div.logincore {
     margin-left: auto;
     margin-right: auto;
@@ -65,6 +29,7 @@ div.logincore {
 
 div.persist {
     float: left;
+    text-align: left;
 }
 
 .loginform {
@@ -74,7 +39,7 @@ div.persist {
 .regform {
     width: 400px;
     padding: 0px 20px;
-    border-left: 1px solid #aaa;
+    border-left: 1px solid #333;
     margin-bottom: 8px;
 }
 .sbcontent { clear: both; }
@@ -85,7 +50,7 @@ div.entry {
 }
 
 div.entry label {
-    color: #555;
+    color: #222;
 }
 
 div.entry label input {
@@ -94,6 +59,17 @@ div.entry label input {
 
 div.submit {
     text-align: right;
+}
+
+div.submit .contextlink {
+    float: left;
+    text-align: left;
+    font-size: 10px;
+}
+
+div.persist .contextlink {
+    text-align: left;
+    font-size: 10px;
 }
 
 div.loginform {
