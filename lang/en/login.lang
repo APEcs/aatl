@@ -115,3 +115,11 @@ LOGIN_RESEND_FAILED  = Activation code resend failed
 LOGIN_RESEND_DONETITLE  = Activation code resent
 LOGIN_RESEND_SUMMARY    = Resend successful!
 LOGIN_RESEND_LONGDESC   = A new password and an activation link have been send to your email address.<br /><br />Please check your email for a message with the subject 'Your {V_[sitename]} activation code' and follow the instructions it contains to activate your account.
+
+# Force password change
+LOGIN_PASSCHANGE        = Change password
+LOGIN_FORCECHANGE_INTRO = Your account is currently using a temporary password. Before you continue, please choose a new password to set for your account.
+LOGIN_NEWPASSWORD       = New password
+LOGIN_CONFPASS          = Confirm password
+LOGIN_OLDPASS           = Your current password
+LOGIN_SETPASS           = Change password
