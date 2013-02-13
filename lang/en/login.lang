@@ -118,8 +118,27 @@ LOGIN_RESEND_LONGDESC   = A new password and an activation link have been send t
 
 # Force password change
 LOGIN_PASSCHANGE        = Change password
-LOGIN_FORCECHANGE_INTRO = Your account is currently using a temporary password. Before you continue, please choose a new password to set for your account.
+LOGIN_FORCECHANGE_INTRO = Before you continue, please choose a new password to set for your account.
+LOGIN_FORCECHANGE_TEMP  = Your account is currently set up with a temporary password.
+LOGIN_FORCECHANGE_OLD   = The password on your account has expired as a result of age limits enforced by the site's password policy.
 LOGIN_NEWPASSWORD       = New password
 LOGIN_CONFPASS          = Confirm password
 LOGIN_OLDPASS           = Your current password
 LOGIN_SETPASS           = Change password
+
+LOGIN_POLICY                 = Password policy
+LOGIN_POLICY_INTRO           = When choosing a new password, keep in mind that:
+LOGIN_POLICY_NONE            = No password policy is currently in place, you may use any password you want.
+LOGIN_POLICY_MIN_LENGTH      = Minimum length is ***value*** characters.
+LOGIN_POLICY_MIN_LOWERCASE   = At least ***value*** lowercase letters are needed.
+LOGIN_POLICY_MIN_UPPERCASE   = At least ***value*** uppercase letters are needed.
+LOGIN_POLICY_MIN_DIGITS      = At least ***value*** numbers must be included.
+LOGIN_POLICY_MIN_OTHER       = ***value*** non-alphanumeric chars are needed.
+LOGIN_POLICY_MIN_ENTROPY     = Passwords must pass a strength check.
+LOGIN_POLICY_USE_CRACKLIB    = Cracklib is used to test passwords.
+LOGIN_POLICY_MAX_PASSWORDAGE = Passwords must be changed after ***value*** days.
+LOGIN_POLICY_MAX_LOGINFAIL   = You can log in incorrectly ***value*** times before your account needs reactivation.
+
+# Login limiting
+LOGIN_FAILLIMIT         = You have used ***failcount*** of ***faillimit**** login attempts. If you exceed the limit, your account will be deactivated. If you can not remember your account details, please use the <a href="***url-recover***">account recovery form</a>
+LOGIN_LOCKEDOUT         = You have exceeded the number of login failures permitted by the system, and your account has been deactivated. An email has been sent to the address associated with your account explaining how to reactivate your account.

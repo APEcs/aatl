@@ -35,11 +35,15 @@ div.persist {
 .loginform {
     width: 400px;
     padding: 0px 20px;
+    border-right: 1px solid #333;
 }
+.loginform:last-child {
+    border-right: none;
+}
+
 .regform {
     width: 400px;
     padding: 0px 20px;
-    border-left: 1px solid #333;
     margin-bottom: 8px;
 }
 .sbcontent { clear: both; }
@@ -78,7 +82,7 @@ div.loginform {
 }
 div.regform {
     display: inline-block;
-    /*float: left;*/
+    float: right;
 }
 
 input[type=text], input[type=password] {

@@ -560,7 +560,7 @@ sub set_saved_state {
     my $res = $self -> {"session"} -> set_variable("saved_block", $self -> {"cgi"} -> param("block"));
     return undef unless(defined($res));
 
-    my $res = $self -> {"session"} -> set_variable("saved_course", $self -> {"cgi"} -> param("course"));
+    $res = $self -> {"session"} -> set_variable("saved_course", $self -> {"cgi"} -> param("course"));
     return undef unless(defined($res));
 
     my @pathinfo = $self -> {"cgi"} -> param("pathinfo");
