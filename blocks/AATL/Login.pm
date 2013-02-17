@@ -25,12 +25,12 @@ package AATL::Login;
 use strict;
 use base qw(AATL); # This class extends the AATL block class
 use Webperl::Utils qw(path_join is_defined_numeric);
-
+use Data::Dumper;
 
 # ============================================================================
 #  Emailer functions
 
-## @method $ send_reg_email($user, $password)
+## @method $ register_email($user, $password)
 # Send a registration welcome message to the specified user. This send an email
 # to the user including their username, password, and a link to the activation
 # page for their account.
@@ -38,7 +38,7 @@ use Webperl::Utils qw(path_join is_defined_numeric);
 # @param user     A reference to a user record hash.
 # @param password The unencrypted version of the password set for the user.
 # @return undef on success, otherwise an error message.
-sub send_reg_email {
+sub register_email {
     my $self     = shift;
     my $user     = shift;
     my $password = shift;
@@ -59,6 +59,46 @@ sub send_reg_email {
                                                                                                             "***act_code***" => $user -> {"act_code"},
                                                                                                             "***act_url***"  => $acturl,
                                                                                                             "***act_form***" => $actform,
+                                                                                                           }),
+                                                         recipients       => [ $user -> {"user_id"} ],
+                                                         send_immediately => 1);
+    return ($status ? undef : $self -> {"messages"} -> errstr());
+}
+
+
+## @method $ lockout_email($user, $password, $actcode, $faillimit)
+# Send a message to a user informing them that their account has been locked, and
+# they need to reactivate it.
+#
+# @param user      A reference to a user record hash.
+# @param password  The unencrypted version of the password set for the user.
+# @param actcode   The activation code set for the account.
+# @param faillimit The number of login failures the user can have.
+# @return undef on success, otherwise an error message.
+sub lockout_email {
+    my $self      = shift;
+    my $user      = shift;
+    my $password  = shift;
+    my $actcode   = shift;
+    my $faillimit = shift;
+
+    # Build URLs to place in the email.
+    my $acturl  = $self -> build_url("fullurl"  => 1,
+                                     "block"    => "login",
+                                     "pathinfo" => [],
+                                     "params"   => "actcode=".$user -> {"act_code"});
+    my $actform = $self -> build_url("fullurl"  => 1,
+                                     "block"    => "login",
+                                     "pathinfo" => [ "activate" ]);
+
+    my $status =  $self -> {"messages"} -> queue_message(subject => $self -> {"template"} -> replace_langvar("LOGIN_LOCKOUT_SUBJECT"),
+                                                         message => $self -> {"template"} -> load_template("login/email_lockout.tem",
+                                                                                                           {"***username***"  => $user -> {"username"},
+                                                                                                            "***password***"  => $password,
+                                                                                                            "***act_code***"  => $actcode,
+                                                                                                            "***act_url***"   => $acturl,
+                                                                                                            "***act_form***"  => $actform,
+                                                                                                            "***faillimit***" => $faillimit,
                                                                                                            }),
                                                          recipients       => [ $user -> {"user_id"} ],
                                                          send_immediately => 1);
@@ -277,7 +317,84 @@ sub validate_passchange {
     my $errors = "";
     my $args   = {};
 
+    # Need to get a logged-in user before anything else is done
+    my $user = $self -> {"session"} -> get_user_byid();
+    return ($self -> {"template"} -> load_template("login/passchange_errors.tem",
+                                                   {"***errors***" => $self -> {"template"} -> load_template("login/passchange_error.tem",
+                                                                                                             {"***error***" => "{L_LOGIN_PASSCHANGE_ERRNOUSER}"})
+                                                   }), $args)
+        if($self -> {"session"} -> anonymous_session() || !$user);
 
+    # Double-check that the user's authmethod actually /allows/ password changes
+    my $auth_passchange = $self -> {"session"} -> {"auth"} -> capabilities($user -> {"username"}, "passchange");
+    return ($self -> {"template"} -> load_template("login/passchange_errors.tem",
+                                                   {"***errors***" => $self -> {"template"} -> load_template("login/passchange_error.tem",
+                                                                                                             {"***error***" => $self -> {"session"} -> {"auth"} -> capabilities($user -> {"username"}, "passchange_message")})
+                                                   }), $args)
+        if(!$auth_passchange);
+
+    # Got a user, so pull in the passwords - new, confirm, and old.
+    ($args -> {"newpass"}, $error) = $self -> validate_string("newpass", {"required"   => 1,
+                                                                          "nicename"   => $self -> {"template"} -> replace_langvar("LOGIN_NEWPASSWORD"),
+                                                                          "minlen"     => 2,
+                                                                          "maxlen"     => 255});
+    $errors .= $self -> {"template"} -> load_template("login/passchange_error.tem", {"***error***" => $error})
+        if($error);
+
+    ($args -> {"confirm"}, $error) = $self -> validate_string("confirm", {"required"   => 1,
+                                                                          "nicename"   => $self -> {"template"} -> replace_langvar("LOGIN_CONFPASS"),
+                                                                          "minlen"     => 2,
+                                                                          "maxlen"     => 255});
+    $errors .= $self -> {"template"} -> load_template("login/passchange_error.tem", {"***error***" => $error})
+        if($error);
+
+    # New and confirm must match
+    $errors .= $self -> {"template"} -> load_template("login/passchange_error.tem", {"***error***" => "{L_LOGIN_PASSCHANGE_ERRMATCH}"})
+        unless($args -> {"newpass"} eq $args -> {"confirm"});
+
+    ($args -> {"oldpass"}, $error) = $self -> validate_string("oldpass", {"required"   => 1,
+                                                                          "nicename"   => $self -> {"template"} -> replace_langvar("LOGIN_OLDPASS"),
+                                                                          "minlen"     => 2,
+                                                                          "maxlen"     => 255});
+    $errors .= $self -> {"template"} -> load_template("login/passchange_error.tem", {"***error***" => $error})
+        if($error);
+
+    # New and old must not match
+    $errors .= $self -> {"template"} -> load_template("login/passchange_error.tem", {"***error***" => "{L_LOGIN_PASSCHANGE_ERRSAME}"})
+        if($args -> {"newpass"} eq $args -> {"oldpass"});
+
+    # Check that the old password is actually valid
+    $errors .= $self -> {"template"} -> load_template("login/passchange_error.tem", {"***error***" => "{L_LOGIN_PASSCHANGE_ERRVALID}"})
+        unless($self -> {"session"} -> {"auth"} -> valid_user($user -> {"username"}, $args -> {"oldpass"}));
+
+    # Now apply policy if needed
+    my $policy_fails = $self -> {"session"} -> {"auth"} -> apply_policy($user -> {"username"}, $args -> {"newpass"});
+    print STDERR "Policy: ".Dumper($policy_fails)."\n";
+
+    if($policy_fails) {
+        foreach my $name (@{$policy_fails -> {"policy_order"}}) {
+            next if(!$policy_fails -> {$name});
+            $errors .= $self -> {"template"} -> load_template("login/passchange_error.tem", {"***error***"   => "{L_LOGIN_".uc($name)."ERR}",
+                                                                                             "***set***"     => $policy_fails -> {$name} -> [1],
+                                                                                             "***require***" => $policy_fails -> {$name} -> [0] });
+        }
+    }
+
+    # Any errors accumulated up to this point mean that changes don't happen...
+    return ($self -> {"template"} -> load_template("login/passchange_errors.tem", {"***errors***" => $errors}), $args)
+        if($errors);
+
+    # Password is good, change it
+    $self -> {"session"} -> {"auth"} -> set_password($user -> {"username"}, $args -> {"newpass"})
+        or return ($self -> {"template"} -> load_template("login/passchange_errors.tem",
+                                                          {"***errors***" => $self -> {"template"} -> load_template("login/passchange_error.tem",
+                                                                                                                    {"***error***" => $self -> {"session"} -> {"auth"} -> errstr()})
+                                                          }), $args);
+
+    # No need to keep the passchange variable now
+    $self -> {"session"} -> set_variable("passchange_reason", undef);
+
+    return ($user, $args);
 }
 
 
@@ -372,7 +489,7 @@ sub validate_register {
         if(!$user);
 
     # Send registration email
-    my $err = $self -> send_reg_email($user, $password);
+    my $err = $self -> register_email($user, $password);
     return ($err, $args) if($err);
 
     # User is registered...
@@ -614,17 +731,14 @@ sub generate_login_form {
 }
 
 
-## @method private @ generate_passchange_form($reason, $error)
+## @method private @ generate_passchange_form($error)
 # Generate a form through which the user can change their password, used to
 # support forced password changes.
 #
-# @param reason A string containing the change reason, should be 'temporary' or 'expired',
-#               defaults to 'temporary' if not specified or valid
 # @param error  A string containing errors related to password changes, or undef.
 # @return An array of two values: the page title string, the code form
 sub generate_passchange_form {
     my $self    = shift;
-    my $reason  = shift;
     my $error   = shift;
     my $reasons = { 'temporary' => "{L_LOGIN_FORCECHANGE_TEMP}",
                     'expired'   => "{L_LOGIN_FORCECHANGE_OLD}", };
@@ -632,8 +746,11 @@ sub generate_passchange_form {
     # convert the password policy to a string
     my $policy = $self -> build_password_policy("login/policy.tem") || "{L_LOGIN_POLICY_NONE}";
 
+    # Reason should be in the 'passchange_reason' session variable.
+    my $reason = $self -> {"session"} -> get_variable("passchange_reason", "temporary");
+
     # Force a sane reason
-    $reason = 'temporary' unless($reason && ($reason eq 'expired'));
+    $reason = 'temporary' unless($reason && $reasons -> {$reason});
 
     # Wrap the error message in a message box if we have one.
     $error = $self -> {"template"} -> load_template("login/error_box.tem", {"***message***" => $error})
@@ -938,8 +1055,25 @@ sub page_display {
     my ($title, $body, $extrahead) = ("", "", "");
     my @pathinfo = $self -> {"cgi"} -> param("pathinfo");
 
+    # User is attempting to do a password change
+    if(defined($self -> {"cgi"} -> param("changepass"))) {
+
+        # Check the password is valid
+        my ($user, $args) = $self -> validate_passchange();
+
+        # Change failed, send back the change form
+        if(!ref($user)) {
+            $self -> log("passchange error", $user);
+            ($title, $body) = $self -> generate_passchange_form($user);
+
+        # Change done, send back the loggedin page
+        } else {
+            $self -> log("password updated", $user);
+            ($title, $body, $extrahead) = $self -> generate_loggedin();
+        }
+
     # If the user is not anonymous, they have logged in already.
-    if(!$self -> {"session"} -> anonymous_session()) {
+    } elsif(!$self -> {"session"} -> anonymous_session()) {
 
         # Is the user requesting a logout? If so, doo eet.
         if(defined($self -> {"cgi"} -> param("logout")) || ($pathinfo[0] && $pathinfo[0] eq "logout")) {
@@ -961,7 +1095,8 @@ sub page_display {
                     # No passchange needed, user is good
                     ($title, $body, $extrahead) = $self -> generate_loggedin();
                 } else {
-                    ($title, $body) = $self -> generate_passchange_form($passchange);
+                    $self -> {"session"} -> set_variable("passchange_reason", $passchange);
+                    ($title, $body) = $self -> generate_passchange_form();
                 }
             } else {
                 $self -> {"logger"} -> die_log($self -> {"cgi"} -> remote_host(), "Logged in session with no user record. This Should Not Happen.");
@@ -997,24 +1132,9 @@ sub page_display {
                 # No passchange needed, user is good
                 ($title, $body, $extrahead) = $self -> generate_loggedin();
             } else {
-                ($title, $body) = $self -> generate_passchange_form($passchange);
+                $self -> {"session"} -> set_variable("passchange_reason", $passchange);
+                ($title, $body) = $self -> generate_passchange_form();
             }
-        }
-
-    # User is attempting to do a password change
-    } elsif(defined($self -> {"cgi"} -> param("passchange"))) {
-
-        # Check the password is valid
-        my ($user, $args) = $self -> validate_passchange();
-
-        # Change failed, send back the change form
-        if(!ref($user)) {
-            $self -> log("passchange error", $user);
-            ($title, $body) = $self -> generate_passchange_form($args -> {"reason"}, $user);
-
-        # Change done, send back the loggedin page
-        } else {
-            ($title, $body, $extrahead) = $self -> generate_loggedin();
         }
 
     # Has a registration attempt been made?
