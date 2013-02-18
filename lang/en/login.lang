@@ -165,7 +165,7 @@ LOGIN_CRACKLIB_DICTWORD   = The password is based on a dictionary word.
 LOGIN_CRACKLIB_DICTBACK   = The password is based on a reversed dictionary word.
 
 # Login limiting
-LOGIN_FAILLIMIT         = You have used ***failcount*** of ***faillimit**** login attempts. If you exceed the limit, your account will be deactivated. If you can not remember your account details, please use the <a href="***url-recover***">account recovery form</a>
+LOGIN_FAILLIMIT         = You have used ***failcount*** of ***faillimit*** login attempts. If you exceed the limit, your account will be deactivated. If you can not remember your account details, please use the <a href="***url-recover***">account recovery form</a>
 LOGIN_LOCKEDOUT         = You have exceeded the number of login failures permitted by the system, and your account has been deactivated. An email has been sent to the address associated with your account explaining how to reactivate your account.
 LOGIN_LOCKOUT_SUBJECT   = {V_[sitename]} account locked
 LOGIN_LOCKOUT_GREETING  = Hi

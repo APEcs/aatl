@@ -86,7 +86,7 @@ sub lockout_email {
     my $acturl  = $self -> build_url("fullurl"  => 1,
                                      "block"    => "login",
                                      "pathinfo" => [],
-                                     "params"   => "actcode=".$user -> {"act_code"});
+                                     "params"   => "actcode=".$actcode);
     my $actform = $self -> build_url("fullurl"  => 1,
                                      "block"    => "login",
                                      "pathinfo" => [ "activate" ]);
@@ -267,7 +267,7 @@ sub validate_login {
         if($failcount <= $limit) {
             # Yes, return a fail message, potentially with a failure limit warning
             return ($self -> {"template"} -> load_template("login/failed.tem",
-                                                           {"***failmsg***"     => $failmsg,
+                                                           {"***reason***"      => $failmsg,
                                                             "***failcount***"   => $failcount,
                                                             "***faillimit***"   => $limit,
                                                             "***failremain***"  => $limit - $failcount,
@@ -283,10 +283,10 @@ sub validate_login {
             if($user) {
                 my ($newpass, $actcode) = $self -> {"session"} -> {"auth"} -> reset_password_actcode($args -> {"username"});
 
-                $self -> lockout_email($user, $newpass, $actcode);
+                $self -> lockout_email($user, $newpass, $actcode, $limit);
 
                 return ($self -> {"template"} -> load_template("login/lockedout.tem",
-                                                           {"***failmsg***"    => $failmsg,
+                                                           {"***reason***"     => $failmsg,
                                                             "***failcount***"  => $failcount,
                                                             "***faillimit***"  => $limit,
                                                             "***failremain***" => $limit - $failcount
