@@ -301,6 +301,8 @@ var LightFace = new Class({
     _resize: function() {
         var height = this.options.height;
         if(height == "auto") {
+            this.messageBox.setStyle("height", "auto");
+
             //get the height of the content box
             var max = window.getSize().y - this.options.pad;
             if(this.contentBox.getSize().y > max) height = max;
