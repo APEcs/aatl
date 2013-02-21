@@ -20,3 +20,16 @@
             </ul>
         </div><!-- class="bar-container" -->
     </div><!-- #userbar -->
+<script type="text/javascript">
+// <![CDATA[
+window.addEvent('domready', function() {
+    userbarbox = new LightFace({title: '<div id="ubbox_title">{L_USERBARE_POPUP}</div>',
+                                draggable: false,
+                                overlayAll: true,
+                                content: '<div id="ubbox_body"></div>',
+                                zIndex: 8001,
+                                pad: 200,
+    });
+});
+// ]]>
+</script>
