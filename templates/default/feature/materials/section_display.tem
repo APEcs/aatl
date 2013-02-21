@@ -1,7 +1,7 @@
 <li id="mat-***mid***" class="material ***type***">
 ***controls***
 <dl>
-    <dt id="matview-***mid***" onclick="view_mat('***sid***', '***mid***', '***type***')">***title***</dt>
+    <dt id="matview-***mid***"><a href="***maturl***" onclick="return view_mat('***sid***', '***mid***', '***type***')">***title***</a></dt>
     <dd>***size***, ***extradata******addedit*** <a href="***profile***">***name***</a></dd>
 </dl>
 <!-- ***tags*** -->

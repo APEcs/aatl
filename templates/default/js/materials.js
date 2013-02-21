@@ -517,6 +517,8 @@ function view_mat(sectionid, materialid, type)
     req.post({cid: courseid,
               secid: sectionid,
               mid: materialid});
+
+    return false;
 }
 
 
@@ -557,4 +559,18 @@ function delete_mat(sectionid, materialid)
 
 window.addEvent('domready', function() {
     $$('ul#sectionlist li').each(function(element) { toggle_body(element); });
+
+    /* check the url for autoopen */
+    var showmat = window.location.pathname.indexOf('showmat/');
+    if(showmat != -1) {
+        var matdata = window.location.pathname.substring(showmat + 8);
+
+        /* pull out the sections of the material from the path */
+        var part_exp = /^(\w+)\/(\d+)\/(\d+)/;
+        var parts = part_exp.exec(matdata);
+
+        if(parts) {
+            view_mat(parts[2], parts[3], parts[1]);
+        }
+    }
 });

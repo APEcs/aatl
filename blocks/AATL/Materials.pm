@@ -85,75 +85,74 @@ sub used_capabilities {
 # ============================================================================
 #  Section handling/listing
 
-## @method $ _build_section_admin($section, $userid, $permcache, $temcache)
+## @method $ _build_section_admin($section, $userid, $permcache)
 # Build the block containing icons to trigger the operations the user has access
 # to perform on the specified section.
 #
 # @param section   A reference to a hash containing the section data.
 # @param userid    The ID of the user viewing the section.
 # @param permcache A reference to a hash containing cached permissions.
-# @param temcache  A reference to a hash containing cached templates.
 # @return A string containing the section admin block HTML.
 sub _build_section_admin {
     my $self      = shift;
     my $section   = shift;
     my $userid    = shift;
     my $permcache = shift;
-    my $temcache  = shift;
+    my $controls  = "";
 
     my $canedit   = $permcache -> {"editsection"} ? "enabled" : "disabled";
     my $candelete = $permcache -> {"deletesection"} ? "enabled" : "disabled";
 
-    my $controls  = "";
-       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectionvis_".$canedit},
-                                                              {"***id***"    => $section -> {"id"},
-                                                               "***state***" => $section -> {"visible"} ? "set" : ""});
-       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectionopen_".$canedit},
-                                                              {"***id***"    => $section -> {"id"},
-                                                               "***state***" => $section -> {"open"} ? "set" : ""});
-       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectionedit_".$canedit},
-                                                              {"***id***" => $section -> {"id"}});
-       $controls .= $self -> {"template"} -> process_template($temcache -> {"sectiondel_".$candelete},
-                                                              {"***id***" => $section -> {"id"}});
+    $controls .= $self -> {"template"} -> load_template("feature/materials/controls/default_visible_".$canedit.".tem",
+                                                        {"***id***"    => $section -> {"id"},
+                                                         "***state***" => $section -> {"visible"} ? "set" : ""});
 
-    return $self -> {"template"} -> process_template($temcache -> {"admincontrols"}, {"***controls***" => $controls });
+    $controls .= $self -> {"template"} -> load_template("feature/materials/controls/default_opened_".$canedit.".tem",
+                                                        {"***id***"    => $section -> {"id"},
+                                                         "***state***" => $section -> {"open"} ? "set" : ""});
+
+    $controls .= $self -> {"template"} -> load_template("feature/materials/controls/section_edit_".$canedit.".tem",
+                                                        {"***id***" => $section -> {"id"}});
+
+    $controls .= $self -> {"template"} -> load_template("feature/materials/controls/section_delete_".$candelete.".tem",
+                                                        {"***id***" => $section -> {"id"}});
+
+    return $self -> {"template"} -> load_template("feature/materials/admincontrols.tem", {"***controls***" => $controls });
 }
 
 
-## @method $ _build_section_controls($section, $userid, $permcache, $temcache)
+## @method $ _build_section_controls($section, $userid, $permcache)
 # Build the block containing icons to trigger the operations the user has access
 # to perform with the specified section (adding materials, etc).
 #
 # @param section   A reference to a hash containing the section data.
 # @param userid    The ID of the user viewing the section.
 # @param permcache A reference to a hash containing cached permissions.
-# @param temcache  A reference to a hash containing cached templates.
 # @return A string containing the section admin block HTML.
 sub _build_section_controls {
     my $self      = shift;
     my $section   = shift;
     my $userid    = shift;
     my $permcache = shift;
-    my $temcache  = shift;
 
-    my $canadd   = $permcache -> {"addmaterials"} ? "enabled" : "disabled";
+    my $canadd    = $permcache -> {"addmaterials"} ? "enabled" : "disabled";
 
-    my $controls  = "";
-       $controls .= $self -> {"template"} -> process_template($temcache -> {"matsadd_".$canadd},
-                                                              {"***id***" => $section -> {"id"}});
+    my $controls = $self -> {"template"} -> load_template("feature/materials/controls/material_add_".$canadd.".tem",
+                                                          {"***id***" => $section -> {"id"}});
 
-    return $self -> {"template"} -> process_template($temcache -> {"sectioncontrols"}, {"***controls***" => $controls }) if($controls);
+    return $self -> {"template"} -> load_template("feature/materials/sectioncontrols.tem", {"***controls***" => $controls })
+        if($controls);
+
     return "";
 }
 
 
-## @method private $ _build_section($section, $userid, $permcache, $temcache)
+## @method private $ _build_section($section, $userid, $permcache)
 # Generate the HTML used to show a single section.
 #
 # @param section   A reference to a hash containing the section data.
 # @param userid    The ID of the user viewing the section.
 # @param permcache A reference to a hash containing cached permissions.
-# @param temcache  A reference to a hash containing cached templates.
 # @return A string containing the section HTML.
 sub _build_section {
     my $self      = shift;
@@ -177,8 +176,8 @@ sub _build_section {
     }
 
     # Section admin bar and controls
-    my $admin = $self -> _build_section_admin($section, $userid, $permcache, $temcache);
-    my $controls = $self -> _build_section_controls($section, $userid, $permcache, $temcache);
+    my $admin = $self -> _build_section_admin($section, $userid, $permcache);
+    my $controls = $self -> _build_section_controls($section, $userid, $permcache);
 
     # Work out the classes to apply to the section
     my $section_class = "";
@@ -188,16 +187,16 @@ sub _build_section {
     # state for the open/closed toggle
     my $state = $section -> {"open"} ? "open" : "closed";
 
-    return $self -> {"template"} -> process_template($temcache -> {"section"},
-                                                     {"***id***"       => $section -> {"id"},
-                                                      "***class***"    => $section_class,
-                                                      "***admin***"    => $admin,
-                                                      "***state***"    => $state,
-                                                      "***title***"    => $section -> {"title"},
-                                                      "***content***"  => $contents,
-                                                      "***controls***" => $controls,
-                                                      "***sortable***" => $permcache -> {"sortlist"} ? " sortable" : "",
-                                                     });
+    return $self -> {"template"} -> load_template("feature/materials/section.tem",
+                                                  {"***id***"       => $section -> {"id"},
+                                                   "***class***"    => $section_class,
+                                                   "***admin***"    => $admin,
+                                                   "***state***"    => $state,
+                                                   "***title***"    => $section -> {"title"},
+                                                   "***content***"  => $contents,
+                                                   "***controls***" => $controls,
+                                                   "***sortable***" => $permcache -> {"sortlist"} ? " sortable" : "",
+                                                  });
 }
 
 
@@ -221,22 +220,6 @@ sub _build_section_list {
     # Can the user view hidden sections?
     my $metadataid = $self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"});
 
-    # Cache some templates for list generation
-    my $temcache = { "section"              => $self -> {"template"} -> load_template("feature/materials/section.tem"),
-                     "admincontrols"        => $self -> {"template"} -> load_template("feature/materials/admincontrols.tem"),
-                     "sectionedit_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_enabled.tem"),
-                     "sectionedit_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_disabled.tem"),
-                     "sectiondel_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_enabled.tem"),
-                     "sectiondel_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_disabled.tem"),
-                     "sectionvis_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_enabled.tem"),
-                     "sectionvis_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_disabled.tem"),
-                     "sectionopen_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_enabled.tem"),
-                     "sectionopen_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_disabled.tem"),
-                     "sectioncontrols"      => $self -> {"template"} -> load_template("feature/materials/sectioncontrols.tem"),
-                     "matsadd_enabled"      => $self -> {"template"} -> load_template("feature/materials/controls/material_add_enabled.tem"),
-                     "matsadd_disabled"     => $self -> {"template"} -> load_template("feature/materials/controls/material_add_disabled.tem"),
-    };
-
     # And some permissions
     my $permcache = {
         "viewhidden"    => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.viewhidden"),
@@ -254,7 +237,7 @@ sub _build_section_list {
 
     my $sectionlist = "";
     foreach my $section (@{$sections}) {
-        $sectionlist .= $self -> _build_section($section, $userid, $permcache, $temcache);
+        $sectionlist .= $self -> _build_section($section, $userid, $permcache);
     }
 
     return ($self -> {"template"} -> load_template("feature/materials/sectionlist.tem",
@@ -289,38 +272,36 @@ sub _validate_material_fields {
     my $userid                  = shift;
     my ($args, $error, $errors) = ({"materialid" => shift}, "", "");
 
-    my $errtem = $self -> {"template"} -> load_template("error_item.tem");
-
     # Title and type need validating properly...
     ($args -> {"title"}, $error) = $self -> validate_string("title", {"required" => 1,
                                                                       "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_NEWMAT_TITLE"),
                                                                       "minlen"   => 8,
                                                                       "maxlen"   => 128});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+    $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $error}) if($error);
 
     ($args -> {"type"}, $error) = $self -> validate_options("type", {"required" => 1,
                                                                      "nicename" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_NEWMAT_TYPE"),
                                                                      "source"   => $self -> {"settings"} -> {"database"} -> {"feature::material_modules"},
                                                                      "where"    => "WHERE id > 0 AND module_name = ?"});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+    $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $error}) if($error);
 
     # If the type is bad, nothing else can be done.
     return ($args, undef, $errors) if($error);
 
     # convert the type to a typeid
     $args -> {"typeid"} = $self -> {"materials"} -> get_material_typeid($args -> {"type"})
-        or $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $self -> {"materials"} -> {"errstr"}});
+        or $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $self -> {"materials"} -> {"errstr"}});
 
     # Load the material module, so that it can handle validating its own fields
     my $module = $self -> {"materials"} -> load_materials_module($args -> {"type"});
 
     # This should never actually happen - the validation on type should detect bad types - but check anyway
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***"  => $self -> {"materials"} -> {"errstr"},
-                                                                   "***module***" => $args -> {"type"}})
+    $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***"  => $self -> {"materials"} -> {"errstr"},
+                                                                         "***module***" => $args -> {"type"}})
         if(!$module);
 
     # Now get the material module to do its thing
-    $errors .= $module -> validate_material_fields($metadataid, $userid, $args, $errtem)
+    $errors .= $module -> validate_material_fields($metadataid, $userid, $args)
         if($module);
 
     return ($args, $module, $errors);
@@ -357,22 +338,6 @@ sub _build_api_addsection_response {
     my $section = $self -> {"materials"} -> get_section($sectionid)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
-    # Cache some templates for list generation
-    my $temcache = { "section"              => $self -> {"template"} -> load_template("feature/materials/section.tem"),
-                     "admincontrols"        => $self -> {"template"} -> load_template("feature/materials/admincontrols.tem"),
-                     "sectionedit_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_enabled.tem"),
-                     "sectionedit_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/section_edit_disabled.tem"),
-                     "sectiondel_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_enabled.tem"),
-                     "sectiondel_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/section_delete_disabled.tem"),
-                     "sectionvis_enabled"   => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_enabled.tem"),
-                     "sectionvis_disabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_visible_disabled.tem"),
-                     "sectionopen_enabled"  => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_enabled.tem"),
-                     "sectionopen_disabled" => $self -> {"template"} -> load_template("feature/materials/controls/default_opened_disabled.tem"),
-                     "sectioncontrols"      => $self -> {"template"} -> load_template("feature/materials/sectioncontrols.tem"),
-                     "matsadd_enabled"      => $self -> {"template"} -> load_template("feature/materials/controls/material_add_enabled.tem"),
-                     "matsadd_disabled"     => $self -> {"template"} -> load_template("feature/materials/controls/material_add_disabled.tem"),
-    };
-
     # And some permissions
     my $metadataid = $self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"});
     my $permcache = {
@@ -384,7 +349,7 @@ sub _build_api_addsection_response {
         "addmaterials"  => $self -> {"materials"} -> check_permission($metadataid, $userid, "materials.addmaterials"),
     };
 
-    return $self -> _build_section($section, $userid, $permcache, $temcache);
+    return $self -> _build_section($section, $userid, $permcache);
 }
 
 

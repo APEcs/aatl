@@ -152,7 +152,7 @@ sub _build_api_view_response {
 # ============================================================================
 #  Interface
 
-## @method $ validate_material_fields($metadataid, $userid, $args, $errtem)
+## @method $ validate_material_fields($metadataid, $userid, $args)
 # Validate any fields specific to this materials module, and store the validated
 # results in the provided args hash.
 #
@@ -160,29 +160,25 @@ sub _build_api_view_response {
 #               contain at least two fields: 'title' and 'type'. If this is being invoked
 #               as part of an edit operation, args will also contain 'materialid', the id of
 #               the material being edited.
-# @param errtem A string containing the error template to use when reporting errors. This
-#               contains a replacement marker '***error***' that should be replaced with the
-#               error message as needed.
 # @return An empty string if all fields validated correctly, otherwise a list of errors.
 sub validate_material_fields {
     my $self       = shift;
     my $metadataid = shift;
     my $userid     = shift;
     my $args       = shift;
-    my $errtem     = shift;
     my ($error, $errors) = ("", "");
 
     my $op = "materials.htmlpage.".($args -> {"materialid"} ? "edit" : "add");
     if(!$self -> {"materials"} -> check_permission($metadataid, $userid, $op)) {
         $self -> log("error:materials::htmlpage:validate", "Permission denied when attempting material $op");
-        $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_GENERAL_PERMS")});
+        $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_GENERAL_PERMS")});
     }
 
     ($args -> {"htmlpage"}, $error) = $self -> validate_htmlarea("htmlpage", {"required" => 1,
                                                                               "minlen"   => 8,
                                                                               "nicename" => $self -> {"template"} -> replace_langvar("MATERIALS_TYPE_HTMLPAGE"),
                                                                               "validate" => $self -> {"config"} -> {"Core:validate_htmlarea"}});
-    $errors .= $self -> {"template"} -> process_template($errtem, {"***error***" => $error}) if($error);
+    $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $error}) if($error);
 
     return $errors
 }
@@ -266,6 +262,10 @@ sub section_display {
                                                    "***sid***"       => $sectionid,
                                                    "***mid***"       => $materialid,
                                                    "***type***"      => $self -> {"typename"},
+                                                   "***maturl***"    => $self -> build_url(pathinfo => ["showmat",
+                                                                                                        $self -> {"typename"},
+                                                                                                        $sectionid,
+                                                                                                        $materialid ]),
                                                   });
 }
 
