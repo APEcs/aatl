@@ -269,14 +269,16 @@ sub set_section_opened {
 }
 
 
-## @method $ get_section($sectionid)
+## @method $ get_section($courseid, $sectionid)
 # Obtain the data for a specified section.
 #
+# @param courseid  The ID of the course the section is in.
 # @param sectionid The ID of the section to fetch the data for.
 # @return A reference to a hash containing the section data on success,
 #         undef on error.
 sub get_section {
-    my $self = shift;
+    my $self      = shift;
+    my $courseid  = shift;
     my $sectionid = shift;
 
     $self -> clear_error();
@@ -284,8 +286,9 @@ sub get_section {
     my $secth = $self -> {"dbh"} -> prepare("SELECT *
                                              FROM `".$self -> {"settings"} -> {"database"} -> {"feature::material_sections"}."`
                                              WHERE id = ?
+                                             AND course_id = ?
                                              AND deleted IS NULL");
-    $secth -> execute($sectionid)
+    $secth -> execute($sectionid, $courseid)
         or return $self -> self_error("Unable to execute section lookup query: ".$self -> {"dbh"} -> errstr);
 
     return $secth -> fetchrow_hashref() || $self -> self_error("Unknown section requested");
@@ -295,6 +298,7 @@ sub get_section {
 ## @method $ get_section_metadataid($courseid, $sectionid)
 # Obtain the metadata context id for a specified section.
 #
+# @param courseid  The ID of the course the section is in.
 # @param sectionid The ID of the section to fetch the data for.
 # @return The section metadata id on success, undef on error.
 sub get_section_metadataid {
@@ -463,6 +467,37 @@ sub add_material {
         or return $self -> self_error("Unable to obtain new section row id");
 
     return $materialid;
+}
+
+
+## @method $ edit_material($courseid, $sectionid, $materialid, $userid, $title)
+# Update the title for the specified material. All other material-specific fields need
+# to be updated by the appropriate materials submodule.
+#
+# @param courseid   The ID of the course the material is in.
+# @param sectionid  The ID of the section the material is in.
+# @param materialid The ID of the material to update.
+# @param userid     The ID of the user ediding the material.
+# @param title      The title to set for the material.
+# @return True on success, undef on error.
+sub edit_material {
+    my $self       = shift;
+    my $courseid   = shift;
+    my $sectionid  = shift;
+    my $materialid = shift;
+    my $userid     = shift;
+    my $title      = shift;
+
+    $self -> clear_error();
+
+    my $edith = $self -> {"dbh"} -> prepare("UPDATE `".$self -> {"settings"} -> {"database"} -> {"feature::material_materials"}."`
+                                             SET title = ?
+                                             WHERE course_id = ? AND section_id = ? AND id = ?");
+    my $result = $edith -> execute($title, $courseid, $sectionid, $materialid);
+    return $self -> self_error("Unable to perform material update: ". $self -> {"dbh"} -> errstr) if(!$result);
+    return $self -> self_error("Material update failed, no rows changed") if($result eq "0E0");
+
+    return 1;
 }
 
 

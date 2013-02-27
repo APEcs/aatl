@@ -152,18 +152,22 @@ sub _build_api_view_response {
 # ============================================================================
 #  Interface
 
-## @method $ validate_material_fields($metadataid, $userid, $args)
+## @method $ validate_material_fields($metadataid, $sectionid, $userid, $args)
 # Validate any fields specific to this materials module, and store the validated
 # results in the provided args hash.
 #
-# @param args   A reference to a hash to store field values in. Note that this will already
-#               contain at least two fields: 'title' and 'type'. If this is being invoked
-#               as part of an edit operation, args will also contain 'materialid', the id of
-#               the material being edited.
+# @param metadataid The ID of the metadata context associated with this material.
+# @param sectionid  The ID of the section the material is in.
+# @param userid     The ID of the user adding/editing the material.
+# @param args       A reference to a hash to store field values in. Note that this will already
+#                   contain at least two fields: 'title' and 'type'. If this is being invoked
+#                   as part of an edit operation, args will also contain 'materialid', the id of
+#                   the material being edited.
 # @return An empty string if all fields validated correctly, otherwise a list of errors.
 sub validate_material_fields {
     my $self       = shift;
     my $metadataid = shift;
+    my $sectionid  = shift;
     my $userid     = shift;
     my $args       = shift;
     my ($error, $errors) = ("", "");
@@ -193,14 +197,68 @@ sub validate_material_fields {
 # @param args       A reference to a hash containing the complete material data.
 # @return The new material data id on success, undef on error.
 sub add_material {
-    my $self = shift;
-    my $sectionid = shift;
+    my $self       = shift;
+    my $sectionid  = shift;
     my $materialid = shift;
     my $userid     = shift;
     my $args       = shift;
 
     return $self -> {"htmlpage"} -> add_material($materialid, $userid, $args -> {"htmlpage"});
 }
+
+
+## @method @ editform($materialid, $sectionid, $userid)
+# Generate the HTML response to show in the material edit form popup window.
+#
+# @param sectionid  The ID of the section the material is in.
+# @param materialid The ID of the material to edit.
+# @param userid     The ID of the user editing the material.
+# @return The name of the material, and a string containing the material edit form
+#         on success, or a single reference to an API error hash on error.
+sub editform {
+    my $self       = shift;
+    my $materialid = shift;
+    my $sectionid  = shift;
+    my $userid     = shift;
+
+    $self -> log("materials::htmlpage:editform", "User editing html page $materialid in section $sectionid");
+
+    my $editmaterial = $self -> {"materials"} -> check_permission($self -> {"system"} -> {"courses"} -> get_course_metadataid($self -> {"courseid"}),
+                                                                $userid,
+                                                                "materials.htmlpage.edit");
+    if(!$editmaterial) {
+        $self -> log("error:materials::htmlpage:editform", "Permission denied when attempting edit a html page");
+        return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIEDITMAT_PERMS"));
+    }
+
+    # Get the material data...
+    my $material = $self -> {"htmlpage"} -> get_view_data($self -> {"courseid"}, $sectionid, $materialid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"htmlpage"} -> {"errstr"}}));
+
+    return ($material -> {"title"},
+            $self -> {"template"} -> load_template("feature/materials/htmlpage/editform.tem",
+                                                   {"***title***"    => $material -> {"title"},
+                                                    "***htmlpage***" => $material -> {"htmldata"} }));
+}
+
+
+## @method $ edit_material($material, $userid, $args)
+# Update the material-specific data in the database.
+#
+# @param material  A reference to a hash containing the material header.
+# @param userid    The ID of the user adding the material.
+# @param args      A reference to a hash containing the validated user-entered material data.
+# @return The new material data id on success, undef on error
+sub edit_material {
+    my $self      = shift;
+    my $material  = shift;
+    my $userid    = shift;
+    my $args      = shift;
+
+    # For "editing", create a new material entry and link it to the existing on via a previous link...
+    return $self -> {"htmlpage"} -> add_material($material -> {"id"}, $userid, $args -> {"htmlpage"}, $material -> {"type_data_id"});
+}
+
 
 
 ## @method $ extra_header()
@@ -285,8 +343,6 @@ sub page_display {
             return $self -> api_html_response($self -> _build_api_addform_response());
         } elsif($apiop eq "view") {
             return $self -> api_html_response($self -> _build_api_view_response());
-        } elsif($apiop eq "edit") {
-
         } else {
             return $self->api_html_response($self -> api_errorhash('bad_op', $self -> {"template"} -> replace_langvar("API_BAD_OP")));
         }

@@ -43,6 +43,10 @@ FEATURE_MATERIALS_APIADD_FAIL    = Material addition failed
 
 FEATURE_MATERIALS_ERR_BADMODULE  = Unsupported materials module '***module***'
 
+FEATURE_MATERIALS_EDITMAT_EDIT   = Edit material
+FEATURE_MATERIALS_EDITMAT_TITLE  = Name
+FEATURE_MATERIALS_EDITMAT_TYPERR = Incorrect type specified in submitted data.
+
 # Types of materials
 MATERIALS_TYPE_NONE               = - Select a type -
 MATERIALS_TYPE_HTMLPAGE           = HTML Page

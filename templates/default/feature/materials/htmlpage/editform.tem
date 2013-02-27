@@ -1,0 +1,8 @@
+<div class="textwrapper"><textarea name="edithtmlpage" id="edithtmlpage" rows="10" cols="80">***htmlpage***</textarea></div>
+<script type="text/javascript">
+    ckeditlist = new Array();
+    ckeditlist.push('edithtmlpage');
+    subformsave = function(formdata) {
+        formdata['htmlpage'] = CKEDITOR.instances['edithtmlpage'].getData();
+    };
+</script>

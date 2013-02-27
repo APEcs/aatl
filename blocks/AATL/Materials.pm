@@ -253,12 +253,13 @@ sub _build_section_list {
 # ============================================================================
 #  Validation support functions
 
-## @method private @ _validate_material_fields($metadataid, $userid, $materialid)
+## @method private @ _validate_material_fields($metadataid, $sectionid, $userid, $materialid)
 # Determine whether the materials information submitted by the user is valid.
 # This will validate any common material fields, and then invoke the appropriate
 # materials module to validate the remaining fields.
 #
 # @param metadataid The ID of the metadata context the material is in.
+# @param sectionid  The ID of the section the material is in.
 # @param userid     The ID of the user adding or editing the material.
 # @param materialid If this function is being called as part of an edit process,
 #                   this parameter contains the ID of the material being edited.
@@ -269,8 +270,13 @@ sub _build_section_list {
 sub _validate_material_fields {
     my $self                    = shift;
     my $metadataid              = shift;
+    my $sectionid               = shift;
     my $userid                  = shift;
     my ($args, $error, $errors) = ({"materialid" => shift}, "", "");
+
+    # Before doing anything else, make sure the section is valid, if it isn't, just give up as nothing else matters.
+    my $section = $self -> {"materials"} -> get_section($self -> {"courseid"}, $sectionid)
+        or return ({}, undef, $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
     # Title and type need validating properly...
     ($args -> {"title"}, $error) = $self -> validate_string("title", {"required" => 1,
@@ -292,6 +298,23 @@ sub _validate_material_fields {
     $args -> {"typeid"} = $self -> {"materials"} -> get_material_typeid($args -> {"type"})
         or $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $self -> {"materials"} -> {"errstr"}});
 
+    # If the materialid is specified (ie: this is an edit) confirm that the type hasn't been changed
+    if($args -> {"materialid"}) {
+        my $material = $self -> {"materials"} -> get_material($self -> {"courseid"}, $sectionid, $args -> {"materialid"});
+
+        # unable to continue if the material has not been found.
+        if(!$material) {
+            $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $self -> {"materials"} -> {"errstr"}});
+            return ($args, undef, $errors);
+        }
+
+        # Give up if the type is incorrect
+        if($args -> {"typeid"} != $material -> {"type_id"}) {
+            $errors .= $self -> {"template"} -> load_template("error_item.tem", {"***error***" => $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_EDITMAT_TYPERR") });
+            return ($args, undef, $errors);
+        }
+    }
+
     # Load the material module, so that it can handle validating its own fields
     my $module = $self -> {"materials"} -> load_materials_module($args -> {"type"});
 
@@ -301,7 +324,7 @@ sub _validate_material_fields {
         if(!$module);
 
     # Now get the material module to do its thing
-    $errors .= $module -> validate_material_fields($metadataid, $userid, $args)
+    $errors .= $module -> validate_material_fields($metadataid, $sectionid, $userid, $args)
         if($module);
 
     return ($args, $module, $errors);
@@ -335,7 +358,7 @@ sub _build_api_addsection_response {
 
     $self -> log("materials:addsection", "User added new section with id $sectionid");
 
-    my $section = $self -> {"materials"} -> get_section($sectionid)
+    my $section = $self -> {"materials"} -> get_section($self -> {"courseid"}, $sectionid)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
     # And some permissions
@@ -482,7 +505,7 @@ sub _build_api_defaultvisible_response {
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_PERMS"));
     }
 
-    my $section = $self -> {"materials"} -> get_section($id)
+    my $section = $self -> {"materials"} -> get_section($self -> {"courseid"}, $id)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
     return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_BADCID"))
@@ -520,7 +543,7 @@ sub _build_api_defaultopen_response {
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_PERMS"));
     }
 
-    my $section = $self -> {"materials"} -> get_section($id)
+    my $section = $self -> {"materials"} -> get_section($self -> {"courseid"}, $id)
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
     return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIVISSEC_BADCID"))
@@ -590,7 +613,7 @@ sub _build_api_addmat_response {
         return $self -> api_errorhash("bad_perm", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_APIADDMAT_PERMS"));
     }
 
-    my ($args, $module, $errors) = $self -> _validate_material_fields($metadataid, $userid);
+    my ($args, $module, $errors) = $self -> _validate_material_fields($metadataid, $sectionid, $userid);
     return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
                                                                                        {"***message***" => "{L_FEATURE_MATERIALS_APIADD_FAIL}",
                                                                                         "***errors***"  => $errors}))
@@ -606,6 +629,79 @@ sub _build_api_addmat_response {
         or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
     $self -> log("materials:addmat", "User add material with title '".$args -> {"title"}."' to section $sectionid");
+
+    return $module -> section_display($sectionid, $materialid, $userid);
+}
+
+
+## @method private $ _build_api_editmatform_response($matmodule)
+# Generate the material addition form to send back to the client to embed in the
+# page.
+#
+# @param matmodule The Materials module implementing the selected material type.
+# @return A string or hash containing the API response.
+sub _build_api_editmatform_response {
+    my $self      = shift;
+    my $matmodule = shift;
+
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $materialid = is_defined_numeric($self -> {"cgi"}, "mid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOMID"));
+
+    my $sectionid = is_defined_numeric($self -> {"cgi"}, "secid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOSID"));
+
+    my ($title, $matbody) = $matmodule -> editform($materialid, $sectionid, $userid);
+    return $title if(ref($title) eq "HASH"); # If the first value returned is a hashref, it is an error...
+
+    return $self -> {"template"} -> load_template("feature/materials/editform.tem", {"***title***" => $title,
+                                                                                     "***matform***" => $matbody });
+}
+
+
+## @method private $ _build_api_editmat_response($matmodule)
+# Edit a material in the course. This edits the settings for the specified material, if
+# possible, invoking the material module's validation and edit functions to update the
+# material data.
+#
+# @param matmodule The Materials module implementing the selected material type.
+# @return A string or hash containing the API response.
+sub _build_api_editmat_response {
+    my $self      = shift;
+    my $matmodule = shift;
+
+    my $userid = $self -> {"session"} -> get_session_userid();
+
+    my $materialid = is_defined_numeric($self -> {"cgi"}, "mid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOMID"));
+
+    my $sectionid = is_defined_numeric($self -> {"cgi"}, "secid")
+        or return $self -> api_errorhash("no_id", $self -> {"template"} -> replace_langvar("FEATURE_MATERIALS_API_NOSID"));
+
+    $self -> log("materials:editmat", "User editing material $materialid in section $sectionid");
+
+    # Get the material header, so we can get the metadata context and other data
+    my $material = $self -> {"materials"} -> get_material($self -> {"courseid"}, $sectionid, $materialid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    my ($args, $module, $errors) = $self -> _validate_material_fields($material -> {"metadata_id"}, $sectionid, $userid, $materialid);
+    return $self -> api_errorhash("bad_values", $self -> {"template"} -> load_template("error_list.tem",
+                                                                                       {"***message***" => "{L_FEATURE_MATERIALS_APIADD_FAIL}",
+                                                                                        "***errors***"  => $errors}))
+        if($errors);
+
+    # Everything should be valid, update the material header and then the data
+    $self -> log("materials:editmat", "Setting material $materialid title to: ".$args -> {"title"});
+    $self -> {"materials"} -> edit_material($self -> {"courseid"}, $sectionid, $materialid, $userid, $args -> {"title"})
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
+
+    my $dataid = $module -> edit_material($material, $userid, $args)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $module -> {"errstr"}}));
+
+    # Update the material data link to reflect the new data
+    $self -> {"materials"} -> set_material_dataid($self -> {"courseid"}, $sectionid, $materialid, $dataid)
+        or return $self -> api_errorhash("internal_error", $self -> {"template"} -> replace_langvar("API_ERROR", {"***error***" => $self -> {"materials"} -> {"errstr"}}));
 
     return $module -> section_display($sectionid, $materialid, $userid);
 }
@@ -784,9 +880,17 @@ sub page_display {
         if(defined($pathinfo[2])) {
             my $matmodule = $self -> {"materials"} -> load_materials_module($pathinfo[2]);
 
-            # Let the material module handle the request
+            # Dispatch the call to the appropriate handler
             if($matmodule) {
-                return $matmodule -> page_display();
+                given($apiop) {
+                    when("editform") { return $self -> api_html_response($self -> _build_api_editmatform_response($matmodule)); }
+                    when("editmat")  { return $self -> api_html_response($self -> _build_api_editmat_response($matmodule)); }
+
+                    # If it isn't an operation the Materials page knows how to handle, hopefully the module can do it
+                    default {
+                        return $matmodule -> page_display();
+                    }
+                }
 
             # No matching material module? Give up.
             } else {

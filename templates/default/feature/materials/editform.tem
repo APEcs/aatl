@@ -1,0 +1,10 @@
+                <div class="title" style="display:none">{L_FEATURE_MATERIALS_EDITMAT_EDIT}</div>
+                <div class="addform">
+                    <div class="entry">
+                        <label for="newtitle">{L_FEATURE_MATERIALS_EDITMAT_TITLE}:<br />
+                        <input type="text" id="mattitle" name="mattitle" class="highlight" size="80" maxlength="128" value="***title***"/></label>
+                    </div>
+                    <div id="matform">
+                        ***matform***
+                    </div>
+                </div>

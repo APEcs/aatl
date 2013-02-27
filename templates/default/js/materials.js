@@ -43,7 +43,7 @@ function add_section()
                                      addlock = false;
                                  }
                                });
-    req.send();
+    req.send("cid="+courseid);
 }
 
 
@@ -334,81 +334,6 @@ function toggle_body(element) {
 }
 
 
-
-function add_material(sectionid)
-{
-    var req = new Request.HTML({ url: api_request_path("materials", "addmatform"),
-                                 method: 'post',
-                                 onRequest: function() {
-                                     $('addmat-'+sectionid).addClass('working');
-                                     show_spinner($('addmat-'+sectionid));
-                                 },
-                                 onSuccess: function(respTree, respElems, respHTML) {
-                                     hide_spinner($('addmat-'+sectionid));
-                                     $('addmat-'+sectionid).removeClass('working');
-
-                                     var err = respHTML.match(/^<div id="apierror"/);
-
-                                     if(err) {
-                                         $('errboxmsg').set('html', respHTML);
-                                         errbox.open();
-                                     } else {
-                                         var tmp = new Element('div').adopt(respTree);
-
-                                         var title = tmp.getElement('div.title').get('text');
-
-                                         $('poptitle').set('text', title);
-                                         $('popbody').empty().grab(tmp);
-                                         popbox.setButtons([{title: addbtn_name, color: 'blue', event: function() { do_add_material(sectionid) } },
-                                                            {title: cancelbtn_name, color: 'blue', event: function() { popbox.close(); }}]);
-                                         popbox.buttons[0].disabled = true;
-                                         popbox.open();
-                                     }
-                                 }
-                               });
-    req.send("secid="+sectionid);
-}
-
-
-function do_add_material(sectionid)
-{
-    var req = new Request.HTML({ url: api_request_path("materials", "addmat"),
-                                 method: 'post',
-                                 onRequest: function() {
-                                     show_spinner(popbox.footer, 'top');
-                                     popbox.buttons[0].disabled = true;
-                                 },
-                                 onSuccess: function(respTree, respElems, respHTML) {
-                                     hide_spinner(popbox.footer);
-
-                                     var err = respHTML.match(/^<div id="apierror"/);
-
-                                     if(err) {
-                                         $('errboxmsg').set('html', respHTML);
-                                         errbox.open();
-                                         popbox.buttons[0].disabled = false;
-                                     } else {
-                                         clear_newmat_body($('matform'));
-                                         popbox.close();
-
-                                         var tmp = new Element('div').adopt(respTree);
-                                         tmp = tmp.getChildren()[0];
-                                         tmp.setStyle('display', 'none');
-
-                                         $('secdata-'+sectionid).adopt(tmp);
-                                         tmp.reveal();
-                                     }
-                                 }
-                               });
-    var formdata = { secid: sectionid,
-                     title: $('newtitle').get('value'),
-                     type: $('newtype').get('value'),
-                   };
-    subformsave(formdata);
-
-    req.post(formdata);
-}
-
 /** Set the new material form to the specified tree.
  *  This sets the contents of the container to the specified body, replaces any text areas
  *  that should be ckeditor instances, and reveals the new body. It assumes that
@@ -483,6 +408,82 @@ function select_newmat_type()
 }
 
 
+function add_material(sectionid)
+{
+    var req = new Request.HTML({ url: api_request_path("materials", "addmatform"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('addmat-'+sectionid).addClass('working');
+                                     show_spinner($('addmat-'+sectionid));
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     hide_spinner($('addmat-'+sectionid));
+                                     $('addmat-'+sectionid).removeClass('working');
+
+                                     var err = respHTML.match(/^<div id="apierror"/);
+
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+
+                                         var title = tmp.getElement('div.title').get('text');
+
+                                         $('poptitle').set('text', title);
+                                         $('popbody').empty().grab(tmp);
+                                         popbox.setButtons([{title: addbtn_name, color: 'blue', event: function() { do_add_material(sectionid) } },
+                                                            {title: cancelbtn_name, color: 'blue', event: function() { popbox.close(); }}]);
+                                         popbox.buttons[0].disabled = true;
+                                         popbox.open();
+                                     }
+                                 }
+                               });
+    req.send("cid="+courseid+"&secid="+sectionid);
+}
+
+
+function do_add_material(sectionid)
+{
+    var req = new Request.HTML({ url: api_request_path("materials", "addmat"),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     show_spinner(popbox.footer, 'top');
+                                     popbox.buttons[0].disabled = true;
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     hide_spinner(popbox.footer);
+
+                                     var err = respHTML.match(/^<div id="apierror"/);
+
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+                                         popbox.buttons[0].disabled = false;
+                                     } else {
+                                         clear_newmat_body($('matform'));
+                                         popbox.close();
+
+                                         var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+                                         tmp.setStyle('display', 'none');
+
+                                         $('secdata-'+sectionid).adopt(tmp);
+                                         tmp.reveal();
+                                     }
+                                 }
+                               });
+    var formdata = { cid: courseid,
+                     secid: sectionid,
+                     title: $('newtitle').get('value'),
+                     type: $('newtype').get('value'),
+                   };
+    subformsave(formdata);
+
+    req.post(formdata);
+}
+
+
 function view_mat(sectionid, materialid, type)
 {
     var req = new Request.HTML({ url: api_request_path("materials", "view/"+type ),
@@ -519,6 +520,98 @@ function view_mat(sectionid, materialid, type)
               mid: materialid});
 
     return false;
+}
+
+
+function edit_mat(sectionid, materialid, type)
+{
+    var req = new Request.HTML({ url: api_request_path("materials", "editform/"+type ),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     $('matview-'+materialid).removeEvents('click');
+                                     $('matview-'+materialid).addClass('disabled');
+                                     show_spinner($('matview-'+materialid));
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     hide_spinner($('matview-'+materialid));
+                                     var err = respHTML.match(/^<div id="apierror"/);
+
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+                                     } else {
+                                         var tmp = new Element('div').adopt(respTree);
+
+                                         var title = tmp.getElement('div.title').get('text');
+
+                                         $('poptitle').set('text', title);
+                                         $('popbody').empty().grab(tmp);
+
+                                         ckeditlist.each(function(editname) {
+                                                             CKEDITOR.replace(editname, { customConfig: ckeditor_config });
+                                                         });
+
+                                         popbox.setButtons([{title: editbtn_name, color: 'blue', event: function() { do_edit_material(sectionid, materialid, type); }},
+                                                            {title: closebtn_name, color: 'blue', event: function() { popbox.close(); }}]);
+                                         popbox.open();
+                                     }
+
+                                     $('matview-'+materialid).addEvent('click', function() { view_mat(sectionid, materialid, type); });
+                                     $('matview-'+materialid).removeClass('disabled');
+                                 }
+                              });
+    req.post({cid: courseid,
+              secid: sectionid,
+              mid: materialid});
+
+    return false;
+}
+
+
+function do_edit_material(sectionid, materialid, type)
+{
+    var req = new Request.HTML({ url: api_request_path("materials", "editmat/"+type),
+                                 method: 'post',
+                                 onRequest: function() {
+                                     show_spinner(popbox.footer, 'top');
+                                     popbox.buttons[0].disabled = true;
+                                 },
+                                 onSuccess: function(respTree, respElems, respHTML) {
+                                     hide_spinner(popbox.footer);
+
+                                     var err = respHTML.match(/^<div id="apierror"/);
+
+                                     if(err) {
+                                         $('errboxmsg').set('html', respHTML);
+                                         errbox.open();
+                                         popbox.buttons[0].disabled = false;
+                                     } else {
+                                         popbox.close();
+
+                                         ckeditlist.each(function(editname) {
+                                                             CKEDITOR.instances[editname].destroy();
+                                                         });
+                                         ckeditlist.empty();
+
+                                         var tmp = new Element('div').adopt(respTree);
+                                         tmp = tmp.getChildren()[0];
+                                         tmp.setStyle('display', 'none');
+
+                                         var oldElem = $('mat-'+materialid);
+                                         oldElem.dissolve().get('reveal').chain(function() { tmp.replaces(oldElem).reveal();
+                                                                                             oldElem.destroy(); });
+                                     }
+                                 }
+                               });
+    var formdata = { cid: courseid,
+                     secid: sectionid,
+                     mid: materialid,
+                     type: type,
+                     title: $('mattitle').get('value'),
+                   };
+    subformsave(formdata);
+
+    req.post(formdata);
 }
 
 

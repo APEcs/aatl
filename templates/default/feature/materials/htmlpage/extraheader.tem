@@ -1,12 +1,1 @@
-<style type="text/css">
-div.view.htmlpage {
-    background-color: white;
-    border: 1px grey inset;
-    padding: 5px;
-    overflow: auto;
-    overflow-x: auto;
-    overflow-y: auto;
-    max-width: 1000px;
-    text-align: left;
-}
-</style>
+    <link href="{V_[templatepath]}feature/materials/htmlpage/htmlpage.css" rel="stylesheet" type="text/css" />
