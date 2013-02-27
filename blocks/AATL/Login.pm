@@ -187,7 +187,7 @@ sub reset_email {
                                        "pathinfo" => [ ]);
 
     my $status = $self -> {"messages"} -> queue_message(subject => $self -> {"template"} -> replace_langvar("LOGIN_RESET_SUBJECT"),
-                                                        message => $self -> {"template"} -> email_template("login/email_reset.tem",
+                                                        message => $self -> {"template"} -> load_template("login/email_reset.tem",
                                                                                                            {"***username***"  => $user -> {"username"},
                                                                                                             "***password***"  => $password,
                                                                                                             "***login_url***" => $loginform,
